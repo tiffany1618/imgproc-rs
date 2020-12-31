@@ -1,6 +1,10 @@
 use rulinalg::matrix::Matrix;
-use image::{ImageBuffer, GenericImage, Pixel, Rgba};
 use std::collections::HashMap;
+use num::Num;
+
+// Trait for valid image channel types
+pub trait Primitive: Num + Clone {}
+impl<T: Num + Clone> Primitive for T {}
 
 // Colorspace transformation constants
 const LIN_RGB_GAMMA: f32 = 2.2;

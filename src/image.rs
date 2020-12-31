@@ -1,27 +1,22 @@
+use crate::util::Primitive;
 
-// TODO: add primitive type constraint on Pixel and Image
-
-enum PixelType {
-    // TODO
-}
-
-pub struct Pixel<T> {
-    num_channels: u8,
+pub struct Pixel<T: Primitive> {
+    num_channels: usize,
     channels: Vec<T>,
 }
 
-impl<T> Pixel<T> {
-    pub fn new<S>(channels: Vec<S>) -> Pixel<S> {
+impl<T: Primitive> Pixel<T> {
+    pub fn new(channels: &[T]) -> Self {
         Pixel {
             num_channels: channels.len(),
-            channels,
+            channels: channels.to_vec(),
         }
     }
 
-    pub fn empty<S>(num_channels: u8) -> Pixel<S> {
+    pub fn blank(num_channels: usize) -> Self {
         Pixel {
             num_channels,
-            channels: vec![0; num_channels as usize],
+            channels: vec![0 as T; num_channels],
         }
     }
 
@@ -37,11 +32,11 @@ impl<T> Pixel<T> {
 
     // Return all channels except alpha channel as slice
     pub fn channels_no_alpha(&self) -> Vec<T> {
-        self.channels[0..self.num_channels]
+        self.channels[0..self.num_channels].to_vec()
     }
 
     // Apply function f to all channels
-    pub fn map<S>(&self, f: fn(T) -> S) -> Pixel<S> {
+    pub fn map<S: Primitive>(&self, f: fn(T) -> S) -> Pixel<S> {
         let mut channels = Vec::new();
 
         for i in 0..self.num_channels {
@@ -55,14 +50,14 @@ impl<T> Pixel<T> {
     }
 
     // Apply function f to all channels except alpha channel
-    pub fn map_no_alpha<S>(&self, f: fn(T) -> S) -> Pixel<S> {
+    pub fn map_no_alpha<S: Primitive>(&self, f: fn(T) -> S) -> Pixel<S> {
         let mut channels = Vec::new();
 
-        for i in 0..(self.num_channels - 1) {
-            channels.push(f(self.channels[0]));
+        for p in self.channels_no_alpha().iter() {
+            channels.push(f(*p));
         }
 
-        channels.push(self.alpha());
+        channels.push(self.alpha() as S);
 
         Pixel {
             num_channels: self.num_channels,
@@ -71,70 +66,97 @@ impl<T> Pixel<T> {
     }
 }
 
-pub struct Image<T> {
+pub struct Image<T: Primitive> {
     width: u32,
     height: u32,
-    channels: u8,
-    data: Vec<Pixel<T>>,
+    pixels: Vec<Pixel<T>>,
 }
 
-impl<T> Image<T> {
-    pub fn new<S>(path: &str) -> Image<S> {
-        let img = image::open(path).unwrap();
-        let (width, height) = img.dimensions();
-        let channels = img.get_pixel(0, 0).len();
-        let data = Vec::new();
+impl<T: Primitive> Image<T> {
+    pub fn new(width: u32, height: u32, channels: u32, data: &[T]) -> Self {
+        let pixels = Vec::new();
+        let size = width * height * channels;
+        for i in (0..size).step_by(channels as usize) {
+            let pixel = Pixel::new(data[i..(i + channels)]);
+            pixels.push(pixel);
+        }
 
-        for y in 0..height {
-            for x in 0..width {
-                let pixel = Pixel::new(img.get_pixels(x, y).channels());
-                data.push(pixel);
+        Image {width, height, pixels}
+    }
+
+    pub fn blank(width: u32, height: u32, channels: usize) -> Self {
+        Image {
+            width,
+            height,
+            pixels: vec![Pixel::blank(channels); (width * height) as usize],
+        }
+    }
+
+    pub fn dimensions(&self) -> (u32, u32) {
+        (self.width, self.height)
+    }
+
+    pub fn pixels(&self) -> Vec<Pixel<T>> {
+        self.pixels
+    }
+
+    pub fn pixels_as_vector(&self) -> Vec<T> {
+        let pixels_vec = Vec::new();
+
+        for i in self.pixels.iter() {
+            for j in i.channels().iter() {
+                pixels_vec.push(*j);
             }
         }
 
-        Image {
-            width,
-            height,
-            channels,
-            data,
-        }
+        pixels_vec
     }
 
-    pub fn empty<S>(width: u32, height: u32, channels: u8) -> Image<S> {
-        Image {
-            width,
-            height,
-            channels,
-            data: vec![Pixel::empty(channels); (width * height) as usize],
-        }
+    pub fn get_pixel(&self, x: u32, y: u32) -> Pixel<T>{
+        self.pixels[(y * self.width + x) as usize]
     }
 
-    pub fn dimensions(&self) -> (u32, u32, u8) {
-        (self.width, self.height, self.channels)
+    pub fn put_pixel(&mut self, x: u32, y: u32, p: Pixel<T>) {
+        self.pixels[(y * self.width + x) as usize] = p;
     }
 
-    pub fn data(&self) -> Vec<Pixel<T>> {
-        self.data
-    }
-
-    pub fn get_pixel(&self, x: i32, y: i32) -> Pixel<T>{
-        self.data[y * self.width + x]
-    }
-
-    pub fn put_pixel(&mut self, x: i32, y: i32, p: Pixel<T>) {
-        self.data[y * self.width + x] = p;
-    }
-
-    pub fn write(&self, path: &str) {
+    // Apply function f to all pixels
+    // alpha = true to include alpha channel, false otherwise
+    pub fn map_pixels<S: Primitive>(&self, f: fn(&[T]) -> Vec<S>, alpha: bool) -> Image<S> {
         let (width, height) = self.dimensions();
-        let img = image::ImageBuffer::new(width, height);
+        let pixels = Vec::new();
 
         for y in 0..height {
             for x in 0..width {
-                img.put_pixel(x, y, image::Rgba(self.get_pixel(x, y).channels()));
+                if alpha {
+                    let p = Pixel::new(&f(&self.get_pixel(x, y).channels()));
+                    pixels.push(p);
+                } else {
+                    let p = Pixel::new(&f(&self.get_pixel(x, y).channels_no_alpha()));
+                    pixels.push(p)
+                }
             }
         }
 
-        img.save(path);
+        Image {width, height, pixels}
+    }
+
+    // Apply function f to all channels of all pixels
+    // alpha = true to apply to alpha channel, false otherwise
+    pub fn map_channels<S: Primitive>(&self, f: fn(T) -> S, alpha: bool) -> Image<S> {
+        let (width, height) = self.dimensions();
+        let pixels = Vec::new();
+
+        for y in 0..height {
+            for x in 0..width {
+                if alpha {
+                    pixels.push(self.get_pixel(x, y).map(f));
+                } else {
+                    pixels.push(self.get_pixel(x, y).map_no_alpha(f));
+                }
+            }
+        }
+
+        Image {width, height, pixels}
     }
 }

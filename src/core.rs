@@ -1,15 +1,8 @@
-use image::Image;
+use crate::util::Primitive;
+use crate::image::Image;
 
-pub fn rgb_to_grayscale<T>(input: &Image<T>) -> Image<T> {
-    let (width, height, channels) = input.dimensions();
-    let mut output = Image::empty(width, height, channels);
-
-    for y in 0..height {
-        for x in 0..width {
-            let p = input.get_pixel(x, y);
-            output.put_pixel(x, y, vec![(p[0] + p[1] + p[2]) / 3.0, p.alpha()]);
-        }
-    }
-
-    output
+pub fn rgb_to_grayscale<T: Primitive>(input: &Image<T>) -> Image<T> {
+    input.map_pixels(|channels_in| {
+        ((channels_in[0] + channels_in[1] + channels_in[2]) / 3 as T).round() as T
+    }, false)
 }
