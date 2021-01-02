@@ -4,7 +4,7 @@ use std::fmt;
 use png;
 
 #[derive(Debug, Clone)]
-struct FileFormatError;
+pub struct FileFormatError;
 
 impl fmt::Display for FileFormatError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
@@ -17,6 +17,7 @@ pub enum ImageError {
     PngDecodingError(png::DecodingError),
     PngEncodingError(png::EncodingError),
     FormatError(FileFormatError),
+    Other(String),
 }
 
 impl From<io::Error> for ImageError {
@@ -40,5 +41,11 @@ impl From<png::EncodingError> for ImageError {
 impl From<FileFormatError> for ImageError {
     fn from(err: FileFormatError) -> Self {
         ImageError::FormatError(err)
+    }
+}
+
+impl From<String> for ImageError {
+    fn from(err: String) -> Self {
+        ImageError::Other(err)
     }
 }

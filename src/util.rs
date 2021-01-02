@@ -1,20 +1,40 @@
 use rulinalg::matrix::Matrix;
 use std::collections::HashMap;
-use num::Num;
+use std::ops::{Add, Sub, Mul, Div};
 
 // Trait for valid image channel types
-pub trait Primitive: Num + Clone {}
-impl<T: Num + Clone> Primitive for T {}
+pub trait Number:
+    std::clone::Clone
+    + std::marker::Copy
+    + std::fmt::Display
+    + From<u8>
+    + Add<Output=Self>
+    + Sub<Output=Self>
+    + Mul<Output=Self>
+    + Div<Output=Self>
+    where Self: std::marker::Sized {}
+
+impl<T> Number for T
+    where T:
+        std::clone::Clone
+        + std::marker::Copy
+        + std::fmt::Display
+        + From<u8>
+        + Add<Output=T>
+        + Sub<Output=T>
+        + Mul<Output=T>
+        + Div<Output=T>
+    {}
 
 // Colorspace transformation constants
-const LIN_RGB_GAMMA: f32 = 2.2;
-const sRGB_TO_XYZ_MAT: Matrix<f32> = Matrix::new(3, 3, vec![0.4124564, 0.3575761, 0.1804375,
-                                                            0.2126729, 0.7151522, 0.0721750,
-                                                            0.0193339, 0.1191920, 0.9503041]);
-const XYZ_TO_sRGB_MAT: Matrix<f32> = Matrix::new(3, 3, vec![3.2404542, -1.5371385, -0.4985314,
-                                                            -0.9692660, 1.8760108, 0.0415560,
-                                                            0.0556434, -0.2040259, 1.0572252]);
-
+// const LIN_RGB_GAMMA: f32 = 2.2;
+// const sRGB_TO_XYZ_MAT: Matrix<f32> = Matrix::new(3, 3, vec![0.4124564, 0.3575761, 0.1804375,
+//                                                             0.2126729, 0.7151522, 0.0721750,
+//                                                             0.0193339, 0.1191920, 0.9503041]);
+// const XYZ_TO_sRGB_MAT: Matrix<f32> = Matrix::new(3, 3, vec![3.2404542, -1.5371385, -0.4985314,
+//                                                             -0.9692660, 1.8760108, 0.0415560,
+//                                                             0.0556434, -0.2040259, 1.0572252]);
+//
 // // Image helper functions
 // fn generate_xys_tristimulus_vals(ref_white: &str) -> Option<(f32, f32, f32)> {
 //     return match ref_white {

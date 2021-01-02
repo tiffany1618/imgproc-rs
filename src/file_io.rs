@@ -3,7 +3,7 @@ use std::fs::File;
 use std::io;
 use std::result::Result;
 
-use png;
+use png::HasParameters;
 use jpeg_decoder;
 
 use crate::image::Image;
@@ -15,7 +15,17 @@ fn png_color_type_to_channels(color_type: png::ColorType) -> u8 {
         png::ColorType::GrayscaleAlpha => 2,
         png::ColorType::RGB => 3,
         png::ColorType::RGBA => 4,
-        png::ColorType::Indexed => 0, // TODO: fix this
+        png::ColorType::Indexed => 0, // TODO: Fix this
+    }
+}
+
+fn png_channels_to_color_type(channels: u8) -> Result<png::ColorType, ImageError> {
+    match channels {
+        1 => Ok(png::ColorType::Grayscale),
+        2 => Ok(png::ColorType::GrayscaleAlpha),
+        3 => Ok(png::ColorType::RGB),
+        4 => Ok(png::ColorType::RGBA),
+        _ => Err(ImageError::Other("invalid number of channels".to_string())), // TODO: Add png::ColorType::Indexed
     }
 }
 
@@ -25,18 +35,21 @@ fn decode_png(filename: &str) -> Result<Image<u8>, ImageError> {
     let mut buf = vec![0; info.buffer_size()];
     reader.next_frame(&mut buf)?;
 
-    let channels = png_color_type_to_channels(info.color_type) as u32;
+    let channels = png_color_type_to_channels(info.color_type);
 
     Ok(Image::new(info.width, info.height, channels, &buf))
 }
 
 fn encode_png(input: &Image<u8>, path: &Path) -> Result<(), ImageError> {
-    let (width, height) = input.dimensions();
+    let (width, height, channels) = input.dimensions_with_channels();
     let file = File::create(path)?;
     let ref mut file_writer = io::BufWriter::new(file);
 
     let mut encoder = png::Encoder::new(file_writer, width, height);
-    encoder.set(png::ColorType::RGBA).set(png::BitDepth::Eight);
+    let color_type = png_channels_to_color_type(channels)?;
+    encoder.set(color_type).set(png::BitDepth::Eight);
+
+    println!("{}", channels);
 
     let mut png_writer = encoder.write_header()?;
     png_writer.write_image_data(&input.pixels_as_vector())?;
@@ -61,7 +74,7 @@ pub fn read(filename: &str) -> Result<Image<u8>, ImageError> {
     // match ext {
     //     "png" => decode_png(filename)?,
     //     "jpg" => decode_jpg(filename)?,
-    //     _ => Err(DecodingError::FormatError),
+    //     _ => Err(ImageError::FormatError),
     // }
 }
 
