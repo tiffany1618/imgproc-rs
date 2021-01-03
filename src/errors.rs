@@ -2,21 +2,14 @@ use std::io;
 use std::fmt;
 
 use png;
+use jpeg_decoder;
 
-#[derive(Debug, Clone)]
-pub struct FileFormatError;
-
-impl fmt::Display for FileFormatError {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "unsupported file format")
-    }
-}
-
+// TODO: Make custom errors
 pub enum ImageError {
     IoError(io::Error),
     PngDecodingError(png::DecodingError),
     PngEncodingError(png::EncodingError),
-    FormatError(FileFormatError),
+    JpegDecoderError(jpeg_decoder::Error),
     Other(String),
 }
 
@@ -38,9 +31,9 @@ impl From<png::EncodingError> for ImageError {
     }
 }
 
-impl From<FileFormatError> for ImageError {
-    fn from(err: FileFormatError) -> Self {
-        ImageError::FormatError(err)
+impl From<jpeg_decoder::Error> for ImageError {
+    fn from(err: jpeg_decoder::Error) -> Self {
+        ImageError::JpegDecoderError(err)
     }
 }
 
