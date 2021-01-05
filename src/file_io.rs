@@ -67,7 +67,7 @@ fn decode_jpg(filename: &str) -> Result<Image<u8>, ImageError> {
     let file = File::open(filename)?;
     let mut decoder = jpeg_decoder::Decoder::new(BufReader::new(file));
     let pixels = decoder.decode()?;
-    let info = decoder.info().ok_or(ImageError::Other("unable to read metadata".to_string()))?;
+    let info = decoder.info().ok_or_else(|| ImageError::Other("unable to read metadata".to_string()))?;
     let channels = jpg_pixel_format_to_channels(info.pixel_format);
 
     Ok(Image::new(info.width as u32, info.height as u32, channels, &pixels))
@@ -81,8 +81,8 @@ fn decode_jpg(filename: &str) -> Result<Image<u8>, ImageError> {
 // TODO: Add support for more image file formats
 pub fn read(filename: &str) -> Result<Image<u8>, ImageError> {
     let path = Path::new(filename);
-    let ext = path.extension().ok_or(ImageError::Other("could not extract file extension".to_string()))?;
-    let ext_str = ext.to_str().ok_or(ImageError::Other("invalid file extension".to_string()))?;
+    let ext = path.extension().ok_or_else(|| ImageError::Other("could not extract file extension".to_string()))?;
+    let ext_str = ext.to_str().ok_or_else(|| ImageError::Other("invalid file extension".to_string()))?;
 
     match ext_str.to_ascii_lowercase().as_str() {
         "png" => Ok(decode_png(filename)?),
@@ -93,8 +93,8 @@ pub fn read(filename: &str) -> Result<Image<u8>, ImageError> {
 
 pub fn write(input: &Image<u8>, filename: &str) -> Result<(), ImageError> {
     let path = Path::new(filename);
-    let ext = path.extension().ok_or(ImageError::Other("could not extract file extension".to_string()))?;
-    let ext_str = ext.to_str().ok_or(ImageError::Other("invalid file extension".to_string()))?;
+    let ext = path.extension().ok_or_else(|| ImageError::Other("could not extract file extension".to_string()))?;
+    let ext_str = ext.to_str().ok_or_else(|| ImageError::Other("invalid file extension".to_string()))?;
 
     match ext_str.to_ascii_lowercase().as_str() {
         "png" => Ok(encode_png(input, path)?),
