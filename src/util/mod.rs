@@ -3,18 +3,21 @@ pub mod math;
 use crate::image::Image;
 
 use std::collections::HashMap;
-use std::ops::{Add, Sub, Mul, Div};
 
 // Trait for valid image channel types
 pub trait Number:
     std::clone::Clone
     + std::marker::Copy
     + std::fmt::Display
+    + std::ops::Add<Output=Self>
+    + std::ops::Sub<Output=Self>
+    + std::ops::Mul<Output=Self>
+    + std::ops::Div<Output=Self>
+    + std::ops::AddAssign
+    + std::ops::SubAssign
+    + std::ops::MulAssign
+    + std::ops::DivAssign
     + From<u8>
-    + Add<Output=Self>
-    + Sub<Output=Self>
-    + Mul<Output=Self>
-    + Div<Output=Self>
     where Self: std::marker::Sized {}
 
 impl<T> Number for T
@@ -22,12 +25,16 @@ impl<T> Number for T
         std::clone::Clone
         + std::marker::Copy
         + std::fmt::Display
+        + std::ops::Add<Output=T>
+        + std::ops::Sub<Output=T>
+        + std::ops::Mul<Output=T>
+        + std::ops::Div<Output=T>
+        + std::ops::AddAssign
+        + std::ops::SubAssign
+        + std::ops::MulAssign
+        + std::ops::DivAssign
         + From<u8>
-        + Add<Output=T>
-        + Sub<Output=T>
-        + Mul<Output=T>
-        + Div<Output=T>
-    {}
+{}
 
 // Colorspace transformation constants
 pub const LIN_RGB_GAMMA: f32 = 2.2;

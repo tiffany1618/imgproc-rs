@@ -1,11 +1,9 @@
 use crate::util;
 use crate::util::Number;
+use crate::util::math;
 use crate::image::Image;
 
 use std::cmp;
-
-use rulinalg::matrix::Matrix;
-use rulinalg::vector::Vector;
 
 // TODO: Fix loss of precision by integer division
 pub fn rgb_to_grayscale<T: Number>(input: &Image<T>) -> Image<T> {
@@ -17,20 +15,16 @@ pub fn rgb_to_grayscale<T: Number>(input: &Image<T>) -> Image<T> {
 // Input: sRGB range [0, 1] linearized
 // Output: CIEXYZ range [0, 1]
 pub fn srgb_to_xyz(input: &Image<f32>) -> Image<f32> {
-    let trans_mat = Matrix::new(3, 3, util::sRGB_TO_XYZ_MAT.to_vec());
-
     input.map_pixels_if_alpha(|channels| {
-        (&trans_mat * Vector::new(channels.to_vec())).into_vec()
+        math::vector_mul(&util::sRGB_TO_XYZ_MAT, channels).unwrap()
     }, |a| a)
 }
 
 // Input: CIEXYZ range [0, 1]
 // Output: sRGB range [0, 1] linearized
 pub fn xyz_to_srgb(input: &Image<f32>) -> Image<f32> {
-    let trans_mat = Matrix::new(3, 3, util::XYZ_TO_sRGB_MAT);
-
     input.map_pixels_if_alpha(|channels| {
-        (&trans_mat * Vector::new(channels.to_vec())).into_vec()
+        math::vector_mul(&util::XYZ_TO_sRGB_MAT, channels).unwrap()
     }, |a| a)
 }
 
