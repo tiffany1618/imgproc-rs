@@ -5,10 +5,14 @@ use crate::image::Image;
 
 use std::cmp;
 
-// TODO: Fix loss of precision by integer division
-pub fn rgb_to_grayscale<T: Number>(input: &Image<T>) -> Image<T> {
-    input.map_pixels_if_alpha(|channels_in| {
-        vec![(channels_in[0] / 3.into()) + (channels_in[1] / 3.into()) + (channels_in[2] / 3.into())]
+pub fn rgb_to_grayscale(input: &Image<u8>) -> Image<u8> {
+    input.map_pixels_if_alpha(|channels| {
+        let mut sum = 0.0;
+        for channel in channels.iter() {
+            sum += *channel as f32;
+        }
+
+        vec![(sum / channels.len() as f32) as u8]
     }, |a| a)
 }
 

@@ -158,7 +158,7 @@ impl<T: Number> Image<T> {
         Image {
             width,
             height,
-            channels: self.channels,
+            channels: pixels[0].num_channels(),
             alpha: self.alpha,
             pixels,
         }
@@ -188,7 +188,7 @@ impl<T: Number> Image<T> {
         Image {
             width,
             height,
-            channels: self.channels,
+            channels: pixels[0].num_channels(),
             alpha: self.alpha,
             pixels,
         }
@@ -209,7 +209,7 @@ impl<T: Number> Image<T> {
         Image {
             width,
             height,
-            channels: self.channels,
+            channels: pixels[0].num_channels(),
             alpha: self.alpha,
             pixels,
         }
@@ -237,7 +237,7 @@ impl<T: Number> Image<T> {
         Image {
             width,
             height,
-            channels: self.channels,
+            channels: pixels[0].num_channels(),
             alpha: self.alpha,
             pixels,
         }
