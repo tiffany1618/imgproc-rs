@@ -3,9 +3,9 @@ use std::cmp;
 use rulinalg::matrix::Matrix;
 use rulinalg::vector::Vector;
 
+use crate::util;
 use crate::util::Number;
 use crate::image::Image;
-use crate::util;
 
 // TODO: Fix loss of precision by integer division
 pub fn rgb_to_grayscale<T: Number>(input: &Image<T>) -> Image<T> {

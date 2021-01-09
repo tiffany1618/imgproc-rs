@@ -6,8 +6,10 @@ use std::result::Result;
 use png::HasParameters;
 use jpeg_decoder;
 
+mod errors;
+
 use crate::image::Image;
-use crate::errors::ImageError;
+use errors::ImageError;
 
 fn png_from_color_type(color_type: png::ColorType) -> (u8, bool) {
     match color_type {
