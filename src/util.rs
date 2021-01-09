@@ -105,23 +105,23 @@ pub fn linearize_srgb(input: &Image<u8>) -> Image<f32> {
     create_lookup_table(&mut lookup_table, |i| {
         let val = i as f32;
         if val <= 10.0 {
-            val / 3294
+            val / 3294.0
         } else {
             ((val + 14.025) / 269.025).powf(2.4)
         }
     });
 
-    input.map_channels(|i| lookup_table[i], false)
+    input.map_channels_if_alpha(|i| lookup_table[i as usize], |a| a as f32)
 }
 
 // Input: sRGB range [0, 1] linearized
 // Output: sRGB range [0, 255]
 pub fn un_linearize_srgb(input: &Image<f32>) -> Image<u8> {
-    input.map_channels(|num| {
+    input.map_channels_if_alpha(|num| {
         if num <= 0.0031308 {
             (num * 3294.6) as u8
         } else {
             (269.025 * num.powf(1.0 / 2.4) - 14.025) as u8
         }
-    }, false)
+    }, |a| a.round() as u8)
 }

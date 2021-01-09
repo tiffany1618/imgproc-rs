@@ -1,6 +1,6 @@
 use crate::util::Number;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct Pixel<T: Number> {
     num_channels: u8,
     channels: Vec<T>,
@@ -25,22 +25,24 @@ impl<T: Number> Pixel<T> {
         self.num_channels
     }
 
+    // Return all channels as slice
     pub fn channels(&self) -> &[T] {
         &self.channels
     }
 
-    // Return alpha channel
+    // Return all channels except last channel as slice
+    pub fn channels_no_alpha(&self) -> &[T] {
+        &self.channels[..(self.num_channels as usize)]
+    }
+
+    // Return last channel if it exists
     pub fn alpha(&self) -> T {
         self.channels[(self.num_channels - 1) as usize]
     }
 
-    // Return all channels except alpha channel
-    pub fn channels_no_alpha(&self) -> &[T] {
-        &self.channels[0..(self.num_channels as usize)]
-    }
-
     // Apply function f to all channels
-    pub fn map<S: Number>(&self, f: fn(T) -> S) -> Pixel<S> {
+    pub fn map<S: Number, F>(&self, f: F) -> Pixel<S>
+        where F: Fn(T) -> S {
         let mut channels = Vec::new();
 
         for i in 0..self.num_channels {
@@ -54,14 +56,17 @@ impl<T: Number> Pixel<T> {
     }
 
     // Apply function f to all channels except alpha channel
-    pub fn map_no_alpha<S: Number + From<T>>(&self, f: fn(T) -> S) -> Pixel<S> {
+    // Apply function g to alpha channel
+    pub fn map_alpha<S: Number, F, G>(&self, f: F, g: G) -> Pixel<S>
+        where F: Fn(T) -> S,
+              G: Fn(T) -> S {
         let mut channels = Vec::new();
 
         for p in self.channels_no_alpha().iter() {
             channels.push(f(*p));
         }
 
-        channels.push(self.alpha().into());
+        channels.push(g(self.alpha()));
 
         Pixel {
             num_channels: self.num_channels,
@@ -70,16 +75,17 @@ impl<T: Number> Pixel<T> {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Image<T: Number> {
     width: u32,
     height: u32,
     channels: u8,
+    alpha: bool,
     pixels: Vec<Pixel<T>>,
 }
 
 impl<T: Number> Image<T> {
-    pub fn new(width: u32, height: u32, channels: u8, data: &[T]) -> Self {
+    pub fn new(width: u32, height: u32, channels: u8, alpha: bool, data: &[T]) -> Self {
         let mut pixels = Vec::new();
         let size = (width * height * channels as u32) as usize;
         for i in (0..size).step_by(channels as usize) {
@@ -87,14 +93,15 @@ impl<T: Number> Image<T> {
             pixels.push(pixel);
         }
 
-        Image {width, height, channels, pixels}
+        Image {width, height, channels, alpha, pixels}
     }
 
-    pub fn blank(width: u32, height: u32, channels: u8) -> Self {
+    pub fn blank(width: u32, height: u32, channels: u8, alpha: bool) -> Self {
         Image {
             width,
             height,
             channels,
+            alpha,
             pixels: vec![Pixel::blank(channels); (width * height) as usize],
         }
     }
@@ -105,6 +112,10 @@ impl<T: Number> Image<T> {
 
     pub fn dimensions_with_channels(&self) -> (u32, u32, u8) {
         (self.width, self.height, self.channels)
+    }
+
+    pub fn has_alpha(&self) -> bool {
+        self.alpha
     }
 
     pub fn pixels(&self) -> &[Pixel<T>] {
@@ -132,52 +143,102 @@ impl<T: Number> Image<T> {
     }
 
     // Apply function f to all pixels
-    // alpha = true to include alpha channel, false otherwise
-    pub fn map_pixels<S: Number + From<T>>(&self, f: fn(&[T]) -> Vec<S>, alpha: bool) -> Image<S> {
+    pub fn map_pixels<S: Number, F>(&self, f: F) -> Image<S>
+        where F: Fn(&[T]) -> Vec<S> {
         let (width, height) = self.dimensions();
         let mut pixels = Vec::new();
 
         for y in 0..height {
             for x in 0..width {
-                if alpha {
-                    let p = Pixel::new(&f(&self.get_pixel(x, y).channels()));
-                    pixels.push(p);
-                } else {
-                    let mut v = f(&self.get_pixel(x, y).channels_no_alpha());
-                    v.push(self.get_pixel(x, y).alpha().into());
-                    pixels.push(Pixel::new(&v));
-                }
+                let p = Pixel::new(&f(&self.get_pixel(x, y).channels()));
+                pixels.push(p);
             }
         }
 
         Image {
             width,
             height,
-            channels: pixels[0].channels().len() as u8,
+            channels: self.channels,
+            alpha: self.alpha,
+            pixels,
+        }
+    }
+
+    // If image has alpha channel, apply function f to non-alpha portion of all pixels, and
+    // function g to alpha channel of all pixels;
+    // if image has no alpha channel, apply function f to all pixels
+    pub fn map_pixels_if_alpha<S: Number, F, G>(&self, f: F, g: G) -> Image<S>
+        where F: Fn(&[T]) -> Vec<S>,
+              G: Fn(T) -> S {
+        let (width, height) = self.dimensions();
+        let mut pixels = Vec::new();
+
+        if !self.alpha {
+            return self.map_pixels(f);
+        }
+
+        for y in 0..height {
+            for x in 0..width {
+                let mut v = f(&self.get_pixel(x, y).channels_no_alpha());
+                v.push(g(self.get_pixel(x, y).alpha()));
+                pixels.push(Pixel::new(&v));
+            }
+        }
+
+        Image {
+            width,
+            height,
+            channels: self.channels,
+            alpha: self.alpha,
             pixels,
         }
     }
 
     // Apply function f to all channels of all pixels
-    // alpha = true to apply to alpha channel, false otherwise
-    pub fn map_channels<S: Number + From<T>>(&self, f: fn(T) -> S, alpha: bool) -> Image<S> {
+    pub fn map_channels<S: Number, F>(&self, f: F) -> Image<S>
+        where F: Fn(T) -> S {
         let (width, height) = self.dimensions();
         let mut pixels = Vec::new();
 
         for y in 0..height {
             for x in 0..width {
-                if alpha {
-                    pixels.push(self.get_pixel(x, y).map(f));
-                } else {
-                    pixels.push(self.get_pixel(x, y).map_no_alpha(f));
-                }
+                pixels.push(self.get_pixel(x, y).map(&f));
             }
         }
 
         Image {
             width,
             height,
-            channels: pixels[0].channels().len() as u8,
+            channels: self.channels,
+            alpha: self.alpha,
+            pixels,
+        }
+    }
+
+    // If image has alpha channel, apply function f to all non-alpha channels of all pixels, and
+    // function g to alpha channel;
+    // If image has no alpha channel, apply function f to all channels of all pixels
+    pub fn map_channels_if_alpha<S: Number, F, G>(&self, f: F, g: G) -> Image<S>
+        where F: Fn(T) -> S,
+              G: Fn(T) -> S {
+        let (width, height) = self.dimensions();
+        let mut pixels = Vec::new();
+
+        if !self.alpha {
+            return self.map_channels(f);
+        }
+
+        for y in 0..height {
+            for x in 0..width {
+                pixels.push(self.get_pixel(x, y).map_alpha(&f, &g))
+            }
+        }
+
+        Image {
+            width,
+            height,
+            channels: self.channels,
+            alpha: self.alpha,
             pixels,
         }
     }

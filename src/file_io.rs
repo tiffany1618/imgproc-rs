@@ -9,17 +9,17 @@ use jpeg_decoder;
 use crate::image::Image;
 use crate::errors::ImageError;
 
-fn png_color_type_to_channels(color_type: png::ColorType) -> u8 {
+fn png_from_color_type(color_type: png::ColorType) -> (u8, bool) {
     match color_type {
-        png::ColorType::Grayscale => 1,
-        png::ColorType::GrayscaleAlpha => 2,
-        png::ColorType::RGB => 3,
-        png::ColorType::RGBA => 4,
-        png::ColorType::Indexed => 0, // TODO: Fix this
+        png::ColorType::Grayscale => (1, false),
+        png::ColorType::GrayscaleAlpha => (2, true),
+        png::ColorType::RGB => (3, false),
+        png::ColorType::RGBA => (4, true),
+        png::ColorType::Indexed => (0, false), // TODO: Fix this
     }
 }
 
-fn png_channels_to_color_type(channels: u8) -> Result<png::ColorType, ImageError> {
+fn png_into_color_type(channels: u8) -> Result<png::ColorType, ImageError> {
     match channels {
         1 => Ok(png::ColorType::Grayscale),
         2 => Ok(png::ColorType::GrayscaleAlpha),
@@ -35,9 +35,9 @@ fn decode_png(filename: &str) -> Result<Image<u8>, ImageError> {
     let mut buf = vec![0; info.buffer_size()];
     reader.next_frame(&mut buf)?;
 
-    let channels = png_color_type_to_channels(info.color_type);
+    let (channels, alpha) = png_from_color_type(info.color_type);
 
-    Ok(Image::new(info.width, info.height, channels, &buf))
+    Ok(Image::new(info.width, info.height, channels, alpha, &buf))
 }
 
 fn encode_png(input: &Image<u8>, path: &Path) -> Result<(), ImageError> {
@@ -46,7 +46,7 @@ fn encode_png(input: &Image<u8>, path: &Path) -> Result<(), ImageError> {
     let ref mut file_writer = BufWriter::new(file);
 
     let mut encoder = png::Encoder::new(file_writer, width, height);
-    let color_type = png_channels_to_color_type(channels)?;
+    let color_type = png_into_color_type(channels)?;
     encoder.set(color_type).set(png::BitDepth::Eight);
 
     let mut png_writer = encoder.write_header()?;
@@ -70,7 +70,7 @@ fn decode_jpg(filename: &str) -> Result<Image<u8>, ImageError> {
     let info = decoder.info().ok_or_else(|| ImageError::Other("unable to read metadata".to_string()))?;
     let channels = jpg_pixel_format_to_channels(info.pixel_format);
 
-    Ok(Image::new(info.width as u32, info.height as u32, channels, &pixels))
+    Ok(Image::new(info.width as u32, info.height as u32, channels, false, &pixels))
 }
 
 // TODO: Add support for jpg encoding
