@@ -51,9 +51,9 @@ pub const XYZ_TO_sRGB_MAT: [f32; 9] = [3.2404542, -1.5371385, -0.4985314,
 
 // Image helper functions
 pub fn generate_xyz_tristimulus_vals(ref_white: &str) -> Option<(f32, f32, f32)> {
-    return match ref_white {
-        "D50" | "d50" => Some((96.4212, 100.0, 82.5188)),
-        "D65" | "d65" => Some((95.0489, 100.0, 103.8840)),
+    return match ref_white.to_lowercase().as_str() {
+        "d50" => Some((96.4212, 100.0, 82.5188)),
+        "d65" => Some((95.0489, 100.0, 103.8840)),
         _ => None,
     }
 }
@@ -133,4 +133,9 @@ pub fn un_linearize_srgb(input: &Image<f32>) -> Image<u8> {
             (269.025 * num.powf(1.0 / 2.4) - 14.025) as u8
         }
     }, |a| a.round() as u8)
+}
+
+// Convert an image from f32 [0, 1] to u8 [0,255]
+pub fn image_f32_to_u8(input: &Image<f32>) -> Image<u8> {
+    input.map_channels(|channel| (channel * 255.0).round() as u8)
 }

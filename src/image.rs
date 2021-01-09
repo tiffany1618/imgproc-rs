@@ -43,15 +43,15 @@ impl<T: Number> Pixel<T> {
     // Apply function f to all channels
     pub fn map<S: Number, F>(&self, f: F) -> Pixel<S>
         where F: Fn(T) -> S {
-        let mut channels = Vec::new();
+        let mut channels_out = Vec::new();
 
-        for i in 0..self.num_channels {
-            channels.push(f(self.channels[i as usize]));
+        for channel in self.channels.iter() {
+            channels_out.push(f(*channel));
         }
 
         Pixel {
             num_channels: self.num_channels,
-            channels,
+            channels: channels_out,
         }
     }
 
@@ -60,17 +60,17 @@ impl<T: Number> Pixel<T> {
     pub fn map_alpha<S: Number, F, G>(&self, f: F, g: G) -> Pixel<S>
         where F: Fn(T) -> S,
               G: Fn(T) -> S {
-        let mut channels = Vec::new();
+        let mut channels_out = Vec::new();
 
         for p in self.channels_no_alpha().iter() {
-            channels.push(f(*p));
+            channels_out.push(f(*p));
         }
 
-        channels.push(g(self.alpha()));
+        channels_out.push(g(self.alpha()));
 
         Pixel {
             num_channels: self.num_channels,
-            channels,
+            channels: channels_out,
         }
     }
 }
