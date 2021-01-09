@@ -1,7 +1,9 @@
-use std::collections::HashMap;
-use std::ops::{Add, Sub, Mul, Div};
+pub mod math;
 
 use crate::image::Image;
+
+use std::collections::HashMap;
+use std::ops::{Add, Sub, Mul, Div};
 
 // Trait for valid image channel types
 pub trait Number:
