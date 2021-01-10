@@ -2,7 +2,7 @@ pub mod math;
 
 use crate::image::Image;
 
-use std::collections::HashMap;
+use std::collections::{HashMap, BTreeMap};
 
 // Trait for valid image channel types
 pub trait Number:
@@ -79,9 +79,8 @@ pub fn lab_to_xyz_fn(num: f32) -> f32 {
 }
 
 // Input: image in CIELAB
-pub fn generate_histogram_percentiles(input: &Image<f32>, percentiles: &mut HashMap<i32, f32>) {
-    let precision = 255.0;
-    let mut histogram = HashMap::new();
+pub fn generate_histogram_percentiles(input: &Image<f32>, percentiles: &mut HashMap<i32, f32>, precision: f32) {
+    let mut histogram = BTreeMap::new();
     let (width, height) = input.dimensions();
 
     for y in 0..height {
@@ -93,46 +92,18 @@ pub fn generate_histogram_percentiles(input: &Image<f32>, percentiles: &mut Hash
     }
 
     let mut sum: i32 = 0;
-    let num_pixels: u32 = width * height * 3;
+    let num_pixels = (width * height) as f32;
     for (key, val) in &histogram {
         sum += val;
-        // TODO: make sure the precision multiplication works with histogram equalization function
-        percentiles.insert(*key, sum as f32 / num_pixels as f32);
+        percentiles.insert(*key, sum as f32 / num_pixels);
     }
 }
 
-pub fn create_lookup_table<T: Number>(table: &mut [T; 256], f: fn(u8) -> T) {
+pub fn create_lookup_table<T: Number, F>(table: &mut [T; 256], f: F)
+    where F: Fn(u8) -> T {
     for i in 0..256 {
         table[i] = f(i as u8);
     }
-}
-
-// Input: sRGB range [0, 255]
-// Output: sRGB range [0, 1] linearized
-pub fn linearize_srgb(input: &Image<u8>) -> Image<f32> {
-    let mut lookup_table: [f32; 256] = [0.0; 256];
-    create_lookup_table(&mut lookup_table, |i| {
-        let val = i as f32;
-        if val <= 10.0 {
-            val / 3294.0
-        } else {
-            ((val + 14.025) / 269.025).powf(2.4)
-        }
-    });
-
-    input.map_channels_if_alpha(|i| lookup_table[i as usize], |a| a as f32)
-}
-
-// Input: sRGB range [0, 1] linearized
-// Output: sRGB range [0, 255]
-pub fn un_linearize_srgb(input: &Image<f32>) -> Image<u8> {
-    input.map_channels_if_alpha(|num| {
-        if num <= 0.0031308 {
-            (num * 3294.6) as u8
-        } else {
-            (269.025 * num.powf(1.0 / 2.4) - 14.025) as u8
-        }
-    }, |a| a.round() as u8)
 }
 
 // Convert an image from f32 [0, 1] to u8 [0,255]

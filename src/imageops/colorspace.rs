@@ -15,9 +15,37 @@ pub fn rgb_to_grayscale(input: &Image<u8>) -> Image<u8> {
     }, |a| a)
 }
 
+// Input: sRGB range [0, 255]
+// Output: sRGB range [0, 1] linearized
+pub fn linearize_srgb(input: &Image<u8>) -> Image<f32> {
+    let mut lookup_table: [f32; 256] = [0.0; 256];
+    util::create_lookup_table(&mut lookup_table, |i| {
+        let val = i as f32;
+        if val <= 10.0 {
+            val / 3294.0
+        } else {
+            ((val + 14.025) / 269.025).powf(2.4)
+        }
+    });
+
+    input.map_channels_if_alpha(|i| lookup_table[i as usize], |a| a as f32)
+}
+
+// Input: sRGB range [0, 1] linearized
+// Output: sRGB range [0, 255]
+pub fn unlinearize_srgb(input: &Image<f32>) -> Image<u8> {
+    input.map_channels_if_alpha(|num| {
+        if num <= 0.0031308 {
+            (num * 3294.6) as u8
+        } else {
+            (269.025 * num.powf(1.0 / 2.4) - 14.025) as u8
+        }
+    }, |a| a.round() as u8)
+}
+
 // Input: sRGB range [0, 1] linearized
 // Output: CIEXYZ range [0, 1]
-pub fn srgb_to_xyz(input: &Image<f32>) -> Image<f32> {
+pub fn srgb_lin_to_xyz(input: &Image<f32>) -> Image<f32> {
     input.map_pixels_if_alpha(|channels| {
         math::vector_mul(&util::sRGB_TO_XYZ_MAT, channels).unwrap()
     }, |a| a)
@@ -25,7 +53,7 @@ pub fn srgb_to_xyz(input: &Image<f32>) -> Image<f32> {
 
 // Input: CIEXYZ range [0, 1]
 // Output: sRGB range [0, 1] linearized
-pub fn xyz_to_srgb(input: &Image<f32>) -> Image<f32> {
+pub fn xyz_to_srgb_lin(input: &Image<f32>) -> Image<f32> {
     input.map_pixels_if_alpha(|channels| {
         math::vector_mul(&util::XYZ_TO_sRGB_MAT, channels).unwrap()
     }, |a| a)
@@ -123,4 +151,32 @@ pub fn hsv_to_rgb(input: &Image<f32>) -> Image<u8> {
             _ => vec![val, p, q],
         }
     }, |a| (a * 255.0).round() as u8)
+}
+
+// Input: sRGB range [0, 255] unlinearized
+// Output: CIEXYZ range [0, 1]
+pub fn srgb_to_xyz(input: &Image<u8>) -> Image<f32> {
+    let linearized = linearize_srgb(input);
+    srgb_lin_to_xyz(&linearized)
+}
+
+// Input: CIEXYZ range [0, 1]
+// Output: sRGB range [0, 255] unlinearized
+pub fn xyz_to_srgb(input: &Image<f32>) -> Image<u8> {
+    let srgb = xyz_to_srgb_lin(input);
+    unlinearize_srgb(&srgb)
+}
+
+// Input: sRGB range [0, 255] unlinearized
+// Output: CIELAB
+pub fn srgb_to_lab(input: &Image<u8>, ref_white: &str) -> Image<f32> {
+    let xyz = srgb_to_xyz(input);
+    xyz_to_lab(&xyz, ref_white)
+}
+
+// Input: CIELAB
+// Output: sRGB range [0, 255] unlinearized
+pub fn lab_to_srgb(input: &Image<f32>, ref_white: &str) -> Image<u8> {
+    let xyz = lab_to_xyz(input, ref_white);
+    xyz_to_srgb(&xyz)
 }

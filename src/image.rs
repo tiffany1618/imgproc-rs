@@ -30,6 +30,11 @@ impl<T: Number> Pixel<T> {
         &self.channels
     }
 
+    // Return all channels as mutable slice
+    pub fn channels_mut(&mut self) -> &mut [T] {
+        &mut self.channels
+    }
+
     // Return all channels except last channel as slice
     pub fn channels_no_alpha(&self) -> &[T] {
         &self.channels[..(self.num_channels as usize)]
@@ -93,7 +98,7 @@ impl<T: Number> Image<T> {
             pixels.push(pixel);
         }
 
-        Image {width, height, channels, alpha, pixels}
+        Image { width, height, channels, alpha, pixels }
     }
 
     pub fn blank(width: u32, height: u32, channels: u8, alpha: bool) -> Self {
@@ -134,7 +139,12 @@ impl<T: Number> Image<T> {
         pixels_vec
     }
 
-    pub fn get_pixel(&self, x: u32, y: u32) -> &Pixel<T>{
+    // Return pixel as mutable slice
+    pub fn pixel_mut(&mut self, x: u32, y: u32) -> &mut [T] {
+        self.pixels[(y * self.width + x) as usize].channels_mut()
+    }
+
+    pub fn get_pixel(&self, x: u32, y: u32) -> &Pixel<T> {
         &self.pixels[(y * self.width + x) as usize]
     }
 
@@ -197,7 +207,7 @@ impl<T: Number> Image<T> {
     // Apply function f to all channels of all pixels
     pub fn map_channels<S: Number, F>(&self, f: F) -> Image<S>
         where F: Fn(T) -> S {
-        let (width, height) = self.dimensions();
+        let (width, height, channels) = self.dimensions_with_channels();
         let mut pixels = Vec::new();
 
         for y in 0..height {
@@ -209,7 +219,7 @@ impl<T: Number> Image<T> {
         Image {
             width,
             height,
-            channels: pixels[0].num_channels(),
+            channels,
             alpha: self.alpha,
             pixels,
         }
@@ -221,7 +231,7 @@ impl<T: Number> Image<T> {
     pub fn map_channels_if_alpha<S: Number, F, G>(&self, f: F, g: G) -> Image<S>
         where F: Fn(T) -> S,
               G: Fn(T) -> S {
-        let (width, height) = self.dimensions();
+        let (width, height, channels) = self.dimensions_with_channels();
         let mut pixels = Vec::new();
 
         if !self.alpha {
@@ -237,9 +247,22 @@ impl<T: Number> Image<T> {
         Image {
             width,
             height,
-            channels: pixels[0].num_channels(),
+            channels,
             alpha: self.alpha,
             pixels,
+        }
+    }
+
+    // Apply function f to each channel of index channel_index of each pixel
+    pub fn edit_channel<F>(&mut self, f: F, channel_index: usize)
+        where F: Fn(T) -> T {
+        let (width, height) = self.dimensions();
+
+        for y in 0..height {
+            for x in 0..width {
+                let pixel = self.pixel_mut(x, y);
+                pixel[channel_index] = f(pixel[channel_index]);
+            }
         }
     }
 }
