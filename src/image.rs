@@ -1,4 +1,6 @@
 use crate::util::Number;
+use crate::history::{History, Op};
+use test::NamePadding::PadNone;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Pixel<T: Number> {
@@ -78,6 +80,24 @@ impl<T: Number> Pixel<T> {
             channels: channels_out,
         }
     }
+
+    // Methods appended with "_self" perform the same operations, but modify self instead
+    pub fn map_self<F>(&mut self, f: F)
+        where F: Fn(T) -> T {
+        for mut channel in self.channels {
+            channel = f(channel);
+        }
+    }
+
+    pub fn map_alpha_self<F, G>(&mut self, f: F, g: G)
+        where F: Fn(T) -> T,
+              G: Fn(T) -> T {
+        for mut channel in self.channels_no_alpha() {
+            channel = f(channel);
+        }
+
+        self.alpha() = g(self.alpha());
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -87,6 +107,7 @@ pub struct Image<T: Number> {
     channels: u8,
     alpha: bool,
     pixels: Vec<Pixel<T>>,
+    history: History,
 }
 
 impl<T: Number> Image<T> {
@@ -98,7 +119,7 @@ impl<T: Number> Image<T> {
             pixels.push(pixel);
         }
 
-        Image { width, height, channels, alpha, pixels }
+        Image { width, height, channels, alpha, pixels, history: History::new(), }
     }
 
     pub fn blank(width: u32, height: u32, channels: u8, alpha: bool) -> Self {
@@ -108,7 +129,20 @@ impl<T: Number> Image<T> {
             channels,
             alpha,
             pixels: vec![Pixel::blank(channels); (width * height) as usize],
+            history: History::new(),
         }
+    }
+
+    pub fn history(&self) -> &[Op] {
+        self.history.ops()
+    }
+
+    pub fn clear_history(&mut self) {
+        self.history.clear();
+    }
+
+    pub fn add_op(&mut self, op: Op) {
+        self.history.push(op)
     }
 
     pub fn dimensions(&self) -> (u32, u32) {
@@ -160,7 +194,7 @@ impl<T: Number> Image<T> {
 
         for y in 0..height {
             for x in 0..width {
-                let p = Pixel::new(&f(&self.get_pixel(x, y).channels()));
+                let p = Pixel::new(&f(self.get_pixel(x, y).channels()));
                 pixels.push(p);
             }
         }
@@ -171,6 +205,7 @@ impl<T: Number> Image<T> {
             channels: pixels[0].num_channels(),
             alpha: self.alpha,
             pixels,
+            history: History::new(),
         }
     }
 
@@ -201,6 +236,7 @@ impl<T: Number> Image<T> {
             channels: pixels[0].num_channels(),
             alpha: self.alpha,
             pixels,
+            history: History::new(),
         }
     }
 
@@ -222,6 +258,7 @@ impl<T: Number> Image<T> {
             channels,
             alpha: self.alpha,
             pixels,
+            history: History::new(),
         }
     }
 
@@ -250,6 +287,7 @@ impl<T: Number> Image<T> {
             channels,
             alpha: self.alpha,
             pixels,
+            history: History::new(),
         }
     }
 
@@ -262,6 +300,56 @@ impl<T: Number> Image<T> {
             for x in 0..width {
                 let pixel = self.pixel_mut(x, y);
                 pixel[channel_index] = f(pixel[channel_index]);
+            }
+        }
+    }
+
+    // Methods appended with "_self" perform the same operations, but modify self instead
+    pub fn map_pixels_self<F>(&mut self, f: F,)
+        where F: Fn(&[T]) -> Vec<T> {
+        for y in 0..self.height {
+            for x in 0..self.width {
+                self.pixels[(y * self.width + x) as usize] =
+                    Pixel::new(&f(self.get_pixel(x, y).channels()));
+            }
+        }
+    }
+
+    pub fn map_pixels_if_alpha_self<F, G>(&mut self, f: F, g: G)
+        where F: Fn(&[T]) -> S,
+              G: Fn(&[T]) -> S {
+        if !self.alpha {
+            self.map_pixels_self(f);
+        }
+
+        for y in 0..self.height {
+            for x in 0..self.width {
+                let mut v = f(&self.get_pixel(x, y).channels_no_alpha());
+                v.push(g(self.get_pixel(x, y).alpha()));
+                self.pixels[(y * self.width + x) as usize] = Pixel::new(v);
+            }
+        }
+    }
+
+    pub fn map_channels_self<F>(&mut self, f: F)
+        where F: Fn(T) -> T {
+        for y in 0..self.height {
+            for x in 0..self.width {
+                pixels.push(self.pixels[(y * self.width + x) as usize].map_self(&f));
+            }
+        }
+    }
+
+    pub fn map_channels_if_alpha_self<F, G>(&mut self, f: F, g: G)
+        where F: Fn(T) -> T,
+              G: Fn(T) -> T {
+        if !self.alpha {
+            self.map_channels_self(f);
+        }
+
+        for y in 0..self.height {
+            for x in 0..self.width {
+                pixels.push(self.pixels[(y * self.width + x) as usize].map_alpha_self(&f, &g));
             }
         }
     }

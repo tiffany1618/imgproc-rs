@@ -1,6 +1,8 @@
 use crate::util;
+use crate::util::Number;
 use crate::util::math;
 use crate::image::Image;
+use crate::history::Op;
 
 use std::cmp;
 
@@ -179,4 +181,27 @@ pub fn srgb_to_lab(input: &Image<u8>, ref_white: &str) -> Image<f32> {
 pub fn lab_to_srgb(input: &Image<f32>, ref_white: &str) -> Image<u8> {
     let xyz = lab_to_xyz(input, ref_white);
     xyz_to_srgb(&xyz)
+}
+
+impl<T: Number> Image<T> {
+    // Input: sRGB range [0, 255]
+    // Output: sRGB range [0, 1] linearized
+    pub fn linearize_srgb(&mut self) {
+        self.add_op(Op::LinearizeSrgb);
+
+        let mut lookup_table: [u8; 256] = [0; 256];
+        util::create_lookup_table(&mut lookup_table, |i| {
+            let val = i as f32;
+            if val <= 10.0 {
+                val / 3294.0;
+            } else {
+                ((val + 14.025) / 269.025).powf(2.4);
+            }
+
+            // TODO: deal with different types
+            return val.round() as u8;
+        });
+
+        self.map_channels_if_alpha_self(|i| lookup_table[i as usize], |a| a);
+    }
 }
