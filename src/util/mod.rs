@@ -39,7 +39,7 @@ impl<T> Number for T
 
 // Image helper functions
 
-pub fn generate_xyz_tristimulus_vals(ref_white: &str) -> Option<(f32, f32, f32)> {
+pub fn generate_xyz_tristimulus_vals(ref_white: &str) -> Option<(f64, f64, f64)> {
     return match ref_white.to_lowercase().as_str() {
         "d50" => Some((96.4212, 100.0, 82.5188)),
         "d65" => Some((95.0489, 100.0, 103.8840)),
@@ -47,8 +47,8 @@ pub fn generate_xyz_tristimulus_vals(ref_white: &str) -> Option<(f32, f32, f32)>
     }
 }
 
-pub fn xyz_to_lab_fn(num: f32) -> f32 {
-    let d: f32 = 6.0 / 29.0;
+pub fn xyz_to_lab_fn(num: f64) -> f64 {
+    let d: f64 = 6.0 / 29.0;
 
     if num > d.powf(3.0) {
         num.powf(1.0 / 3.0)
@@ -57,8 +57,8 @@ pub fn xyz_to_lab_fn(num: f32) -> f32 {
     }
 }
 
-pub fn lab_to_xyz_fn(num: f32) -> f32 {
-    let d: f32 = 6.0 / 29.0;
+pub fn lab_to_xyz_fn(num: f64) -> f64 {
+    let d: f64 = 6.0 / 29.0;
 
     if num > d {
         num.powf(3.0)
@@ -68,7 +68,7 @@ pub fn lab_to_xyz_fn(num: f32) -> f32 {
 }
 
 // Input: image in CIELAB
-pub fn generate_histogram_percentiles(input: &Image<f32>, percentiles: &mut HashMap<i32, f32>, precision: f32) {
+pub fn generate_histogram_percentiles(input: &Image<f64>, percentiles: &mut HashMap<i32, f64>, precision: f64) {
     let mut histogram = BTreeMap::new();
     let (width, height) = input.dimensions();
 
@@ -81,10 +81,10 @@ pub fn generate_histogram_percentiles(input: &Image<f32>, percentiles: &mut Hash
     }
 
     let mut sum: i32 = 0;
-    let num_pixels = (width * height) as f32;
+    let num_pixels = (width * height) as f64;
     for (key, val) in &histogram {
         sum += val;
-        percentiles.insert(*key, sum as f32 / num_pixels);
+        percentiles.insert(*key, sum as f64 / num_pixels);
     }
 }
 
@@ -95,7 +95,7 @@ pub fn create_lookup_table<T: Number, F>(table: &mut [T; 256], f: F)
     }
 }
 
-// Convert an image from f32 [0, 1] to u8 [0,255]
-pub fn image_f32_to_u8(input: &Image<f32>) -> Image<u8> {
+// Convert an image from f64 [0, 1] to u8 [0,255]
+pub fn image_f64_to_u8(input: &Image<f64>) -> Image<u8> {
     input.map_channels(|channel| (channel * 255.0).round() as u8)
 }

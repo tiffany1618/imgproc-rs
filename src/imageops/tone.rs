@@ -17,20 +17,20 @@ pub fn brightness_rgb(input: &Image<u8>, bias: i32) -> Image<u8> {
 // Adjust brightness by adding the bias to the luminance value (Y)
 pub fn brightness_xyz(input: &Image<u8>, bias: i32) -> Image<u8> {
     let mut xyz = colorspace::srgb_to_xyz(input);
-    xyz.edit_channel(|num| num + (bias as f32 / 255.0), 1);
+    xyz.edit_channel(|num| num + (bias as f64 / 255.0), 1);
     colorspace::xyz_to_srgb(&xyz)
 }
 
 // Adjust contrast by multiplying each RGB channel by gain
 // gain > 0
-pub fn contrast_rgb(input: &Image<u8>, gain: f32) -> Option<Image<u8>> {
+pub fn contrast_rgb(input: &Image<u8>, gain: f64) -> Option<Image<u8>> {
     if gain <= 0.0 {
         return None;
     }
 
     let mut lookup_table: [u8; 256] = [0; 256];
     util::create_lookup_table(&mut lookup_table, |i| {
-        (i as f32 * gain).round() as u8
+        (i as f64 * gain).round() as u8
     });
 
     Some(input.map_channels_if_alpha(|channel| lookup_table[channel as usize], |a| a))
@@ -38,7 +38,7 @@ pub fn contrast_rgb(input: &Image<u8>, gain: f32) -> Option<Image<u8>> {
 
 // Adjust contrast by multiplying luminance value (Y) by gain
 // gain > 0
-pub fn contrast_xyz(input: &Image<u8>, gain: f32) -> Option<Image<u8>> {
+pub fn contrast_xyz(input: &Image<u8>, gain: f64) -> Option<Image<u8>> {
     if gain <= 0.0 {
         return None;
     }
@@ -51,7 +51,7 @@ pub fn contrast_xyz(input: &Image<u8>, gain: f32) -> Option<Image<u8>> {
 // alpha range [0, 1];
 // 0 corresponds to no equalization,
 // 1 corresponds to full equalization
-pub fn histogram_equalization(input: &Image<u8>, alpha: f32, ref_white: &str, precision: f32) -> Option<Image<u8>> {
+pub fn histogram_equalization(input: &Image<u8>, alpha: f64, ref_white: &str, precision: f64) -> Option<Image<u8>> {
     if alpha < 0.0 || alpha > 1.0 || precision <= 0.0 {
         return None;
     }
