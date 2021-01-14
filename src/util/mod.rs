@@ -1,4 +1,5 @@
 pub mod math;
+pub mod constants;
 
 use crate::image::Image;
 
@@ -36,20 +37,8 @@ impl<T> Number for T
         + From<u8>
 {}
 
-// Colorspace transformation constants
-pub const LIN_RGB_GAMMA: f32 = 2.2;
-
-// sRGB to CIEXYZ transformation matrix
-pub const sRGB_TO_XYZ_MAT: [f32; 9] = [0.4124564, 0.3575761, 0.1804375,
-                                   0.2126729, 0.7151522, 0.0721750,
-                                   0.0193339, 0.1191920, 0.9503041];
-
-// CIEXYZ to sRGB transformation matrix
-pub const XYZ_TO_sRGB_MAT: [f32; 9] = [3.2404542, -1.5371385, -0.4985314,
-                                   -0.9692660, 1.8760108, 0.0415560,
-                                   0.0556434, -0.2040259, 1.0572252];
-
 // Image helper functions
+
 pub fn generate_xyz_tristimulus_vals(ref_white: &str) -> Option<(f32, f32, f32)> {
     return match ref_white.to_lowercase().as_str() {
         "d50" => Some((96.4212, 100.0, 82.5188)),
