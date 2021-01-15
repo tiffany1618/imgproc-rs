@@ -97,7 +97,7 @@ pub fn create_lookup_table<T: Number, F>(table: &mut [T; 256], f: F)
 
 // Convert an image from f64 [0, scale] to u8 [0,255]
 pub fn image_f64_to_u8(input: &Image<f64>, scale: u32) -> Image<u8> {
-    input.map_channels(|channel| (channel * scale as f64).round() as u8)
+    input.map_channels(|channel| (channel / scale as f64 * 255.0).round() as u8)
 }
 
 // Convert an image from u8 [0, 255] to f64 [0, scale]
