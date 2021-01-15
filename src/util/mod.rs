@@ -95,7 +95,12 @@ pub fn create_lookup_table<T: Number, F>(table: &mut [T; 256], f: F)
     }
 }
 
-// Convert an image from f64 [0, 1] to u8 [0,255]
-pub fn image_f64_to_u8(input: &Image<f64>) -> Image<u8> {
-    input.map_channels(|channel| (channel * 255.0).round() as u8)
+// Convert an image from f64 [0, scale] to u8 [0,255]
+pub fn image_f64_to_u8(input: &Image<f64>, scale: u32) -> Image<u8> {
+    input.map_channels(|channel| (channel * scale as f64).round() as u8)
+}
+
+// Convert an image from u8 [0, 255] to f64 [0, scale]
+pub fn image_u8_to_f64(input: &Image<u8>, scale: u32) -> Image<f64> {
+    input.map_channels(|channel| ((channel as f64 / 255.0) * scale as f64))
 }

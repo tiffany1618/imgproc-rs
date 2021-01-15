@@ -152,6 +152,53 @@ impl<T: Number> Image<T> {
         self.pixels[(y * self.width + x) as usize] = p;
     }
 
+    // Return the neighborhood of pixels in a strip of length size centered at (x, y)
+    // size must be odd
+    // If is_vert = true, returns vertical strips; otherwise horizontal strips
+    // Clamp padding for edge pixels (edge pixels are repeated indefinitely)
+    pub fn get_neighborhood_vec(&self, x: u32, y: u32, size: u32, is_vert: bool) -> Vec<&Pixel<T>> {
+        let mut vec = vec![self.get_pixel(x, y); size as usize];
+        let center = (size/2 + 1) as usize;
+
+        // TODO: Make this cleaner
+        if is_vert {
+            for i in 0..(size as usize / 2) {
+                if y > i as u32 {
+                    vec[center-i] = self.get_pixel(x, y - i as u32);
+                }
+
+                if y + (i as u32) < self.height {
+                    vec[center+i] = self.get_pixel(x, y + i as u32);
+                }
+            }
+        } else {
+            for i in 0..(size as usize / 2) {
+                if x > i as u32 {
+                    vec[center-i] = self.get_pixel(x - i as u32, y);
+                }
+
+                if x + (i as u32) < self.width {
+                    vec[center+i] = self.get_pixel(x + i as u32, y);
+                }
+
+            }
+        }
+
+        vec
+    }
+
+    // Return the neighborhood of pixels in a size x size square centered at (x, y)
+    // size must be odd
+    // Clamp padding for edge pixels (edge pixels are repeated indefinitely)
+    pub fn get_neighborhood_square(&self, x: u32, y: u32, size: u32) -> Vec<&Pixel<T>> {
+        let mut vec = Vec::new();
+
+        // Add center pixel
+        // TODO
+
+        vec
+    }
+
     // Apply function f to all pixels
     pub fn map_pixels<S: Number, F>(&self, f: F) -> Image<S>
         where F: Fn(&[T]) -> Vec<S> {

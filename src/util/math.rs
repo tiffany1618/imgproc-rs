@@ -1,4 +1,5 @@
 use crate::util::Number;
+use crate::image::Pixel;
 
 // Multiplies a square matrix by a vector
 // mat MUST be square; output vec has same dimensions as input vec
@@ -19,4 +20,55 @@ pub fn vector_mul<T: Number>(mat: &[T], vec: &[T]) -> Option<Vec<T>> {
     }
 
     Some(output)
+}
+
+// Apply 1D kernel to given pixels
+// kernel must be a vector with odd dimensions
+// pixels and kernel must have the same dimensions
+pub fn apply_1d_kernel(pixels: &[&Pixel<f64>], kernel: &[f64]) -> Option<Pixel<f64>> {
+    let size = pixels.len();
+    let num_channels = pixels[0].num_channels() as usize;
+
+    // Check for valid dimensions
+    if size % 2 == 0 || kernel.len() != size {
+        return None;
+    }
+
+    let mut vec = vec![0.0; num_channels];
+
+    // Apply kernel
+    for i in 0..size {
+        for j in 0..num_channels {
+            vec[j] += kernel[i] * pixels[i].channels()[j];
+        }
+    }
+
+    Some(Pixel::new(&vec))
+}
+
+// Apply 2D kernel to given pixels
+// kernel must be a square matrix with odd dimensions
+// pixels and kernel must have the same dimensions
+pub fn apply_2d_kernel(pixels: &[&Pixel<f64>], kernel: &[f64]) -> Option<Pixel<f64>> {
+    let size = (pixels.len() as f32).sqrt() as usize;
+    let num_channels = pixels[0].num_channels() as usize;
+
+    // Check for valid dimensions
+    if size % 2 == 0 || kernel.len() != size * size {
+        return None;
+    }
+
+    let mut vec = vec![0.0; num_channels];
+
+    // Apply kernel
+    for y in 0..size {
+        for x in 0..size {
+            let index = y * size + x;
+            for j in 0..num_channels {
+                vec[j] += kernel[index] * pixels[index].channels()[j];
+            }
+        }
+    }
+
+    Some(Pixel::new(&vec))
 }
