@@ -173,7 +173,7 @@ impl<T: Number> Image<T> {
         self.pixels[(y * self.width + x) as usize] = p;
     }
 
-    /// Returns a `Vec` of `Pixel` references to the "strip" of `Pixel`s centered at `(x, y)`
+    /// Returns a `Vec` of `Pixel` references to the "strip" of `Pixel`s centered at `(x, y)`.
     /// Uses clamp padding for edge pixels (edge pixels are repeated indefinitely)
     ///
     /// # Arguments
@@ -211,7 +211,7 @@ impl<T: Number> Image<T> {
         vec
     }
 
-    /// Returns a `Vec` of `Pixel` references to the "square" of `Pixel`s centered at `(x, y)`
+    /// Returns a `Vec` of `Pixel` references to the "square" of `Pixel`s centered at `(x, y)`.
     /// Uses clamp padding for edge pixels (edge pixels are repeated indefinitely)
     ///
     /// # Arguments
