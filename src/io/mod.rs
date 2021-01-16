@@ -1,16 +1,16 @@
-mod errors;
-
-use crate::image::Image;
-use errors::ImageError;
-
-use std::path::Path;
 use std::fs::File;
 use std::io::{BufReader, BufWriter};
+use std::path::Path;
 use std::result::Result;
 
-use png::HasParameters;
 use jpeg_decoder;
+use png::HasParameters;
 
+use crate::errors::ImageError;
+use crate::image::Image;
+
+/// Converts a `png::ColorType` to a tuple representing the number of channels in a png image
+/// and if the image has an alpha channel or not
 fn png_from_color_type(color_type: png::ColorType) -> (u8, bool) {
     match color_type {
         png::ColorType::Grayscale => (1, false),
@@ -21,6 +21,7 @@ fn png_from_color_type(color_type: png::ColorType) -> (u8, bool) {
     }
 }
 
+/// Converts the number of channels in a png image to a `png::ColorType`
 fn png_into_color_type(channels: u8) -> Result<png::ColorType, ImageError> {
     match channels {
         1 => Ok(png::ColorType::Grayscale),
@@ -31,6 +32,7 @@ fn png_into_color_type(channels: u8) -> Result<png::ColorType, ImageError> {
     }
 }
 
+/// Decodes a png image
 fn decode_png(filename: &str) -> Result<Image<u8>, ImageError> {
     let decoder = png::Decoder::new(File::open(filename)?);
     let (info, mut reader) = decoder.read_info()?;
@@ -42,6 +44,7 @@ fn decode_png(filename: &str) -> Result<Image<u8>, ImageError> {
     Ok(Image::new(info.width, info.height, channels, alpha, &buf))
 }
 
+/// Encodes a png image
 fn encode_png(input: &Image<u8>, path: &Path) -> Result<(), ImageError> {
     let (width, height, channels) = input.dimensions_with_channels();
     let file = File::create(path)?;
@@ -57,6 +60,7 @@ fn encode_png(input: &Image<u8>, path: &Path) -> Result<(), ImageError> {
     Ok(())
 }
 
+/// Converts a `jpeg_decoder::PixelFormat` to the number of channels in a jpg image
 pub fn jpg_pixel_format_to_channels(pixel_format: jpeg_decoder::PixelFormat) -> u8 {
     match pixel_format {
         jpeg_decoder::PixelFormat::L8 => 1,
@@ -65,6 +69,7 @@ pub fn jpg_pixel_format_to_channels(pixel_format: jpeg_decoder::PixelFormat) -> 
     }
 }
 
+/// Decodes a jpg image
 fn decode_jpg(filename: &str) -> Result<Image<u8>, ImageError> {
     let file = File::open(filename)?;
     let mut decoder = jpeg_decoder::Decoder::new(BufReader::new(file));
@@ -81,6 +86,8 @@ fn decode_jpg(filename: &str) -> Result<Image<u8>, ImageError> {
 // }
 
 // TODO: Add support for more image file formats
+
+/// Reads a png or jpg image file into an `Image<u8>`
 pub fn read(filename: &str) -> Result<Image<u8>, ImageError> {
     let path = Path::new(filename);
     let ext = path.extension().ok_or_else(|| ImageError::Other("could not extract file extension".to_string()))?;
@@ -93,6 +100,7 @@ pub fn read(filename: &str) -> Result<Image<u8>, ImageError> {
     }
 }
 
+/// Writes an `Image<u8>` into a png file
 pub fn write(input: &Image<u8>, filename: &str) -> Result<(), ImageError> {
     let path = Path::new(filename);
     let ext = path.extension().ok_or_else(|| ImageError::Other("could not extract file extension".to_string()))?;

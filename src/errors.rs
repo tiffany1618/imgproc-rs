@@ -3,7 +3,7 @@ use std::io;
 use png;
 use jpeg_decoder;
 
-// TODO: Make custom errors
+/// An enum for image errors
 pub enum ImageError {
     IoError(io::Error),
     PngDecodingError(png::DecodingError),

@@ -1,11 +1,11 @@
 pub mod math;
-pub mod constants;
+pub mod constant;
 
 use crate::image::Image;
 
 use std::collections::{HashMap, BTreeMap};
 
-// Trait for valid image channel types
+/// A trait for valid image channel types
 pub trait Number:
     std::clone::Clone
     + std::marker::Copy
@@ -37,8 +37,11 @@ impl<T> Number for T
         + From<u8>
 {}
 
+////////////////////////////
 // Image helper functions
+////////////////////////////
 
+/// Returns a tuple representing the XYZ tristimulus values for a given reference white value
 pub fn generate_xyz_tristimulus_vals(ref_white: &str) -> Option<(f64, f64, f64)> {
     return match ref_white.to_lowercase().as_str() {
         "d50" => Some((96.4212, 100.0, 82.5188)),
@@ -47,6 +50,7 @@ pub fn generate_xyz_tristimulus_vals(ref_white: &str) -> Option<(f64, f64, f64)>
     }
 }
 
+/// A helper function for the colorspace conversion from CIE XYZ to CIELAB
 pub fn xyz_to_lab_fn(num: f64) -> f64 {
     let d: f64 = 6.0 / 29.0;
 
@@ -57,6 +61,7 @@ pub fn xyz_to_lab_fn(num: f64) -> f64 {
     }
 }
 
+/// A helper function for the colorspace conversion from CIELAB to CIE XYZ
 pub fn lab_to_xyz_fn(num: f64) -> f64 {
     let d: f64 = 6.0 / 29.0;
 
@@ -67,7 +72,15 @@ pub fn lab_to_xyz_fn(num: f64) -> f64 {
     }
 }
 
-// Input: image in CIELAB
+/// A helper function for histogram equalization
+///
+/// # Arguments
+///
+/// * `input` - a reference to a CIELAB `Image`
+/// * `percentiles` - a mutable `HashMap` reference relating an L channel intensity to the number
+/// of times it occurs in `input` as a percentile
+/// * `precision` - The range of possible L channel intensity values (used to convert the intensity
+/// value to an i32, which can be used as a key in `HashMap` and `BTreeMap`)
 pub fn generate_histogram_percentiles(input: &Image<f64>, percentiles: &mut HashMap<i32, f64>, precision: f64) {
     let mut histogram = BTreeMap::new();
     let (width, height) = input.dimensions();
@@ -88,6 +101,7 @@ pub fn generate_histogram_percentiles(input: &Image<f64>, percentiles: &mut Hash
     }
 }
 
+/// Populates `table` with the appropriate values based on function `f`
 pub fn create_lookup_table<T: Number, F>(table: &mut [T; 256], f: F)
     where F: Fn(u8) -> T {
     for i in 0..256 {
@@ -95,12 +109,14 @@ pub fn create_lookup_table<T: Number, F>(table: &mut [T; 256], f: F)
     }
 }
 
-// Convert an image from f64 [0, scale] to u8 [0,255]
+/// Converts `input` channels from f64 channels ranging from 0 to `scale` to u8 channels
+/// ranging from 0 to 255
 pub fn image_f64_to_u8(input: &Image<f64>, scale: u32) -> Image<u8> {
     input.map_channels(|channel| (channel / scale as f64 * 255.0).round() as u8)
 }
 
-// Convert an image from u8 [0, 255] to f64 [0, scale]
+/// Converts `input` channels from u8 channels ranging from 0 to 255 to f64 channels ranging
+/// from 0 to `scale`
 pub fn image_u8_to_f64(input: &Image<u8>, scale: u32) -> Image<f64> {
     input.map_channels(|channel| ((channel as f64 / 255.0) * scale as f64))
 }

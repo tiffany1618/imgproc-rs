@@ -1,12 +1,12 @@
 use crate::util::Number;
 use crate::image::Pixel;
 
-// Multiplies a square matrix by a vector
-// mat MUST be square; output vec has same dimensions as input vec
+/// Returns the result of the multiplication of a square matrix by a vector
 pub fn vector_mul<T: Number>(mat: &[T], vec: &[T]) -> Option<Vec<T>> {
     let rows = vec.len();
     let mat_cols = mat.len() / rows;
 
+    // Check for valid dimensions
     if mat_cols != rows {
         return None;
     }
@@ -22,9 +22,12 @@ pub fn vector_mul<T: Number>(mat: &[T], vec: &[T]) -> Option<Vec<T>> {
     Some(output)
 }
 
-// Apply 1D kernel to given pixels
-// kernel must be a vector with odd dimensions
-// pixels and kernel must have the same dimensions
+/// Applies a 1D kernel to `pixels`
+///
+/// # Arguments
+///
+/// * `pixels` - a slice of `Pixel` references
+/// * `kernel` - a slice representing the 1D kernel to be applied; must be of odd dimensions
 pub fn apply_1d_kernel(pixels: &[&Pixel<f64>], kernel: &[f64]) -> Option<Pixel<f64>> {
     let size = pixels.len();
     let num_channels = pixels[0].num_channels() as usize;
@@ -46,9 +49,12 @@ pub fn apply_1d_kernel(pixels: &[&Pixel<f64>], kernel: &[f64]) -> Option<Pixel<f
     Some(Pixel::new(&vec))
 }
 
-// Apply 2D kernel to given pixels
-// kernel must be a square matrix with odd dimensions
-// pixels and kernel must have the same dimensions
+/// Applies a 2D kernel to `pixels`
+///
+/// # Arguments
+///
+/// * `pixels` - a slice of `Pixel` references
+/// * `kernel` - a slice representing the 2D kernel to be applied; must have odd dimensions
 pub fn apply_2d_kernel(pixels: &[&Pixel<f64>], kernel: &[f64]) -> Option<Pixel<f64>> {
     let size = (pixels.len() as f32).sqrt() as usize;
     let num_channels = pixels[0].num_channels() as usize;

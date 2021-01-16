@@ -6,6 +6,7 @@ use core::ops::Mul;
 
 use rulinalg::matrix::{Matrix, BaseMatrix};
 
+/// Returns the result of applying a linear filter on `input` using the 2D `kernel`
 pub fn linear_filter(input: &Image<f64>, kernel: &[f64]) -> Option<Image<f64>> {
     let size = (kernel.len() as f32).sqrt() as usize;
 
@@ -45,6 +46,9 @@ pub fn linear_filter(input: &Image<f64>, kernel: &[f64]) -> Option<Image<f64>> {
     }
 }
 
+// TODO: Combine vertical_filter and horizontal_filter?
+
+/// Returns the result of applying a vertical filter on `input` using the 1D `kernel`
 pub fn vertical_filter(input: &Image<f64>, kernel: &[f64]) -> Image<f64> {
     let (width, height, channels) = input.dimensions_with_channels();
     let mut output = Image::blank(width, height, channels, input.has_alpha());
@@ -59,6 +63,7 @@ pub fn vertical_filter(input: &Image<f64>, kernel: &[f64]) -> Image<f64> {
     output
 }
 
+/// Returns the result of applying a horizontal filter on `input` using the 1D `kernel`
 pub fn horizontal_filter(input: &Image<f64>, kernel: &[f64]) -> Image<f64> {
     let (width, height, channels) = input.dimensions_with_channels();
     let mut output = Image::blank(width, height, channels, input.has_alpha());
@@ -73,6 +78,7 @@ pub fn horizontal_filter(input: &Image<f64>, kernel: &[f64]) -> Image<f64> {
     output
 }
 
+/// Returns the result of applying a box filter of size `size` on `input`
 pub fn box_filter(input: &Image<f64>, size: u32) -> Image<f64> {
     let len = (size * size) as usize;
     let kernel = vec![1.0; len];
@@ -81,6 +87,7 @@ pub fn box_filter(input: &Image<f64>, size: u32) -> Image<f64> {
     horizontal_filter(&output_vertical, &kernel)
 }
 
+/// Returns the result of applying a normalized box filter of size `size` on `input`
 pub fn box_filter_normalized(input: &Image<f64>, size: u32) -> Image<f64> {
     let len = (size * size) as f64;
     let kernel = vec![1.0 / len; len as usize];

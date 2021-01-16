@@ -1,5 +1,6 @@
 use crate::util::Number;
 
+/// A Pixel representation
 #[derive(Debug, Clone, PartialEq)]
 pub struct Pixel<T: Number> {
     num_channels: u8,
@@ -7,6 +8,7 @@ pub struct Pixel<T: Number> {
 }
 
 impl<T: Number> Pixel<T> {
+    /// Creates a new `Pixel` from a slice
     pub fn new(channels: &[T]) -> Self {
         Pixel {
             num_channels: channels.len() as u8,
@@ -14,6 +16,7 @@ impl<T: Number> Pixel<T> {
         }
     }
 
+    /// Creates a `Pixel` populated with zeroes
     pub fn blank(num_channels: u8) -> Self {
         Pixel {
             num_channels,
@@ -21,31 +24,32 @@ impl<T: Number> Pixel<T> {
         }
     }
 
+    /// Returns the number of channels
     pub fn num_channels(&self) -> u8 {
         self.num_channels
     }
 
-    // Return all channels as slice
+    /// Returns all channels as a slice
     pub fn channels(&self) -> &[T] {
         &self.channels
     }
 
-    // Return all channels as mutable slice
+    /// Returns all channels as a mutable slice
     pub fn channels_mut(&mut self) -> &mut [T] {
         &mut self.channels
     }
 
-    // Return all channels except last channel as slice
+    /// Returns all channels except the last channel as a slice
     pub fn channels_no_alpha(&self) -> &[T] {
         &self.channels[..(self.num_channels as usize)]
     }
 
-    // Return last channel if it exists
+    /// Returns the last channel
     pub fn alpha(&self) -> T {
         self.channels[(self.num_channels - 1) as usize]
     }
 
-    // Apply function f to all channels
+    /// Applies function `f` to all channels
     pub fn map<S: Number, F>(&self, f: F) -> Pixel<S>
         where F: Fn(T) -> S {
         let mut channels_out = Vec::new();
@@ -60,8 +64,8 @@ impl<T: Number> Pixel<T> {
         }
     }
 
-    // Apply function f to all channels except alpha channel
-    // Apply function g to alpha channel
+    /// Applies function `f` to all channels except the last (alpha) channel, and applies
+    /// function `g` to the alpha channel
     pub fn map_alpha<S: Number, F, G>(&self, f: F, g: G) -> Pixel<S>
         where F: Fn(T) -> S,
               G: Fn(T) -> S {
@@ -80,6 +84,14 @@ impl<T: Number> Pixel<T> {
     }
 }
 
+/// An Image representation
+///
+/// # Fields
+/// * `width` - The width of the image
+/// * `height` - The height of the image
+/// * `channels` - The number of channels in each `Pixel`
+/// * `alpha` - A `bool` that is `true` if the image has an alpha channel, `false` otherwise
+/// * `pixels` - A `Vec` of `Pixel`s containing the image data
 #[derive(Debug, Clone)]
 pub struct Image<T: Number> {
     width: u32,
@@ -90,6 +102,7 @@ pub struct Image<T: Number> {
 }
 
 impl<T: Number> Image<T> {
+    /// Creates a new `Image`
     pub fn new(width: u32, height: u32, channels: u8, alpha: bool, data: &[T]) -> Self {
         let mut pixels = Vec::new();
         let size = (width * height * channels as u32) as usize;
@@ -101,6 +114,7 @@ impl<T: Number> Image<T> {
         Image { width, height, channels, alpha, pixels }
     }
 
+    /// Creates an `Image` populated with zeroes
     pub fn blank(width: u32, height: u32, channels: u8, alpha: bool) -> Self {
         Image {
             width,
@@ -111,22 +125,27 @@ impl<T: Number> Image<T> {
         }
     }
 
+    /// Returns the `width` and `height` of `self`
     pub fn dimensions(&self) -> (u32, u32) {
         (self.width, self.height)
     }
 
+    /// Returns the `width`, `height`, and `channels` of `self`
     pub fn dimensions_with_channels(&self) -> (u32, u32, u8) {
         (self.width, self.height, self.channels)
     }
 
+    /// Returns `true` if `self` has an alpha channel, `false` otherwise
     pub fn has_alpha(&self) -> bool {
         self.alpha
     }
 
+    /// Returns `pixels` as a slice of `Pixel`s
     pub fn pixels(&self) -> &[Pixel<T>] {
         &self.pixels
     }
 
+    /// Returns `pixels` as `Vec<T>`
     pub fn pixels_as_vector(&self) -> Vec<T> {
         let mut pixels_vec = Vec::new();
 
@@ -139,23 +158,28 @@ impl<T: Number> Image<T> {
         pixels_vec
     }
 
-    // Return pixel as mutable slice
+    /// Returns `pixels` as a mutable slice
     pub fn pixel_mut(&mut self, x: u32, y: u32) -> &mut [T] {
         self.pixels[(y * self.width + x) as usize].channels_mut()
     }
 
+    /// Returns a reference to the `Pixel` located at `(x, y)`
     pub fn get_pixel(&self, x: u32, y: u32) -> &Pixel<T> {
         &self.pixels[(y * self.width + x) as usize]
     }
 
+    /// Replaces the `Pixel` located at `(x, u)` with `p`
     pub fn put_pixel(&mut self, x: u32, y: u32, p: Pixel<T>) {
         self.pixels[(y * self.width + x) as usize] = p;
     }
 
-    // Return the neighborhood of pixels in a strip of length size centered at (x, y)
-    // size must be odd
-    // If is_vert = true, returns vertical strips; otherwise horizontal strips
-    // Clamp padding for edge pixels (edge pixels are repeated indefinitely)
+    /// Returns a `Vec` of `Pixel` references to the "strip" of `Pixel`s centered at `(x, y)`
+    /// Uses clamp padding for edge pixels (edge pixels are repeated indefinitely)
+    ///
+    /// # Arguments
+    ///
+    /// * `size` - The length of the strip of `Pixel`s; must be an odd number
+    /// * `is_vert` - If `true`, this function returns vertical strips; if `false`, horizontal strips
     pub fn get_neighborhood_vec(&self, x: u32, y: u32, size: u32, is_vert: bool) -> Vec<&Pixel<T>> {
         let mut vec = vec![self.get_pixel(x, y); size as usize];
         let center = (size/2 + 1) as usize;
@@ -187,9 +211,12 @@ impl<T: Number> Image<T> {
         vec
     }
 
-    // Return the neighborhood of pixels in a size x size square centered at (x, y)
-    // size must be odd
-    // Clamp padding for edge pixels (edge pixels are repeated indefinitely)
+    /// Returns a `Vec` of `Pixel` references to the "square" of `Pixel`s centered at `(x, y)`
+    /// Uses clamp padding for edge pixels (edge pixels are repeated indefinitely)
+    ///
+    /// # Arguments
+    ///
+    /// * `size` - The length/width of the square of `Pixel`s; must be an odd number
     pub fn get_neighborhood_square(&self, x: u32, y: u32, size: u32) -> Vec<&Pixel<T>> {
         let mut vec = Vec::new();
 
@@ -199,7 +226,7 @@ impl<T: Number> Image<T> {
         vec
     }
 
-    // Apply function f to all pixels
+    /// Applies function `f` to each `Pixel` in `pixels`
     pub fn map_pixels<S: Number, F>(&self, f: F) -> Image<S>
         where F: Fn(&[T]) -> Vec<S> {
         let (width, height) = self.dimensions();
@@ -221,9 +248,9 @@ impl<T: Number> Image<T> {
         }
     }
 
-    // If image has alpha channel, apply function f to non-alpha portion of all pixels, and
-    // function g to alpha channel of all pixels;
-    // if image has no alpha channel, apply function f to all pixels
+    /// If `alpha`, applies function `f` to the non-alpha portion of each `Pixel` in `pixels` and
+    /// applies function `g` to the alpha channel of each `Pixel` in `pixels`;
+    /// otherwise, applies function `f` to each `Pixel` in `pixels`
     pub fn map_pixels_if_alpha<S: Number, F, G>(&self, f: F, g: G) -> Image<S>
         where F: Fn(&[T]) -> Vec<S>,
               G: Fn(T) -> S {
@@ -251,7 +278,7 @@ impl<T: Number> Image<T> {
         }
     }
 
-    // Apply function f to all channels of all pixels
+    /// Applies function `f` to each channel of each `Pixel` in `pixels`
     pub fn map_channels<S: Number, F>(&self, f: F) -> Image<S>
         where F: Fn(T) -> S {
         let (width, height, channels) = self.dimensions_with_channels();
@@ -272,9 +299,9 @@ impl<T: Number> Image<T> {
         }
     }
 
-    // If image has alpha channel, apply function f to all non-alpha channels of all pixels, and
-    // function g to alpha channel;
-    // If image has no alpha channel, apply function f to all channels of all pixels
+    /// If `alpha`, applies function `f` to each non-alpha channel of each `Pixel` in `pixels` and
+    /// applies function `g` to the alpha channel of each `Pixel` in `pixels`;
+    /// otherwise, applies function `f` to each channel of each `Pixel` in `pixels`
     pub fn map_channels_if_alpha<S: Number, F, G>(&self, f: F, g: G) -> Image<S>
         where F: Fn(T) -> S,
               G: Fn(T) -> S {
@@ -300,7 +327,8 @@ impl<T: Number> Image<T> {
         }
     }
 
-    // Apply function f to each channel of index channel_index of each pixel
+    /// Applies function `f` to each channel of index `channel_index` of each `Pixel` in `pixels`.
+    /// Modifies `self`
     pub fn edit_channel<F>(&mut self, f: F, channel_index: usize)
         where F: Fn(T) -> T {
         let (width, height) = self.dimensions();
