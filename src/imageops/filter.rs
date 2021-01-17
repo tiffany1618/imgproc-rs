@@ -1,5 +1,5 @@
 use crate::image::{Image, Pixel};
-use crate::colorspace;
+use crate::imageops::colorspace;
 use crate::util::Number;
 use crate::util::math::apply_1d_kernel;
 use crate::util::constant::{K_GAUSSIAN_BLUR_1D_3, K_GAUSSIAN_BLUR_1D_5, K_SOBEL_1D_VERT, K_SOBEL_1D_HORZ};

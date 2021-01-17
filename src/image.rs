@@ -41,7 +41,7 @@ impl<T: Number> Pixel<T> {
 
     /// Returns all channels except the last channel as a slice
     pub fn channels_no_alpha(&self) -> &[T] {
-        &self.channels[..(self.num_channels as usize)]
+        &self.channels[..((self.num_channels  as usize)-1)]
     }
 
     /// Returns the last channel

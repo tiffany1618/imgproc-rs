@@ -1,5 +1,5 @@
 [package]
-name = "img-rust"
+name = "imgproc-rs"
 version = "0.1.0"
 authors = ["tiffany1618 <tiffany9342@gmail.com>"]
 edition = "2018"
