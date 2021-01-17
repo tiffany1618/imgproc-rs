@@ -199,10 +199,10 @@ impl<T: Number> Image<T> {
         let mut vec = vec![self.get_pixel(x, y); size as usize];
         let center = (size/2) as usize;
 
-        // TODO: Make this cleaner
+        // TODO: Make this cleaner, check dimensions
         if is_vert {
             for i in 1..((size as usize) / 2 + 1) {
-                if y > i as u32 {
+                if y >= i as u32 {
                     vec[center-i] = self.get_pixel(x, y - (i as u32));
                 }
 
@@ -212,7 +212,7 @@ impl<T: Number> Image<T> {
             }
         } else {
             for i in 1..(size as usize / 2 + 1) {
-                if x > i as u32 {
+                if x >= i as u32 {
                     vec[center-i] = self.get_pixel(x - (i as u32), y);
                 }
 
@@ -234,9 +234,20 @@ impl<T: Number> Image<T> {
     /// * `size` - The length/width of the square of `Pixel`s; must be an odd number
     pub fn get_neighborhood_square(&self, x: u32, y: u32, size: u32) -> Vec<&Pixel<T>> {
         let mut vec = Vec::new();
+        let start_x = (x as i32) - (size as i32) / 2;
+        let start_y = (y as i32) - (size as i32) / 2;
 
-        // Add center pixel
-        // TODO
+        for i in 0..size {
+            for j in 0..size {
+                let mut curr_x = start_x + (j as i32);
+                let mut curr_y = start_y + (i as i32);
+
+                if curr_x < 0 || curr_x >= self.width as i32 { curr_x = x as i32 };
+                if curr_y < 0 || curr_y >= self.height as i32 { curr_y = y as i32 };
+
+                vec.push(self.get_pixel(curr_x as u32, curr_y as u32));
+            }
+        }
 
         vec
     }
