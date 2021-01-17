@@ -17,6 +17,18 @@ pub fn rgb_to_grayscale(input: &Image<u8>) -> Image<u8> {
     }, |a| a)
 }
 
+/// Converts an f64 image from RGB to Grayscale
+pub fn rgb_to_grayscale_f64(input: &Image<f64>) -> Image<f64> {
+    input.map_pixels_if_alpha(|channels| {
+        let mut sum = 0.0;
+        for channel in channels.iter() {
+            sum += *channel;
+        }
+
+        vec![sum / channels.len() as f64]
+    }, |a| a)
+}
+
 /// Linearizes an sRGB image
 // Input: sRGB range [0, 255]
 // Output: sRGB range [0, 1] linearized

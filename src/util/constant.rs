@@ -49,3 +49,9 @@ pub const K_UNSHARP_MASKING: [f64; 25] = [-1.0/256.0, -4.0/256.0, -6.0/256.0, -4
 pub const K_SHARPEN: [f64; 9] = [0.0, -1.0, 0.0,
                                  -1.0, 5.0, -1.0,
                                  0.0, -1.0, 0.0];
+
+/// 1D vertical kernel for the Sobel operator
+pub const K_SOBEL_1D_VERT: [f64; 3] = [1.0, 2.0, 1.0];
+
+/// 1D horizontal kernel for the Sobel operator
+pub const K_SOBEL_1D_HORZ: [f64; 3] = [-1.0, 0.0, 1.0];

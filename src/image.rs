@@ -84,6 +84,21 @@ impl<T: Number> Pixel<T> {
     }
 }
 
+impl<T: Number> std::fmt::Display for Pixel<T> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let mut print_str = "(".to_owned();
+
+        print_str.push_str(&self.channels[0].to_string());
+        for i in 1..(self.num_channels as usize) {
+            print_str.push_str(", ");
+            print_str.push_str(&self.channels[i].to_string());
+        }
+        print_str.push_str(")");
+
+        write!(f, "{}", print_str.as_str())
+    }
+}
+
 /// An Image representation
 ///
 /// # Fields
@@ -182,27 +197,27 @@ impl<T: Number> Image<T> {
     /// * `is_vert` - If `true`, this function returns vertical strips; if `false`, horizontal strips
     pub fn get_neighborhood_vec(&self, x: u32, y: u32, size: u32, is_vert: bool) -> Vec<&Pixel<T>> {
         let mut vec = vec![self.get_pixel(x, y); size as usize];
-        let center = (size/2 + 1) as usize;
+        let center = (size/2) as usize;
 
         // TODO: Make this cleaner
         if is_vert {
-            for i in 0..(size as usize / 2) {
+            for i in 1..((size as usize) / 2 + 1) {
                 if y > i as u32 {
-                    vec[center-i] = self.get_pixel(x, y - i as u32);
+                    vec[center-i] = self.get_pixel(x, y - (i as u32));
                 }
 
                 if y + (i as u32) < self.height {
-                    vec[center+i] = self.get_pixel(x, y + i as u32);
+                    vec[center+i] = self.get_pixel(x, y + (i as u32));
                 }
             }
         } else {
-            for i in 0..(size as usize / 2) {
+            for i in 1..(size as usize / 2 + 1) {
                 if x > i as u32 {
-                    vec[center-i] = self.get_pixel(x - i as u32, y);
+                    vec[center-i] = self.get_pixel(x - (i as u32), y);
                 }
 
                 if x + (i as u32) < self.width {
-                    vec[center+i] = self.get_pixel(x + i as u32, y);
+                    vec[center+i] = self.get_pixel(x + (i as u32), y);
                 }
 
             }

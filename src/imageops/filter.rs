@@ -1,7 +1,8 @@
-use crate::image::Image;
+use crate::image::{Image, Pixel};
+use crate::colorspace;
 use crate::util::Number;
 use crate::util::math::apply_1d_kernel;
-use crate::util::constant::{K_GAUSSIAN_BLUR_1D_3, K_GAUSSIAN_BLUR_1D_5};
+use crate::util::constant::{K_GAUSSIAN_BLUR_1D_3, K_GAUSSIAN_BLUR_1D_5, K_SOBEL_1D_VERT, K_SOBEL_1D_HORZ};
 
 use core::ops::Mul;
 
@@ -88,8 +89,8 @@ pub fn box_filter(input: &Image<f64>, size: u32) -> Option<Image<f64>> {
     let len = (size * size) as usize;
     let kernel = vec![1.0; len];
 
-    let output_vertical = vertical_filter(input, &kernel);
-    Some(horizontal_filter(&output_vertical, &kernel))
+    let vert = vertical_filter(input, &kernel);
+    Some(horizontal_filter(&vert, &kernel))
 }
 
 /// Returns the result of applying a normalized box filter of odd size `size` on `input`
@@ -101,8 +102,8 @@ pub fn box_filter_normalized(input: &Image<f64>, size: u32) -> Option<Image<f64>
     let len = (size * size) as usize;
     let kernel = vec![1.0 / (size as f64); len];
 
-    let output_vertical = vertical_filter(input, &kernel);
-    Some(horizontal_filter(&output_vertical, &kernel))
+    let vert = vertical_filter(input, &kernel);
+    Some(horizontal_filter(&vert, &kernel))
 }
 
 /// Returns the result of applying a Gaussian blur of odd size `size` on `input`. Currently only
@@ -110,15 +111,37 @@ pub fn box_filter_normalized(input: &Image<f64>, size: u32) -> Option<Image<f64>
 pub fn gaussian_blur(input: &Image<f64>, size: u32) -> Option<Image<f64>> {
     match size {
         3 => {
-            let out_vert = vertical_filter(input, &K_GAUSSIAN_BLUR_1D_3);
-            Some(horizontal_filter(&out_vert, &K_GAUSSIAN_BLUR_1D_3))
+            let vert = vertical_filter(input, &K_GAUSSIAN_BLUR_1D_3);
+            Some(horizontal_filter(&vert, &K_GAUSSIAN_BLUR_1D_3))
         },
         5 => {
-            let out_vert = vertical_filter(input, &K_GAUSSIAN_BLUR_1D_5);
-            Some(horizontal_filter(&out_vert, &K_GAUSSIAN_BLUR_1D_5))
+            let vert = vertical_filter(input, &K_GAUSSIAN_BLUR_1D_5);
+            Some(horizontal_filter(&vert, &K_GAUSSIAN_BLUR_1D_5))
         },
         _ => None
     }
+}
+
+/// Returns the result of applying the Sobel operator on `input`
+pub fn sobel(input: &Image<f64>) -> Image<f64> {
+    let gray = colorspace::rgb_to_grayscale_f64(input);
+    let horz_x = horizontal_filter(&gray, &K_SOBEL_1D_HORZ);
+    let vert_x  = vertical_filter(&horz_x, &K_SOBEL_1D_VERT);
+    let horz_y = horizontal_filter(&gray, &K_SOBEL_1D_VERT);
+    let vert_y = vertical_filter(&horz_y, &K_SOBEL_1D_HORZ);
+
+    let (width, height, channels) = gray.dimensions_with_channels();
+    let mut output = Image::blank(width, height, channels, input.has_alpha());
+
+    for y in 0..height {
+        for x in 0..width {
+            let channel = (vert_x.get_pixel(x, y).channels()[0].powf(2.0)
+                + vert_y.get_pixel(x, y).channels()[0].powf(2.0)).sqrt();
+            output.put_pixel(x, y, Pixel::new(&vec![channel]));
+        }
+    }
+
+    output
 }
 
 // pub fn sharpen(input: &Image<f64>) -> Image<f64> {
