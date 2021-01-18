@@ -64,6 +64,14 @@ impl<T: Number> Pixel<T> {
         }
     }
 
+    /// Applies function `f` to all channels
+    pub fn apply<F>(&mut self, f: F)
+        where F: Fn(T) -> T {
+        for i in 0..(self.num_channels as usize) {
+            self.channels[i] = f(self.channels[i]);
+        }
+    }
+
     /// Applies function `f` to all channels except the last (alpha) channel, and applies
     /// function `g` to the alpha channel
     pub fn map_alpha<S: Number, F, G>(&self, f: F, g: G) -> Pixel<S>
@@ -81,6 +89,18 @@ impl<T: Number> Pixel<T> {
             num_channels: self.num_channels,
             channels: channels_out,
         }
+    }
+
+    /// Applies function `f` to all channels except the last (alpha) channel, and applies
+    /// function `g` to the alpha channel
+    pub fn apply_alpha<F, G>(&mut self, f: F, g: G)
+        where F: Fn(T) -> T,
+              G: Fn(T) -> T {
+        for i in 0..((self.num_channels as usize) - 1) {
+            self.channels[i] = f(self.channels[i]);
+        }
+
+        self.channels[(self.num_channels as usize)-1] = g(self.alpha());
     }
 }
 
@@ -274,6 +294,17 @@ impl<T: Number> Image<T> {
         }
     }
 
+    /// Applies function `f` to each `Pixel` in `pixels`
+    pub fn apply_pixels<F>(&mut self, f: F,)
+        where F: Fn(&[T]) -> Vec<T> {
+        for y in 0..self.height {
+            for x in 0..self.width {
+                self.pixels[(y * self.width + x) as usize] =
+                    Pixel::new(&f(self.get_pixel(x, y).channels()));
+            }
+        }
+    }
+
     /// If `alpha`, applies function `f` to the non-alpha portion of each `Pixel` in `pixels` and
     /// applies function `g` to the alpha channel of each `Pixel` in `pixels`;
     /// otherwise, applies function `f` to each `Pixel` in `pixels`
@@ -304,6 +335,26 @@ impl<T: Number> Image<T> {
         }
     }
 
+    /// If `alpha`, applies function `f` to the non-alpha portion of each `Pixel` in `pixels` and
+    /// applies function `g` to the alpha channel of each `Pixel` in `pixels`;
+    /// otherwise, applies function `f` to each `Pixel` in `pixels`
+    pub fn apply_pixels_if_alpha<F, G>(&mut self, f: F, g: G)
+        where F: Fn(&[T]) -> Vec<T>,
+              G: Fn(T) -> T {
+        if !self.alpha {
+            self.apply_pixels(f);
+            return;
+        }
+
+        for y in 0..self.height {
+            for x in 0..self.width {
+                let mut v = f(&self.get_pixel(x, y).channels_no_alpha());
+                v.push(g(self.get_pixel(x, y).alpha()));
+                self.pixels[(y * self.width + x) as usize] = Pixel::new(&v);
+            }
+        }
+    }
+
     /// Applies function `f` to each channel of each `Pixel` in `pixels`
     pub fn map_channels<S: Number, F>(&self, f: F) -> Image<S>
         where F: Fn(T) -> S {
@@ -322,6 +373,16 @@ impl<T: Number> Image<T> {
             channels,
             alpha: self.alpha,
             pixels,
+        }
+    }
+
+    /// Applies function `f` to each channel of each `Pixel` in `pixels`
+    pub fn apply_channels<F>(&mut self, f: F)
+        where F: Fn(T) -> T {
+        for y in 0..self.height {
+            for x in 0..self.width {
+                self.pixels[(y * self.width + x) as usize].apply(&f);
+            }
         }
     }
 
@@ -350,6 +411,24 @@ impl<T: Number> Image<T> {
             channels,
             alpha: self.alpha,
             pixels,
+        }
+    }
+
+    /// If `alpha`, applies function `f` to each non-alpha channel of each `Pixel` in `pixels` and
+    /// applies function `g` to the alpha channel of each `Pixel` in `pixels`;
+    /// otherwise, applies function `f` to each channel of each `Pixel` in `pixels`
+    pub fn apply_channels_if_alpha<F, G>(&mut self, f: F, g: G)
+        where F: Fn(T) -> T,
+              G: Fn(T) -> T {
+        if !self.alpha {
+            self.apply_channels(f);
+            return;
+        }
+
+        for y in 0..self.height {
+            for x in 0..self.width {
+                self.pixels[(y * self.width + x) as usize].apply_alpha(&f, &g);
+            }
         }
     }
 
