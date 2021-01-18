@@ -12,6 +12,22 @@ fn vector_mul_test() {
 }
 
 #[test]
+fn max_test() {
+    assert_eq!(3.0, math::max(1.0, 2.0, 3.0));
+    assert_eq!(1.0, math::max(1.0, 1.0, 1.0));
+    assert_eq!(3.0, math::max(1.0, 3.0, 3.0));
+    assert_eq!(3.0, math::max(1.0, 1.0, 3.0));
+}
+
+#[test]
+fn min_test() {
+    assert_eq!(1.0, math::min(1.0, 2.0, 3.0));
+    assert_eq!(1.0, math::min(1.0, 1.0, 1.0));
+    assert_eq!(1.0, math::min(1.0, 3.0, 3.0));
+    assert_eq!(1.0, math::min(1.0, 1.0, 3.0));
+}
+
+#[test]
 fn apply_1d_kernel_test() {
     let pixels = [&Pixel::new(&[1.0, 2.0, 3.0]),
                                   &Pixel::new(&[4.0, 5.0, 6.0]),

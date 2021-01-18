@@ -22,6 +22,40 @@ pub fn vector_mul<T: Number>(mat: &[T], vec: &[T]) -> Option<Vec<T>> {
     Some(output)
 }
 
+/// Returns the maximum of three f64 values
+pub fn max(x: f64, y: f64, z: f64) -> f64 {
+    if x > y {
+        if x > z {
+            x
+        } else {
+            z
+        }
+    } else {
+        if y > z {
+            y
+        } else {
+            z
+        }
+    }
+}
+
+/// Returns the minimum of three f64 values
+pub fn min(x: f64, y: f64, z: f64) -> f64 {
+    if x < y {
+        if x < z {
+            x
+        } else {
+            z
+        }
+    } else {
+        if y < z {
+            y
+        } else {
+            z
+        }
+    }
+}
+
 /// Applies a 1D kernel to `pixels`
 ///
 /// # Arguments
