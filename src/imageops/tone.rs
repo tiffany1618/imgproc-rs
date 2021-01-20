@@ -1,31 +1,40 @@
 use crate::util;
 use crate::imageops::colorspace;
 use crate::image::Image;
+use crate::error::{ImgProcError, ImgProcResult};
 
 use std::collections::HashMap;
 
 /// Adjusts brightness by adding `bias` to each RGB channel
-pub fn brightness_rgb(input: &Image<u8>, bias: i32) -> Image<u8> {
+pub fn brightness_rgb(input: &Image<u8>, bias: i32) -> ImgProcResult<Image<u8>> {
+    if bias < 0 || bias > 255 {
+        return Err(ImgProcError::InvalidArgument("bias is not in range 0 to 255".to_string()));
+    }
+
     let mut lookup_table: [u8; 256] = [0; 256];
     util::create_lookup_table(&mut lookup_table, |i| {
         (i as i32 + bias) as u8
     });
 
-    input.map_channels_if_alpha(|channel| lookup_table[channel as usize], |a| a)
+    Ok(input.map_channels_if_alpha(|channel| lookup_table[channel as usize], |a| a))
 }
 
 /// Adjusts brightness by adding `bias` to the luminance value (Y) of `input` in CIE XYZ
-pub fn brightness_xyz(input: &Image<u8>, bias: i32) -> Image<u8> {
+pub fn brightness_xyz(input: &Image<u8>, bias: i32) -> ImgProcResult<Image<u8>> {
+    if bias < 0 || bias > 255 {
+        return Err(ImgProcError::InvalidArgument("bias is not in range 0 to 255".to_string()));
+    }
+
     let mut xyz = colorspace::srgb_to_xyz(input);
     xyz.edit_channel(|num| num + (bias as f64 / 255.0), 1);
-    colorspace::xyz_to_srgb(&xyz)
+    Ok(colorspace::xyz_to_srgb(&xyz))
 }
 
 /// Adjusts contrast by multiplying each RGB channel by `gain`
 // gain > 0
-pub fn contrast_rgb(input: &Image<u8>, gain: f64) -> Option<Image<u8>> {
+pub fn contrast_rgb(input: &Image<u8>, gain: f64) -> ImgProcResult<Image<u8>> {
     if gain <= 0.0 {
-        return None;
+        return Err(ImgProcError::InvalidArgument("gain is negative".to_string()));
     }
 
     let mut lookup_table: [u8; 256] = [0; 256];
@@ -33,19 +42,19 @@ pub fn contrast_rgb(input: &Image<u8>, gain: f64) -> Option<Image<u8>> {
         (i as f64 * gain).round() as u8
     });
 
-    Some(input.map_channels_if_alpha(|channel| lookup_table[channel as usize], |a| a))
+    Ok(input.map_channels_if_alpha(|channel| lookup_table[channel as usize], |a| a))
 }
 
 /// Adjusts contrast by multiplying luminance value (Y) of `input` in CIE XYZ by `gain`
 // gain > 0
-pub fn contrast_xyz(input: &Image<u8>, gain: f64) -> Option<Image<u8>> {
+pub fn contrast_xyz(input: &Image<u8>, gain: f64) -> ImgProcResult<Image<u8>> {
     if gain <= 0.0 {
-        return None;
+        return Err(ImgProcError::InvalidArgument("gain is negative".to_string()));
     }
 
     let mut xyz = colorspace::srgb_to_xyz(input);
     xyz.edit_channel(|num| num * gain, 1);
-    Some(colorspace::xyz_to_srgb(&xyz))
+    Ok(colorspace::xyz_to_srgb(&xyz))
 }
 
 /// Performs a histogram equalization on `input`
@@ -56,9 +65,11 @@ pub fn contrast_xyz(input: &Image<u8>, gain: f64) -> Option<Image<u8>> {
 /// 1 corresponds to full equalization
 /// * `ref_white` - A string slice representing the reference white value of the image
 /// * `precision` - See the function `util::generate_histogram_percentiles`
-pub fn histogram_equalization(input: &Image<u8>, alpha: f64, ref_white: &str, precision: f64) -> Option<Image<u8>> {
-    if alpha < 0.0 || alpha > 1.0 || precision <= 0.0 {
-        return None;
+pub fn histogram_equalization(input: &Image<u8>, alpha: f64, ref_white: &str, precision: f64) -> ImgProcResult<Image<u8>> {
+    if alpha < 0.0 || alpha > 1.0 {
+        return Err(ImgProcError::InvalidArgument("alpha is not in range 0 to 1".to_string()));
+    } else if precision <= 0.0 {
+        return Err(ImgProcError::InvalidArgument("precision is not positive".to_string()));
     }
 
     let mut lab = colorspace::srgb_to_lab(input, ref_white);
@@ -70,9 +81,10 @@ pub fn histogram_equalization(input: &Image<u8>, alpha: f64, ref_white: &str, pr
         (alpha * percentiles.get(&key).unwrap() * 100.0) + ((1.0 - alpha) * num)
     }, 0);
 
-    Some(colorspace::lab_to_srgb(&lab, ref_white))
+    Ok(colorspace::lab_to_srgb(&lab, ref_white))
 }
 
+// TODO: Error handling here
 impl Image<f64> {
     /// Adjusts brightness by adding `bias` to each RGB channel
     pub fn brightness_rgb(&mut self, bias: i32) {

@@ -1,39 +1,39 @@
 use std::fs::File;
 use std::io::{BufReader, BufWriter};
 use std::path::Path;
-use std::result::Result;
+use std::result::ImgIoResult;
 
 use jpeg_decoder;
 use png::HasParameters;
 
-use crate::errors::ImageError;
+use crate::error::{ImgIoError, ImgIoResult};
 use crate::image::Image;
 
 /// Converts a `png::ColorType` to a tuple representing the number of channels in a png image
 /// and if the image has an alpha channel or not
-fn png_from_color_type(color_type: png::ColorType) -> (u8, bool) {
+fn png_from_color_type(color_type: png::ColorType) -> ImgIoResult<(u8, bool)> {
     match color_type {
-        png::ColorType::Grayscale => (1, false),
-        png::ColorType::GrayscaleAlpha => (2, true),
-        png::ColorType::RGB => (3, false),
-        png::ColorType::RGBA => (4, true),
-        png::ColorType::Indexed => (0, false), // TODO: Fix this
+        png::ColorType::Grayscale => Ok((1, false)),
+        png::ColorType::GrayscaleAlpha => Ok((2, true)),
+        png::ColorType::RGB => Ok((3, false)),
+        png::ColorType::RGBA => Ok((4, true)),
+        png::ColorType::Indexed => Err(ImgIoError::UnsupportedImageFormat("png::ColorType::Indexed not supported".to_string())), // TODO: Add support for this
     }
 }
 
 /// Converts the number of channels in a png image to a `png::ColorType`
-fn png_into_color_type(channels: u8) -> Result<png::ColorType, ImageError> {
+fn png_into_color_type(channels: u8) -> ImgIoResult<png::ColorType> {
     match channels {
         1 => Ok(png::ColorType::Grayscale),
         2 => Ok(png::ColorType::GrayscaleAlpha),
         3 => Ok(png::ColorType::RGB),
         4 => Ok(png::ColorType::RGBA),
-        _ => Err(ImageError::Other("invalid number of channels".to_string())), // TODO: Add png::ColorType::Indexed
+        _ => Err(ImgIoError::UnsupportedImageFormat("invalid number of channels".to_string())), // TODO: Add png::ColorType::Indexed
     }
 }
 
 /// Decodes a png image
-fn decode_png(filename: &str) -> Result<Image<u8>, ImageError> {
+fn decode_png(filename: &str) -> ImgIoResult<Image<u8>> {
     let decoder = png::Decoder::new(File::open(filename)?);
     let (info, mut reader) = decoder.read_info()?;
     let mut buf = vec![0; info.buffer_size()];
@@ -45,7 +45,7 @@ fn decode_png(filename: &str) -> Result<Image<u8>, ImageError> {
 }
 
 /// Encodes a png image
-fn encode_png(input: &Image<u8>, path: &Path) -> Result<(), ImageError> {
+fn encode_png(input: &Image<u8>, path: &Path) -> ImgIoResult<()> {
     let (width, height, channels) = input.dimensions_with_channels();
     let file = File::create(path)?;
     let ref mut file_writer = BufWriter::new(file);
@@ -70,45 +70,45 @@ pub fn jpg_pixel_format_to_channels(pixel_format: jpeg_decoder::PixelFormat) -> 
 }
 
 /// Decodes a jpg image
-fn decode_jpg(filename: &str) -> Result<Image<u8>, ImageError> {
+fn decode_jpg(filename: &str) -> ImgIoResult<Image<u8>> {
     let file = File::open(filename)?;
     let mut decoder = jpeg_decoder::Decoder::new(BufReader::new(file));
     let pixels = decoder.decode()?;
-    let info = decoder.info().ok_or_else(|| ImageError::Other("unable to read metadata".to_string()))?;
+    let info = decoder.info().ok_or_else(|| ImgIoError::Other("unable to read metadata".to_string()))?;
     let channels = jpg_pixel_format_to_channels(info.pixel_format);
 
     Ok(Image::new(info.width as u32, info.height as u32, channels, false, &pixels))
 }
 
 // TODO: Add support for jpg encoding
-// fn encode_jpg(input: &Image<u8>, filename: &str) -> Result<(), ImageError> {
+// fn encode_jpg(input: &Image<u8>, filename: &str) -> ImgIoResult<(), ImageError> {
 //
 // }
 
 // TODO: Add support for more image file formats
 
 /// Reads a png or jpg image file into an `Image<u8>`
-pub fn read(filename: &str) -> Result<Image<u8>, ImageError> {
+pub fn read(filename: &str) -> ImgIoResult<Image<u8>> {
     let path = Path::new(filename);
-    let ext = path.extension().ok_or_else(|| ImageError::Other("could not extract file extension".to_string()))?;
-    let ext_str = ext.to_str().ok_or_else(|| ImageError::Other("invalid file extension".to_string()))?;
+    let ext = path.extension().ok_or_else(|| ImgIoError::Other("could not extract file extension".to_string()))?;
+    let ext_str = ext.to_str().ok_or_else(|| ImgIoError::Other("invalid file extension".to_string()))?;
 
     match ext_str.to_ascii_lowercase().as_str() {
         "png" => Ok(decode_png(filename)?),
         "jpg" | "jpeg" => Ok(decode_jpg(filename)?),
-        _ => Err(ImageError::Other("unsupported file format".to_string())),
+        x => Err(ImgIoError::UnsupportedFileFormat(format!("{} is not supported", x))),
     }
 }
 
 /// Writes an `Image<u8>` into a png file
-pub fn write(input: &Image<u8>, filename: &str) -> Result<(), ImageError> {
+pub fn write(input: &Image<u8>, filename: &str) -> ImgIoResult<()> {
     let path = Path::new(filename);
-    let ext = path.extension().ok_or_else(|| ImageError::Other("could not extract file extension".to_string()))?;
-    let ext_str = ext.to_str().ok_or_else(|| ImageError::Other("invalid file extension".to_string()))?;
+    let ext = path.extension().ok_or_else(|| ImgIoError::Other("could not extract file extension".to_string()))?;
+    let ext_str = ext.to_str().ok_or_else(|| ImgIoError::Other("invalid file extension".to_string()))?;
 
     match ext_str.to_ascii_lowercase().as_str() {
         "png" => Ok(encode_png(input, path)?),
         // "jpg" | "jpeg" => Ok(encode_jpg(input, filename)?),
-        _ => Err(ImageError::Other("unsupported file format".to_string())),
+        _ => Err(ImgIoError::UnsupportedFileFormat(format!("{} is not supported", x))),
     }
 }
