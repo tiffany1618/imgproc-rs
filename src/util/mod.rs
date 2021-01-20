@@ -109,14 +109,24 @@ pub fn create_lookup_table<T: Number, F>(table: &mut [T; 256], f: F)
     }
 }
 
-/// Converts `input` channels from f64 channels ranging from 0 to `scale` to u8 channels
-/// ranging from 0 to 255
-pub fn image_f64_to_u8(input: &Image<f64>, scale: u32) -> Image<u8> {
+/// Converts an `Image<f64>` to an `Image<u8>`
+pub fn image_f64_to_u8(input: &Image<f64>) -> Image<u8> {
+    input.map_channels(|channel| channel.round() as u8)
+}
+
+/// Converts an `Image<f64>` with channels in range 0 to `scale` to an `Image<u8>` with channels
+/// in range 0 to 255
+pub fn image_f64_to_u8_scale(input: &Image<f64>, scale: u32) -> Image<u8> {
     input.map_channels(|channel| (channel / scale as f64 * 255.0).round() as u8)
 }
 
-/// Converts `input` channels from u8 channels ranging from 0 to 255 to f64 channels ranging
-/// from 0 to `scale`
-pub fn image_u8_to_f64(input: &Image<u8>, scale: u32) -> Image<f64> {
+/// Converts an `Image<u8>` to an `Image<f64>`
+pub fn image_u8_to_f64(input: &Image<u8>) -> Image<f64> {
+    input.map_channels(|channel| channel as f64)
+}
+
+/// Converts an `Image<u8>` to with channels in range 0 to 255 to an `Image<f64>` with channels
+/// in range 0 to `scale`
+pub fn image_u8_to_f64_scale(input: &Image<u8>, scale: u32) -> Image<f64> {
     input.map_channels(|channel| ((channel as f64 / 255.0) * scale as f64))
 }

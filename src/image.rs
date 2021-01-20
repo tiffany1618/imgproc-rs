@@ -208,6 +208,7 @@ impl<T: Number> Image<T> {
         self.pixels[(y * self.width + x) as usize] = p;
     }
 
+    // TODO: add dimension checks on get_neighborhood_* methods
     /// Returns a `Vec` of `Pixel` references to the "strip" of `Pixel`s centered at `(x, y)`.
     /// Uses clamp padding for edge pixels (edge pixels are repeated indefinitely)
     ///
