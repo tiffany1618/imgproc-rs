@@ -5,6 +5,7 @@ use crate::util::constant::{K_GAUSSIAN_BLUR_1D_3, K_GAUSSIAN_BLUR_1D_5, K_SOBEL_
 use crate::error::{ImgProcError, ImgProcResult};
 
 use rulinalg::matrix::{Matrix, BaseMatrix};
+use std::f64::consts::{PI, E};
 
 /////////////////////
 // Linear filtering
@@ -140,6 +141,34 @@ pub fn gaussian_blur(input: &Image<f64>, size: u32) -> ImgProcResult<Image<f64>>
         },
         _ => Err(ImgProcError::InvalidArgument("invalid size".to_string()))
     }
+}
+
+pub fn generate_gaussian_filter(size: u32, sigma: f64) -> ImgProcResult<Vec<f64>> {
+    if size % 2 == 0 {
+        return Err(ImgProcError::InvalidArgument("size is not odd".to_string()));
+    }
+
+    let mut filter = Vec::new();
+    let mut sum = 0.0;
+    let k = (size - 1) / 2;
+
+    for i in 0..size {
+        for j in 0..size {
+            let num = (1.0 / (2.0 * PI * sigma * sigma)) *
+                (E.powf(-((i * i + j * j) as f64) / (2.0 * sigma * sigma)));
+            sum += num;
+            filter.push(num);
+            print!("{} ", num / 159.0);
+        }
+        println!();
+    }
+
+    println!("{}", sum);
+    for i in 0..filter.len() {
+        filter[i] /= sum;
+    }
+
+    Ok(filter)
 }
 
 /////////////

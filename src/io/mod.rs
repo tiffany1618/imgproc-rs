@@ -1,7 +1,6 @@
 use std::fs::File;
 use std::io::{BufReader, BufWriter};
 use std::path::Path;
-use std::result::ImgIoResult;
 
 use jpeg_decoder;
 use png::HasParameters;
@@ -39,7 +38,7 @@ fn decode_png(filename: &str) -> ImgIoResult<Image<u8>> {
     let mut buf = vec![0; info.buffer_size()];
     reader.next_frame(&mut buf)?;
 
-    let (channels, alpha) = png_from_color_type(info.color_type);
+    let (channels, alpha) = png_from_color_type(info.color_type)?;
 
     Ok(Image::new(info.width, info.height, channels, alpha, &buf))
 }
@@ -76,7 +75,6 @@ fn decode_jpg(filename: &str) -> ImgIoResult<Image<u8>> {
     let pixels = decoder.decode()?;
     let info = decoder.info().ok_or_else(|| ImgIoError::Other("unable to read metadata".to_string()))?;
     let channels = jpg_pixel_format_to_channels(info.pixel_format);
-
     Ok(Image::new(info.width as u32, info.height as u32, channels, false, &pixels))
 }
 
@@ -109,6 +107,6 @@ pub fn write(input: &Image<u8>, filename: &str) -> ImgIoResult<()> {
     match ext_str.to_ascii_lowercase().as_str() {
         "png" => Ok(encode_png(input, path)?),
         // "jpg" | "jpeg" => Ok(encode_jpg(input, filename)?),
-        _ => Err(ImgIoError::UnsupportedFileFormat(format!("{} is not supported", x))),
+        x => Err(ImgIoError::UnsupportedFileFormat(format!("{} is not supported", x))),
     }
 }

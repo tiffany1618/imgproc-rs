@@ -3,7 +3,7 @@ use crate::image::Pixel;
 use crate::error::{ImgProcError, ImgProcResult};
 
 /// Returns the result of the multiplication of a square matrix by a vector
-pub fn vector_mul<T: Number>(mat: &[T], vec: &[T]) -> ImgProcResult<Vec<T>,> {
+pub fn vector_mul<T: Number>(mat: &[T], vec: &[T]) -> ImgProcResult<Vec<T>> {
     let rows = vec.len();
     let mat_cols = mat.len() / rows;
 
