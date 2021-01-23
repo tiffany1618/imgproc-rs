@@ -102,9 +102,9 @@ pub fn linear_filter(input: &Image<f64>, kernel: &[f64]) -> ImgProcResult<Image<
     }
 }
 
-//////////
-// Blur
-//////////
+//////////////
+// Blurring
+//////////////
 
 /// Applies a box filter of odd size `size`
 pub fn box_filter(input: &Image<f64>, size: u32) -> ImgProcResult<Image<f64>> {
@@ -175,9 +175,9 @@ pub fn generate_gaussian_kernel(size: u32, std_dev: f64) -> ImgProcResult<Vec<f6
     Ok(filter)
 }
 
-/////////////
-// Sharpen
-/////////////
+////////////////
+// Sharpening
+////////////////
 
 /// Sharpens image
 pub fn sharpen(input: &Image<f64>) -> ImgProcResult<Image<f64>> {
@@ -227,4 +227,40 @@ pub fn sobel(input: &Image<f64>) -> ImgProcResult<Image<f64>> {
 pub fn sobel_weighted(input: &Image<f64>, weight: u32) -> ImgProcResult<Image<f64>> {
     let vert_kernel = vec![1.0, weight as f64, 1.0];
     Ok(derivative_mask(input, &vert_kernel, &K_SOBEL_1D_HORZ)?)
+}
+
+//////////////////
+// Thresholding
+//////////////////
+
+pub fn threshold_binary(input: &Image<f64>, threshold: f64, max: f64) -> ImgProcResult<Image<f64>> {
+    // let (width, height, channels) = input.dimensions_with_channels();
+    // if (input.has_alpha() && channels > 2) || (!input.has_alpha() && channels > 1) {
+    //     return Err(ImgProcError::InvalidArgument("input is not a grayscale image".to_string()));
+    // }
+    let gray = colorspace::rgb_to_grayscale_f64(input);
+
+    Ok(gray.map_channels_if_alpha(|channel| {
+        if channel > threshold {
+            max
+        } else {
+            0.0
+        }
+    }, |a| a))
+}
+
+pub fn threshold_binary_inv(input: &Image<f64>, threshold: f64, max: f64) -> ImgProcResult<Image<f64>> {
+    // let (width, height, channels) = input.dimensions_with_channels();
+    // if (input.has_alpha() && channels > 2) || (!input.has_alpha() && channels > 1) {
+    //     return Err(ImgProcError::InvalidArgument("input is not a grayscale image".to_string()));
+    // }
+    let gray = colorspace::rgb_to_grayscale_f64(input);
+
+    Ok(gray.map_channels_if_alpha(|channel| {
+        if channel > threshold {
+            0.0
+        } else {
+            max
+        }
+    }, |a| a))
 }
