@@ -55,3 +55,9 @@ pub const K_SOBEL_1D_VERT: [f64; 3] = [1.0, 2.0, 1.0];
 
 /// 1D horizontal kernel for the Sobel operator
 pub const K_SOBEL_1D_HORZ: [f64; 3] = [-1.0, 0.0, 1.0];
+
+/// 1D vertical kernel for the Prewitt operator
+pub const K_PREWITT_1D_VERT: [f64; 3] = [1.0, 1.0, 1.0];
+
+/// 1D horizontal kernel for the Prewitt operator
+pub const K_PREWITT_1D_HORZ: [f64; 3] = [-1.0, 0.0, 1.0];

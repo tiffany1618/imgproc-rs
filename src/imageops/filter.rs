@@ -1,10 +1,11 @@
 use crate::image::{Image, Pixel};
 use crate::imageops::colorspace;
 use crate::util::math::{apply_1d_kernel, apply_2d_kernel};
-use crate::util::constant::{K_GAUSSIAN_BLUR_1D_3, K_GAUSSIAN_BLUR_1D_5, K_SOBEL_1D_VERT, K_SOBEL_1D_HORZ, K_UNSHARP_MASKING, K_SHARPEN};
+use crate::util::constant::{K_GAUSSIAN_BLUR_1D_3, K_GAUSSIAN_BLUR_1D_5, K_SOBEL_1D_VERT, K_SOBEL_1D_HORZ, K_UNSHARP_MASKING, K_SHARPEN, K_PREWITT_1D_VERT, K_PREWITT_1D_HORZ};
 use crate::error::{ImgProcError, ImgProcResult};
 
 use rulinalg::matrix::{Matrix, BaseMatrix};
+
 use std::f64::consts::{PI, E};
 
 /////////////////////
@@ -65,7 +66,6 @@ pub fn unseparable_filter(input: &Image<f64>, kernel: &[f64]) -> ImgProcResult<I
 
 /// Applies a linear filter using the 2D `kernel`
 pub fn linear_filter(input: &Image<f64>, kernel: &[f64]) -> ImgProcResult<Image<f64>> {
-    println!("a");
     let size = (kernel.len() as f32).sqrt() as usize;
 
     // Check if kernel is a square matrix
@@ -102,9 +102,9 @@ pub fn linear_filter(input: &Image<f64>, kernel: &[f64]) -> ImgProcResult<Image<
     }
 }
 
-//////////
-// Blur
-//////////
+//////////////
+// Blurring
+//////////////
 
 /// Applies a box filter of odd size `size`
 pub fn box_filter(input: &Image<f64>, size: u32) -> ImgProcResult<Image<f64>> {
@@ -130,50 +130,54 @@ pub fn box_filter_normalized(input: &Image<f64>, size: u32) -> ImgProcResult<Ima
     Ok(separable_filter(input, &kernel, &kernel)?)
 }
 
-/// Applies a Gaussian blur of odd size `size`. Currently only supports sizes of 3 and 5
-pub fn gaussian_blur(input: &Image<f64>, size: u32) -> ImgProcResult<Image<f64>> {
-    match size {
-        3 => {
-            Ok(separable_filter(input, &K_GAUSSIAN_BLUR_1D_3, &K_GAUSSIAN_BLUR_1D_3)?)
-        },
-        5 => {
-            Ok(separable_filter(input, &K_GAUSSIAN_BLUR_1D_5, &K_GAUSSIAN_BLUR_1D_5)?)
-        },
-        _ => Err(ImgProcError::InvalidArgument("invalid size".to_string()))
-    }
-}
-
-pub fn generate_gaussian_filter(size: u32, sigma: f64) -> ImgProcResult<Vec<f64>> {
+/// Applies a weighted average filter of odd size `size` with a center weight of `weight`
+pub fn weighted_avg_filter(input: &Image<f64>, size: u32, weight: u32) -> ImgProcResult<Image<f64>> {
     if size % 2 == 0 {
         return Err(ImgProcError::InvalidArgument("size is not odd".to_string()));
     }
 
-    let mut filter = Vec::new();
-    let mut sum = 0.0;
+    let sum = (size * size) - 1 + weight;
+    let center = (size / 2) * size + (size / 2);
+    let mut kernel = vec![1.0 / (sum as f64); (size * size) as usize];
+    kernel[center as usize] = (weight as f64) / (sum as f64);
+
+    Ok(unseparable_filter(input, &kernel)?)
+}
+
+/// Applies a Gaussian blur of odd size `size`. Currently only supports sizes of 3 and 5
+pub fn gaussian_blur(input: &Image<f64>, size: u32, std_dev: f64) -> ImgProcResult<Image<f64>> {
+    let kernel = generate_gaussian_kernel(size, std_dev)?;
+    Ok(linear_filter(input, &kernel)?)
+}
+
+pub fn generate_gaussian_kernel(size: u32, std_dev: f64) -> ImgProcResult<Vec<f64>> {
+    if size % 2 == 0 {
+        return Err(ImgProcError::InvalidArgument("size is not odd".to_string()));
+    }
+
+    let mut filter = vec![0.0; (size * size) as usize];
     let k = (size - 1) / 2;
 
     for i in 0..size {
         for j in 0..size {
-            let num = (1.0 / (2.0 * PI * sigma * sigma)) *
-                (E.powf(-((i * i + j * j) as f64) / (2.0 * sigma * sigma)));
-            sum += num;
-            filter.push(num);
-            print!("{} ", num / 159.0);
-        }
-        println!();
-    }
+            if i <= j {
+                let num = (1.0 / (2.0 * PI * std_dev * std_dev)) *
+                    (E.powf(-(((i - k) * (i - k) + (j - k) * (j - k)) as f64) / (2.0 * std_dev * std_dev)));
+                filter[(i * size + j) as usize] = num;
 
-    println!("{}", sum);
-    for i in 0..filter.len() {
-        filter[i] /= sum;
+                if i != j {
+                    filter[(j * size + i) as usize] = num;
+                }
+            }
+        }
     }
 
     Ok(filter)
 }
 
-/////////////
-// Sharpen
-/////////////
+////////////////
+// Sharpening
+////////////////
 
 /// Sharpens image
 pub fn sharpen(input: &Image<f64>) -> ImgProcResult<Image<f64>> {
@@ -189,11 +193,11 @@ pub fn unsharp_masking(input: &Image<f64>) -> ImgProcResult<Image<f64>> {
 // Edge detection
 ////////////////////
 
-/// Applies the Sobel operator
-pub fn sobel(input: &Image<f64>) -> ImgProcResult<Image<f64>> {
+/// Applies a separable derivative mask; first converts `input` to grayscale
+pub fn derivative_mask(input: &Image<f64>, vert_kernel: &[f64], horz_kernel: &[f64]) -> ImgProcResult<Image<f64>> {
     let gray = colorspace::rgb_to_grayscale_f64(input);
-    let img_x = separable_filter(&gray, &K_SOBEL_1D_VERT, &K_SOBEL_1D_HORZ)?;
-    let img_y = separable_filter(&gray, &K_SOBEL_1D_HORZ, &K_SOBEL_1D_VERT)?;
+    let img_x = separable_filter(&gray, &vert_kernel, &horz_kernel)?;
+    let img_y = separable_filter(&gray, &horz_kernel, &vert_kernel)?;
 
     let (width, height, channels) = gray.dimensions_with_channels();
     let mut output = Image::blank(width, height, channels, input.has_alpha());
@@ -209,3 +213,54 @@ pub fn sobel(input: &Image<f64>) -> ImgProcResult<Image<f64>> {
     Ok(output)
 }
 
+/// Applies the Prewitt operator
+pub fn prewitt(input: &Image<f64>) -> ImgProcResult<Image<f64>> {
+    Ok(derivative_mask(input, &K_PREWITT_1D_VERT, &K_PREWITT_1D_HORZ)?)
+}
+
+/// Applies the Sobel operator
+pub fn sobel(input: &Image<f64>) -> ImgProcResult<Image<f64>> {
+    Ok(derivative_mask(input, &K_SOBEL_1D_VERT, &K_SOBEL_1D_HORZ)?)
+}
+
+/// Applies a Sobel operator with weight `weight`
+pub fn sobel_weighted(input: &Image<f64>, weight: u32) -> ImgProcResult<Image<f64>> {
+    let vert_kernel = vec![1.0, weight as f64, 1.0];
+    Ok(derivative_mask(input, &vert_kernel, &K_SOBEL_1D_HORZ)?)
+}
+
+//////////////////
+// Thresholding
+//////////////////
+
+pub fn threshold_binary(input: &Image<f64>, threshold: f64, max: f64) -> ImgProcResult<Image<f64>> {
+    // let (width, height, channels) = input.dimensions_with_channels();
+    // if (input.has_alpha() && channels > 2) || (!input.has_alpha() && channels > 1) {
+    //     return Err(ImgProcError::InvalidArgument("input is not a grayscale image".to_string()));
+    // }
+    let gray = colorspace::rgb_to_grayscale_f64(input);
+
+    Ok(gray.map_channels_if_alpha(|channel| {
+        if channel > threshold {
+            max
+        } else {
+            0.0
+        }
+    }, |a| a))
+}
+
+pub fn threshold_binary_inv(input: &Image<f64>, threshold: f64, max: f64) -> ImgProcResult<Image<f64>> {
+    // let (width, height, channels) = input.dimensions_with_channels();
+    // if (input.has_alpha() && channels > 2) || (!input.has_alpha() && channels > 1) {
+    //     return Err(ImgProcError::InvalidArgument("input is not a grayscale image".to_string()));
+    // }
+    let gray = colorspace::rgb_to_grayscale_f64(input);
+
+    Ok(gray.map_channels_if_alpha(|channel| {
+        if channel > threshold {
+            0.0
+        } else {
+            max
+        }
+    }, |a| a))
+}
