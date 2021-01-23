@@ -124,136 +124,188 @@ impl<T: Number> std::fmt::Display for Pixel<T> {
 /// # Fields
 /// * `width` - The width of the image
 /// * `height` - The height of the image
-/// * `channels` - The number of channels in each `Pixel`
+/// * `channels` - The number of channels in each pixel of the image
 /// * `alpha` - A `bool` that is `true` if the image has an alpha channel, `false` otherwise
-/// * `pixels` - A `Vec` of `Pixel`s containing the image data
+/// * `pixels` - A `Vec` containing the image data
 #[derive(Debug, Clone)]
 pub struct Image<T: Number> {
     width: u32,
     height: u32,
-    channels: u8,
+    channels: u32,
+    size: u32,
     alpha: bool,
-    pixels: Vec<Pixel<T>>,
+    pixels: Vec<T>,
 }
 
 impl<T: Number> Image<T> {
-    /// Creates a new `Image`
-    pub fn new(width: u32, height: u32, channels: u8, alpha: bool, data: &[T]) -> Self {
+    /// Creates a new `Image<T>`
+    pub fn new(width: u32, height: u32, channels: u32, alpha: bool, data: &[T]) -> Self {
         let mut pixels = Vec::new();
         let size = (width * height * channels as u32) as usize;
-        for i in (0..size).step_by(channels as usize) {
-            let pixel = Pixel::new(&data[i..(i + channels as usize)]);
-            pixels.push(pixel);
+        for i in 0..size {
+            pixels.push(data[i]);
         }
 
-        Image { width, height, channels, alpha, pixels }
-    }
-
-    /// Creates an `Image` populated with zeroes
-    pub fn blank(width: u32, height: u32, channels: u8, alpha: bool) -> Self {
         Image {
             width,
             height,
             channels,
+            size: width * height * channels,
             alpha,
-            pixels: vec![Pixel::blank(channels); (width * height) as usize],
+            pixels }
+    }
+
+    /// Creates an `Image<T>` populated with zeroes
+    pub fn blank(width: u32, height: u32, channels: u32, alpha: bool) -> Self {
+        Image {
+            width,
+            height,
+            channels,
+            size: width * height * channels,
+            alpha,
+            pixels: vec![0.into(); (width * height * channels as u32) as usize],
         }
     }
 
-    /// Returns the `width` and `height` of `self`
+    /// Creates an empty `Image<T>`
+    pub fn empty(width: u32, height: u32, channels: u32, alpha: bool) -> Self {
+        Image {
+            width,
+            height,
+            channels,
+            size: width * height * channels,
+            alpha,
+            pixels: Vec::new(),
+        }
+    }
+
+    /// Returns the number of channels
+    pub fn channels(&self) -> u32 {
+        self.channels
+    }
+
+    /// Returns the size
+    pub fn size(&self) -> u32 {
+        self.size
+    }
+
+    /// Returns the width and height (in that order)
     pub fn dimensions(&self) -> (u32, u32) {
         (self.width, self.height)
     }
 
-    /// Returns the `width`, `height`, and `channels` of `self`
-    pub fn dimensions_with_channels(&self) -> (u32, u32, u8) {
+    /// Returns the width, height, and channels (in that order)
+    pub fn dimensions_with_channels(&self) -> (u32, u32, u32) {
         (self.width, self.height, self.channels)
     }
 
-    /// Returns `true` if `self` has an alpha channel, `false` otherwise
+    /// Returns alpha
     pub fn has_alpha(&self) -> bool {
         self.alpha
     }
 
-    /// Returns `pixels` as a slice of `Pixel`s
-    pub fn pixels(&self) -> &[Pixel<T>] {
+    /// Returns `pixels` as a slice
+    pub fn pixels(&self) -> &[T] {
         &self.pixels
     }
 
-    /// Returns `pixels` as `Vec<T>`
-    pub fn pixels_as_vector(&self) -> Vec<T> {
-        let mut pixels_vec = Vec::new();
+    /// Returns `pixels` as a mutable slice
+    pub fn pixels_mut(&mut self, x: u32, y: u32) -> &mut [T] {
+        &mut self.pixels
+    }
 
-        for i in self.pixels.iter() {
-            for j in i.channels().iter() {
-                pixels_vec.push(*j);
-            }
+    /// Returns a slice representing the pixel at `(x, y)`
+    pub fn get_pixel(&self, x: u32, y: u32) -> &[T] {
+        let index = (y * self.width + x) as usize;
+        &self.pixels[index..(index + self.channels as usize)]
+    }
+
+    /// Returns a slice representing the pixel at `(x, y)` without the last channel
+    pub fn get_pixel_without_alpha(&self, x: u32, y: u32) -> &[T] {
+        let index = (y * self.width + x) as usize;
+        &self.pixels[index..(index + self.channels as usize - 1)]
+    }
+
+    /// Returns the last channel of the pixel at `(x, y)`
+    pub fn get_alpha(&self, x: u32, y: u32) -> T {
+        let index = (y * self.width + x) as usize;
+        self.pixels[index + self.channels as usize]
+    }
+
+    /// Returns the channel at index `i`
+    pub fn get_channel(&self, i: usize) -> T {
+        self.pixels[i]
+    }
+
+    /// Replaces the pixel located at `(x, y)` with `p`
+    pub fn put_pixel(&mut self, x: u32, y: u32, p: &[T]) {
+        if p.len() != self.channels as usize {
+            return;
         }
 
-        pixels_vec
+        let index = (y * self.width + x) as usize;
+        for i in 0..(self.channels as usize) {
+            self.pixels[i + index] = p[i];
+        }
     }
 
-    /// Returns `pixels` as a mutable slice
-    pub fn pixel_mut(&mut self, x: u32, y: u32) -> &mut [T] {
-        self.pixels[(y * self.width + x) as usize].channels_mut()
-    }
-
-    /// Returns a reference to the `Pixel` located at `(x, y)`
-    pub fn get_pixel(&self, x: u32, y: u32) -> &Pixel<T> {
-        &self.pixels[(y * self.width + x) as usize]
-    }
-
-    /// Replaces the `Pixel` located at `(x, u)` with `p`
-    pub fn put_pixel(&mut self, x: u32, y: u32, p: Pixel<T>) {
-        self.pixels[(y * self.width + x) as usize] = p;
+    /// Replaces the channel at index `i` with `channel`
+    pub fn put_channel(&mut self, i: usize, channel: T) {
+        self.pixels[i] = channel;
     }
 
     // TODO: add dimension checks on get_neighborhood_* methods
-    /// Returns a `Vec` of `Pixel` references to the "strip" of `Pixel`s centered at `(x, y)`.
+    /// Returns a slice representing a row or column of pixels of length `size` centered at `(x, y)`.
+    /// If `is_vert` is `true`, returns the column; otherwise, returns the row.
     /// Uses clamp padding for edge pixels (edge pixels are repeated indefinitely)
-    ///
-    /// # Arguments
-    ///
-    /// * `size` - The length of the strip of `Pixel`s; must be an odd number
-    /// * `is_vert` - If `true`, this function returns vertical strips; if `false`, horizontal strips
-    pub fn get_neighborhood_vec(&self, x: u32, y: u32, size: u32, is_vert: bool) -> Vec<&Pixel<T>> {
-        let mut vec = vec![self.get_pixel(x, y); size as usize];
-        let center = (size/2) as usize;
+    pub fn get_neighborhood_1d(&self, x: u32, y: u32, size: u32, is_vert: bool) -> &[T] {
+        let mut vec = vec![0.into(); (size * self.channels as u32) as usize];
+        let center = (size / 2) as usize;
 
-        // TODO: Make this cleaner, check dimensions
         if is_vert {
             for i in 1..((size as usize) / 2 + 1) {
+                let mut pixel_up = self.get_pixel(x, y);
+                let mut pixel_down = self.get_pixel(x, y);
+
                 if y >= i as u32 {
-                    vec[center-i] = self.get_pixel(x, y - (i as u32));
+                    pixel_up = self.get_pixel(x, y - (i as u32));
                 }
 
                 if y + (i as u32) < self.height {
-                    vec[center+i] = self.get_pixel(x, y + (i as u32));
+                    pixel_down = self.get_pixel(x, y + (i as u32));
+                }
+
+                for j in 0..(self.channels as usize) {
+                    vec[center-i+j] = pixel_up[j];
+                    vec[center+i+j] = pixel_down[j];
                 }
             }
         } else {
             for i in 1..(size as usize / 2 + 1) {
+                let mut pixel_left = self.get_pixel(x, y);
+                let mut pixel_right = self.get_pixel(x, y);
+
                 if x >= i as u32 {
-                    vec[center-i] = self.get_pixel(x - (i as u32), y);
+                    pixel_left = self.get_pixel(x - (i as u32), y);
                 }
 
                 if x + (i as u32) < self.width {
-                    vec[center+i] = self.get_pixel(x + (i as u32), y);
+                    pixel_right = self.get_pixel(x + (i as u32), y);
                 }
 
+                for j in 0..(self.channels as usize) {
+                    vec[center-i+j] = pixel_left[j];
+                    vec[center+i+j] = pixel_right[j];
+                }
             }
         }
 
-        vec
+        &vec
     }
 
-    /// Returns a `Vec` of `Pixel` references to the "square" of `Pixel`s centered at `(x, y)`.
+    /// Returns a slice representing the "square" of pixels of side length `size` centered at `(x, y)`.
     /// Uses clamp padding for edge pixels (edge pixels are repeated indefinitely)
-    ///
-    /// # Arguments
-    ///
-    /// * `size` - The length/width of the square of `Pixel`s; must be an odd number
-    pub fn get_neighborhood_square(&self, x: u32, y: u32, size: u32) -> Vec<&Pixel<T>> {
+    pub fn get_neighborhood_2d(&self, x: u32, y: u32, size: u32) -> &[T] {
         let mut vec = Vec::new();
         let start_x = (x as i32) - (size as i32) / 2;
         let start_y = (y as i32) - (size as i32) / 2;
@@ -266,51 +318,53 @@ impl<T: Number> Image<T> {
                 if curr_x < 0 || curr_x >= self.width as i32 { curr_x = x as i32 };
                 if curr_y < 0 || curr_y >= self.height as i32 { curr_y = y as i32 };
 
-                vec.push(self.get_pixel(curr_x as u32, curr_y as u32));
+                vec.extend_from_slice(self.get_pixel(curr_x as u32, curr_y as u32));
             }
         }
 
-        vec
+        &vec
     }
 
-    /// Applies function `f` to each `Pixel` in `pixels`
+    /// Applies function `f` to each pixel
     pub fn map_pixels<S: Number, F>(&self, f: F) -> Image<S>
-        where F: Fn(&[T]) -> Vec<S> {
+        where F: Fn(&[T]) -> &[S] {
         let (width, height) = self.dimensions();
         let mut pixels = Vec::new();
 
         for y in 0..height {
             for x in 0..width {
-                let p = Pixel::new(&f(&self.get_pixel(x, y).channels()));
-                pixels.push(p);
+                let p = f(self.get_pixel(x, y));
+                pixels.extend_from_slice(p);
             }
         }
+
+        let channels = pixels.len() as u32 / (width * height);
 
         Image {
             width,
             height,
-            channels: pixels[0].num_channels(),
+            channels,
+            size: width * height * channels,
             alpha: self.alpha,
             pixels,
         }
     }
 
-    /// Applies function `f` to each `Pixel` in `pixels`
-    pub fn apply_pixels<F>(&mut self, f: F,)
-        where F: Fn(&[T]) -> Vec<T> {
+    /// Applies function `f` to pixel
+    pub fn apply_pixels<F>(&mut self, f: F)
+        where F: Fn(&[T]) -> &[T] {
         for y in 0..self.height {
             for x in 0..self.width {
-                self.pixels[(y * self.width + x) as usize] =
-                    Pixel::new(&f(self.get_pixel(x, y).channels()));
+                self.put_pixel(x, y, f(self.get_pixel(x, y)));
             }
         }
     }
 
-    /// If `alpha`, applies function `f` to the non-alpha portion of each `Pixel` in `pixels` and
-    /// applies function `g` to the alpha channel of each `Pixel` in `pixels`;
-    /// otherwise, applies function `f` to each `Pixel` in `pixels`
+    /// If `alpha`, applies function `f` to the non-alpha portion of each pixel and
+    /// applies function `g` to the alpha channel of each pixel;
+    /// otherwise, applies function `f` to each pixel
     pub fn map_pixels_if_alpha<S: Number, F, G>(&self, f: F, g: G) -> Image<S>
-        where F: Fn(&[T]) -> Vec<S>,
+        where F: Fn(&[T]) -> &[S],
               G: Fn(T) -> S {
         let (width, height) = self.dimensions();
         let mut pixels = Vec::new();
@@ -321,26 +375,29 @@ impl<T: Number> Image<T> {
 
         for y in 0..height {
             for x in 0..width {
-                let mut v = f(&self.get_pixel(x, y).channels_no_alpha());
-                v.push(g(self.get_pixel(x, y).alpha()));
-                pixels.push(Pixel::new(&v));
+                let mut v = f(self.get_pixel_without_alpha(x, y)).to_vec();
+                v.push(g(self.get_alpha(x, y)));
+                pixels.append(&mut v);
             }
         }
+
+        let channels = pixels.len() as u32 / (width * height);
 
         Image {
             width,
             height,
-            channels: pixels[0].num_channels(),
+            channels,
+            size: width * height * channels,
             alpha: self.alpha,
             pixels,
         }
     }
 
-    /// If `alpha`, applies function `f` to the non-alpha portion of each `Pixel` in `pixels` and
-    /// applies function `g` to the alpha channel of each `Pixel` in `pixels`;
-    /// otherwise, applies function `f` to each `Pixel` in `pixels`
+    /// If `alpha`, applies function `f` to the non-alpha portion of each pixel and
+    /// applies function `g` to the alpha channel of each pixel;
+    /// otherwise, applies function `f` to each pixel
     pub fn apply_pixels_if_alpha<F, G>(&mut self, f: F, g: G)
-        where F: Fn(&[T]) -> Vec<T>,
+        where F: Fn(&[T]) -> &[T],
               G: Fn(T) -> T {
         if !self.alpha {
             self.apply_pixels(f);
@@ -349,67 +406,64 @@ impl<T: Number> Image<T> {
 
         for y in 0..self.height {
             for x in 0..self.width {
-                let mut v = f(&self.get_pixel(x, y).channels_no_alpha());
-                v.push(g(self.get_pixel(x, y).alpha()));
-                self.pixels[(y * self.width + x) as usize] = Pixel::new(&v);
+                let mut v = f(self.get_pixel_without_alpha(x, y)).to_vec();
+                v.push(g(self.get_alpha(x, y)));
+                self.put_pixel(x, y,&v);
             }
         }
     }
 
-    /// Applies function `f` to each channel of each `Pixel` in `pixels`
+    /// Applies function `f` to each channel of pixel
     pub fn map_channels<S: Number, F>(&self, f: F) -> Image<S>
         where F: Fn(T) -> S {
-        let (width, height, channels) = self.dimensions_with_channels();
         let mut pixels = Vec::new();
 
-        for y in 0..height {
-            for x in 0..width {
-                pixels.push(self.get_pixel(x, y).map(&f));
-            }
+        for i in 0..(self.size as usize) {
+            pixels.push(f(self.pixels[i]));
         }
 
         Image {
-            width,
-            height,
-            channels,
+            width: self.width,
+            height: self.height,
+            channels: self.channels,
+            size: self.size,
             alpha: self.alpha,
             pixels,
         }
     }
 
-    /// Applies function `f` to each channel of each `Pixel` in `pixels`
+    /// Applies function `f` to each channel of each pixel
     pub fn apply_channels<F>(&mut self, f: F)
         where F: Fn(T) -> T {
-        for y in 0..self.height {
-            for x in 0..self.width {
-                self.pixels[(y * self.width + x) as usize].apply(&f);
-            }
+        for i in 0..(self.size as usize) {
+            self.pixels[i] = f(self.pixels[i]);
         }
     }
 
-    /// If `alpha`, applies function `f` to each non-alpha channel of each `Pixel` in `pixels` and
-    /// applies function `g` to the alpha channel of each `Pixel` in `pixels`;
-    /// otherwise, applies function `f` to each channel of each `Pixel` in `pixels`
+    /// If `alpha`, applies function `f` to each non-alpha channel of each pixel and
+    /// applies function `g` to the alpha channel of each pixel;
+    /// otherwise, applies function `f` to each channel of each pixel
     pub fn map_channels_if_alpha<S: Number, F, G>(&self, f: F, g: G) -> Image<S>
         where F: Fn(T) -> S,
               G: Fn(T) -> S {
-        let (width, height, channels) = self.dimensions_with_channels();
-        let mut pixels = Vec::new();
-
         if !self.alpha {
             return self.map_channels(f);
         }
 
-        for y in 0..height {
-            for x in 0..width {
-                pixels.push(self.get_pixel(x, y).map_alpha(&f, &g))
+        let mut pixels = Vec::new();
+        for i in (0..(self.size as usize)).step_by(self.channels as usize) {
+            for j in 0..(self.channels as usize - 1) {
+                pixels.push(f(self.pixels[i+j]));
             }
+
+            pixels.push(g(self.pixels[i+(self.channels as usize)-1]));
         }
 
         Image {
-            width,
-            height,
-            channels,
+            width: self.width,
+            height: self.height,
+            channels: self.channels,
+            size: self.size,
             alpha: self.alpha,
             pixels,
         }
@@ -426,24 +480,24 @@ impl<T: Number> Image<T> {
             return;
         }
 
-        for y in 0..self.height {
-            for x in 0..self.width {
-                self.pixels[(y * self.width + x) as usize].apply_alpha(&f, &g);
+        for i in (0..(self.size as usize)).step_by(self.channels as usize) {
+            for j in 0..(self.channels as usize - 1) {
+                self.pixels[i+j] = f(self.pixels[i+j]);
             }
+
+            self.pixels[i+(self.channels as usize)-1] = g(self.pixels[i+(self.channels as usize)-1]);
         }
+
     }
 
-    /// Applies function `f` to each channel of index `channel_index` of each `Pixel` in `pixels`.
+    /// Applies function `f` to each channel of index `channel_index` of each pixel.
     /// Modifies `self`
     pub fn edit_channel<F>(&mut self, f: F, channel_index: usize)
         where F: Fn(T) -> T {
         let (width, height) = self.dimensions();
 
-        for y in 0..height {
-            for x in 0..width {
-                let pixel = self.pixel_mut(x, y);
-                pixel[channel_index] = f(pixel[channel_index]);
-            }
+        for i in (0..(self.size as usize)).step_by(self.channels as usize) {
+            self.pixels[i+channel_index] = f(self.pixels[i+channel_index]);
         }
     }
 }

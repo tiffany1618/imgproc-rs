@@ -24,7 +24,7 @@ pub fn filter_1d(input: &Image<f64>, kernel: &[f64], is_vert: bool) -> ImgProcRe
 
     for y in 0..height {
         for x in 0..width {
-            let pixel = apply_1d_kernel(&input.get_neighborhood_vec(x, y, kernel.len() as u32, is_vert), kernel)?;
+            let pixel = apply_1d_kernel(input.get_neighborhood_1d(x, y, kernel.len() as u32, is_vert), kernel)?;
             output.put_pixel(x, y, pixel);
         }
     }
@@ -56,7 +56,7 @@ pub fn unseparable_filter(input: &Image<f64>, kernel: &[f64]) -> ImgProcResult<I
 
     for y in 0..height {
         for x in 0..width {
-            let pixel = apply_2d_kernel(&input.get_neighborhood_square(x, y, size), kernel)?;
+            let pixel = apply_2d_kernel(&input.get_neighborhood_2d(x, y, size), kernel)?;
             output.put_pixel(x, y, pixel);
         }
     }
@@ -202,12 +202,8 @@ pub fn derivative_mask(input: &Image<f64>, vert_kernel: &[f64], horz_kernel: &[f
     let (width, height, channels) = gray.dimensions_with_channels();
     let mut output = Image::blank(width, height, channels, input.has_alpha());
 
-    for y in 0..height {
-        for x in 0..width {
-            let channel = (img_x.get_pixel(x, y).channels()[0].powf(2.0)
-                + img_y.get_pixel(x, y).channels()[0].powf(2.0)).sqrt();
-            output.put_pixel(x, y, Pixel::new(&vec![channel]));
-        }
+    for i in 0..(output.size() as usize) {
+        output.put_channel(i, (img_x.get_channel(i).powf(2.0) + img_y.get_channel(i).powf(2.0).sqrt()));
     }
 
     Ok(output)

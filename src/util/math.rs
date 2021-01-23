@@ -63,7 +63,7 @@ pub fn min(x: f64, y: f64, z: f64) -> f64 {
 ///
 /// * `pixels` - a slice of `Pixel` references
 /// * `kernel` - a slice representing the 1D kernel to be applied; must be of odd dimensions
-pub fn apply_1d_kernel(pixels: &[&Pixel<f64>], kernel: &[f64]) -> ImgProcResult<Pixel<f64>> {
+pub fn apply_1d_kernel(pixels: &[f64], kernel: &[f64]) -> ImgProcResult<&[f64]> {
     let size = pixels.len();
     let num_channels = pixels[0].num_channels() as usize;
 
@@ -79,11 +79,11 @@ pub fn apply_1d_kernel(pixels: &[&Pixel<f64>], kernel: &[f64]) -> ImgProcResult<
     // Apply kernel
     for i in 0..size {
         for j in 0..num_channels {
-            vec[j] += kernel[i] * pixels[i].channels()[j];
+            vec[j] += kernel[i] * pixels[i+j];
         }
     }
 
-    Ok(Pixel::new(&vec))
+    Ok(&vec)
 }
 
 /// Applies a 2D kernel to `pixels`
@@ -92,7 +92,7 @@ pub fn apply_1d_kernel(pixels: &[&Pixel<f64>], kernel: &[f64]) -> ImgProcResult<
 ///
 /// * `pixels` - a slice of `Pixel` references
 /// * `kernel` - a slice representing the 2D kernel to be applied; must have odd dimensions
-pub fn apply_2d_kernel(pixels: &[&Pixel<f64>], kernel: &[f64]) -> ImgProcResult<Pixel<f64>> {
+pub fn apply_2d_kernel(pixels: &[f64], kernel: &[f64]) -> ImgProcResult<&[f64]> {
     let size = (pixels.len() as f32).sqrt() as usize;
     let num_channels = pixels[0].num_channels() as usize;
 
@@ -110,10 +110,10 @@ pub fn apply_2d_kernel(pixels: &[&Pixel<f64>], kernel: &[f64]) -> ImgProcResult<
         for x in 0..size {
             let index = y * size + x;
             for j in 0..num_channels {
-                vec[j] += kernel[index] * pixels[index].channels()[j];
+                vec[j] += kernel[index] * pixels[index+j];
             }
         }
     }
 
-    Ok(Pixel::new(&vec))
+    Ok(&vec)
 }

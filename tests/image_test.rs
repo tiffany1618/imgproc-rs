@@ -50,12 +50,16 @@ fn image_test() {
                                     1, 2, 3, 4, 2, 3, 4, 10, 3, 4, 5, 6]);
     let img_blank: Image<f64> = Image::blank(3, 3, 3, false);
 
-    let pixels_new: Vec<Pixel<u8>> = vec![Pixel::new(&[1, 2, 3, 4]), Pixel::new(&[2, 3, 4, 5]), Pixel::new(&[3, 4, 5, 6]),
-                          Pixel::new(&[1, 2, 3, 4]), Pixel::new(&[2, 3, 4, 5]), Pixel::new(&[3, 4, 5, 6]),
-                          Pixel::new(&[1, 2, 3, 4]), Pixel::new(&[2, 3, 4, 10]), Pixel::new(&[3, 4, 5, 6])];
-    let pixels_blank: Vec<Pixel<f64>> = vec![Pixel::blank(3); 9];
+    let pixels_new = &[1, 2, 3, 4, 2, 3, 4, 5, 3, 4, 5, 6,
+                                    1, 2, 3, 4, 2, 3, 4, 5, 3, 4, 5, 6,
+                                    1, 2, 3, 4, 2, 3, 4, 10, 3, 4, 5, 6];
+    let pixels_blank: Vec<f64> = vec![0.0; 27];
 
     // Test basic methods
+    assert_eq!(4, img_new.channels());
+    assert_eq!(3, img_blank.channels());
+    assert_eq!(3 * 3 * 4, img_new.size());
+    assert_eq!(3 * 3 * 3, img_blank.size());
     assert_eq!((3, 3), img_new.dimensions());
     assert_eq!((3, 3), img_blank.dimensions());
     assert_eq!((3, 3, 4), img_new.dimensions_with_channels());
@@ -64,15 +68,22 @@ fn image_test() {
     assert_eq!(false, img_blank.has_alpha());
     assert_eq!(pixels_new, img_new.pixels());
     assert_eq!(pixels_blank, img_blank.pixels());
-    assert_eq!(vec![1, 2, 3, 4, 2, 3, 4, 5, 3, 4, 5, 6,
-                 1, 2, 3, 4, 2, 3, 4, 5, 3, 4, 5, 6,
-                 1, 2, 3, 4, 2, 3, 4, 10, 3, 4, 5, 6], img_new.pixels_as_vector());
-    assert_eq!(vec![0.0; 27], img_blank.pixels_as_vector());
 
     // Test pixel get/put methods
-    assert_eq!(&Pixel::new(&[2, 3, 4, 10]), img_new.get_pixel(1, 2));
-    img_new.put_pixel(1, 1, Pixel::new(&[9, 8, 7, 6]));
-    assert_eq!(&Pixel::new(&[9, 8, 7, 6]), img_new.get_pixel(1, 1));
+    assert_eq!(&[2, 3, 4, 10], img_new.get_pixel(1, 2));
+    assert_eq!(&[2, 3, 4], img_new.get_pixel_without_alpha(1, 2));
+    assert_eq!(10, img_new.get_alpha(1, 2));
+
+    img_new.put_pixel(1, 1, &[9, 8, 7, 6]);
+    assert_eq!(&[9, 8, 7, 6], img_new.get_pixel(1, 1));
+    assert_eq!(&[9, 8, 7], img_new.get_pixel_without_alpha(1, 2));
+    assert_eq!(6, img_new.get_alpha(1, 2));
+
+    // Test channel get/put methods
+    assert_eq!(10, img_new.get_channel(3));
+
+    img_new.put_channel(3, 11);
+    assert_eq!(11, img_new.get_channel(3));
 }
 
 #[test]
@@ -83,44 +94,44 @@ fn image_get_neighborhood_test() {
                                                 2, 4, 6, 8, 3, 5, 7, 9, 1, 3, 5, 7]);
 
     // Test get_neighborhood_vec()
-    assert_eq!(vec![&Pixel::new(&[2, 4, 6, 8]),
-                    &Pixel::new(&[3, 5, 7, 9]),
-                    &Pixel::new(&[1, 3, 5, 7])],
-               img.get_neighborhood_vec(1, 2, 3, false));
-    assert_eq!(vec![&Pixel::new(&[3, 4, 5, 6]),
-                    &Pixel::new(&[4, 3, 2, 1]),
-                    &Pixel::new(&[1, 3, 5, 7])],
-               img.get_neighborhood_vec(2, 1, 3, true));
-    assert_eq!(vec![&Pixel::new(&[1, 2, 3, 4]),
-                    &Pixel::new(&[1, 2, 3, 4]),
-                    &Pixel::new(&[2, 3, 4, 5])],
-               img.get_neighborhood_vec(0, 0, 3, false));
-    assert_eq!(vec![&Pixel::new(&[5, 4, 3, 2]),
-                    &Pixel::new(&[3, 5, 7, 9]),
-                    &Pixel::new(&[3, 5, 7, 9])],
-               img.get_neighborhood_vec(1, 2, 3, true));
+    assert_eq!(&[2, 4, 6, 8,
+                 3, 5, 7, 9,
+                 1, 3, 5, 7],
+               img.get_neighborhood_1d(1, 2, 3, false));
+    assert_eq!(&[3, 4, 5, 6,
+                 4, 3, 2, 1,
+                 1, 3, 5, 7],
+               img.get_neighborhood_1d(2, 1, 3, true));
+    assert_eq!(&[1, 2, 3, 4,
+                    1, 2, 3, 4,
+                    2, 3, 4, 5],
+               img.get_neighborhood_1d(0, 0, 3, false));
+    assert_eq!(&[5, 4, 3, 2,
+                    3, 5, 7, 9,
+                    3, 5, 7, 9],
+               img.get_neighborhood_1d(1, 2, 3, true));
 
     // Test get_neighborhood_square()
-    assert_eq!(vec![&Pixel::new(&[1, 2, 3, 4]),
-                    &Pixel::new(&[2, 3, 4, 5]),
-                    &Pixel::new(&[3, 4, 5, 6]),
-                    &Pixel::new(&[6, 5, 4, 3]),
-                    &Pixel::new(&[5, 4, 3, 2]),
-                    &Pixel::new(&[4, 3, 2, 1]),
-                    &Pixel::new(&[2, 4, 6, 8]),
-                    &Pixel::new(&[3, 5, 7, 9]),
-                    &Pixel::new(&[1, 3, 5, 7])],
-               img.get_neighborhood_square(1, 1, 3));
-    assert_eq!(vec![&Pixel::new(&[1, 2, 3, 4]),
-                    &Pixel::new(&[1, 2, 3, 4]),
-                    &Pixel::new(&[2, 3, 4, 5]),
-                    &Pixel::new(&[1, 2, 3, 4]),
-                    &Pixel::new(&[1, 2, 3, 4]),
-                    &Pixel::new(&[2, 3, 4, 5]),
-                    &Pixel::new(&[6, 5, 4, 3]),
-                    &Pixel::new(&[6, 5, 4, 3]),
-                    &Pixel::new(&[5, 4, 3, 2])],
-               img.get_neighborhood_square(0, 0, 3));
+    assert_eq!(&[1, 2, 3, 4,
+                    2, 3, 4, 5,
+                    3, 4, 5, 6,
+                    6, 5, 4, 3,
+                    5, 4, 3, 2,
+                    4, 3, 2, 1,
+                    2, 4, 6, 8,
+                    3, 5, 7, 9,
+                    1, 3, 5, 7],
+               img.get_neighborhood_2d(1, 1, 3));
+    assert_eq!(&[1, 2, 3, 4,
+                    1, 2, 3, 4,
+                    2, 3, 4, 5,
+                    1, 2, 3, 4,
+                    1, 2, 3, 4,
+                    2, 3, 4, 5,
+                    6, 5, 4, 3,
+                    6, 5, 4, 3,
+                    5, 4, 3, 2],
+               img.get_neighborhood_2d(0, 0, 3));
 }
 
 #[test]
@@ -136,7 +147,7 @@ fn image_map_test() {
         for channel in channels.iter() {
             vec.push(channel + 5);
         }
-        vec
+        &vec
     });
     assert_eq!(vec![6, 7, 8, 9, 7, 8, 9, 10, 11, 10, 9, 8, 10, 9, 8, 7], map1.pixels_as_vector());
 
@@ -146,14 +157,14 @@ fn image_map_test() {
         for channel in channels.iter() {
             vec.push(channel + 5);
         }
-        vec
+        &vec
     }, |a| a);
     let map3 = img2.map_pixels_if_alpha(|channels| {
         let mut vec = Vec::new();
         for channel in channels.iter() {
             vec.push(channel + 5);
         }
-        vec
+        &vec
     }, |a| a);
     assert_eq!(vec![6, 7, 8, 4, 7, 8, 9, 5, 11, 10, 9, 3, 10, 9, 8, 2], map2.pixels_as_vector());
     assert_eq!(vec![6, 7, 8, 9, 7, 8, 9, 10, 11, 10, 9, 8, 10, 9, 8, 7], map3.pixels_as_vector());
@@ -186,7 +197,7 @@ fn image_apply_test() {
         for channel in channels.iter() {
             vec.push(channel + 5);
         }
-        vec
+        &vec
     });
     assert_eq!(vec![6, 7, 8, 9, 7, 8, 9, 10, 11, 10, 9, 8, 10, 9, 8, 7], img1.pixels_as_vector());
 
@@ -196,14 +207,14 @@ fn image_apply_test() {
         for channel in channels.iter() {
             vec.push(channel + 5);
         }
-        vec
+        &vec
     }, |a| a);
     img2.apply_pixels_if_alpha(|channels| {
         let mut vec = Vec::new();
         for channel in channels.iter() {
             vec.push(channel + 5);
         }
-        vec
+        &vec
     }, |a| a);
     assert_eq!(vec![11, 12, 13, 9, 12, 13, 14, 10, 16, 15, 14, 8, 15, 14, 13, 7], img1.pixels_as_vector());
     assert_eq!(vec![6, 7, 8, 9, 7, 8, 9, 10, 11, 10, 9, 8, 10, 9, 8, 7], img2.pixels_as_vector());
