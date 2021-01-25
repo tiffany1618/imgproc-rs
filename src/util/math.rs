@@ -1,4 +1,3 @@
-use crate::util::Number;
 use crate::image::Pixel;
 use crate::error::{ImgProcError, ImgProcResult};
 
