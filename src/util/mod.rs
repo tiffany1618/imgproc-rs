@@ -98,3 +98,8 @@ pub fn image_u8_to_f64(input: &Image<u8>) -> Image<f64> {
 pub fn image_u8_to_f64_scale(input: &Image<u8>, scale: u32) -> Image<f64> {
     input.map_channels(|channel| ((channel as f64 / 255.0) * scale as f64))
 }
+
+/// Returns `true` if an image is a grayscale image
+pub fn is_grayscale(channels: u8, alpha: bool) -> bool {
+    (alpha && channels == 2) || (!alpha && channels == 1)
+}
