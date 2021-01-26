@@ -6,7 +6,7 @@ use jpeg_decoder;
 use png::HasParameters;
 
 use crate::error::{ImgIoError, ImgIoResult};
-use crate::image::Image;
+use crate::image::{Image, BaseImage};
 
 /// Converts a `png::ColorType` to a tuple representing the number of channels in a png image
 /// and if the image has an alpha channel or not
@@ -45,7 +45,7 @@ fn decode_png(filename: &str) -> ImgIoResult<Image<u8>> {
 
 /// Encodes a png image
 fn encode_png(input: &Image<u8>, path: &Path) -> ImgIoResult<()> {
-    let (width, height, channels) = input.dimensions_with_channels();
+    let (width, height, channels) = input.info().whc();
     let file = File::create(path)?;
     let ref mut file_writer = BufWriter::new(file);
 
@@ -54,7 +54,7 @@ fn encode_png(input: &Image<u8>, path: &Path) -> ImgIoResult<()> {
     encoder.set(color_type).set(png::BitDepth::Eight);
 
     let mut png_writer = encoder.write_header()?;
-    png_writer.write_image_data(&input.pixels_as_vector())?;
+    png_writer.write_image_data(input.data())?;
 
     Ok(())
 }

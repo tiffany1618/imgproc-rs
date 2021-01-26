@@ -1,6 +1,7 @@
 use imgproc_rs::util::math;
-use imgproc_rs::image::Pixel;
 use imgproc_rs::util::constant::K_GAUSSIAN_BLUR_2D_3;
+use imgproc_rs::image::SubImage;
+use core::num::FpCategory::Subnormal;
 
 #[test]
 fn vector_mul_test() {
@@ -29,27 +30,29 @@ fn min_test() {
 
 #[test]
 fn apply_1d_kernel_test() {
-    let pixels = [&Pixel::new(&[1.0, 2.0, 3.0]),
-                                  &Pixel::new(&[4.0, 5.0, 6.0]),
-                                  &Pixel::new(&[2.0, 3.0, 4.0])];
+    let pixels: Vec<&[f64]> = vec![&[1.0, 2.0, 3.0],
+                               &[4.0, 5.0, 6.0],
+                               &[2.0, 3.0, 4.0]];
+    let subimg = SubImage::new(3, 1, 3, false, pixels);
     let kernel = [1.0, 2.0, 1.0];
-    let res = math::apply_1d_kernel(&pixels, &kernel).unwrap();
+    let res = math::apply_1d_kernel(subimg, &kernel).unwrap();
 
-    assert_eq!(Pixel::new(&[11.0, 15.0, 19.0]), res);
+    assert_eq!(vec![11.0, 15.0, 19.0], res);
 }
 
 #[test]
 fn apply_2d_kernel_test() {
-    let pixels = [&Pixel::new(&[1.0, 2.0, 3.0]),
-                      &Pixel::new(&[2.0, 3.0, 4.0]),
-                      &Pixel::new(&[3.0, 4.0, 5.0]),
-                      &Pixel::new(&[6.0, 5.0, 4.0]),
-                      &Pixel::new(&[5.0, 4.0, 3.0]),
-                      &Pixel::new(&[4.0, 3.0, 2.0]),
-                      &Pixel::new(&[2.0, 4.0, 6.0]),
-                      &Pixel::new(&[3.0, 5.0, 7.0]),
-                      &Pixel::new(&[1.0, 3.0, 5.0])];
-    let res = math::apply_2d_kernel(&pixels, &K_GAUSSIAN_BLUR_2D_3).unwrap();
+    let pixels: Vec<&[f64]> = vec![&[1.0, 2.0, 3.0],
+                      &[2.0, 3.0, 4.0],
+                      &[3.0, 4.0, 5.0],
+                      &[6.0, 5.0, 4.0],
+                      &[5.0, 4.0, 3.0],
+                      &[4.0, 3.0, 2.0],
+                      &[2.0, 4.0, 6.0],
+                      &[3.0, 5.0, 7.0],
+                      &[1.0, 3.0, 5.0]];
+    let subimg = SubImage::new(3, 3, 3, false, pixels);
+    let res = math::apply_2d_kernel(subimg, &K_GAUSSIAN_BLUR_2D_3).unwrap();
 
-    assert_eq!(Pixel::new(&[3.5625, 3.8125, 4.0625]), res);
+    assert_eq!(vec![3.5625, 3.8125, 4.0625], res);
 }

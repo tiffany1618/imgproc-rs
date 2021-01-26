@@ -1,4 +1,4 @@
-use crate::image::Pixel;
+use crate::image::{Number, SubImage, BaseImage};
 use crate::error::{ImgProcError, ImgProcResult};
 
 /// Returns the result of the multiplication of a square matrix by a vector
@@ -57,14 +57,9 @@ pub fn min(x: f64, y: f64, z: f64) -> f64 {
 }
 
 /// Applies a 1D kernel to `pixels`
-///
-/// # Arguments
-///
-/// * `pixels` - a slice of `Pixel` references
-/// * `kernel` - a slice representing the 1D kernel to be applied; must be of odd dimensions
-pub fn apply_1d_kernel(pixels: &[f64], kernel: &[f64]) -> ImgProcResult<&[f64]> {
-    let size = pixels.len();
-    let num_channels = pixels[0].num_channels() as usize;
+pub fn apply_1d_kernel(pixels: SubImage<f64>, kernel: &[f64]) -> ImgProcResult<Vec<f64>> {
+    let size = pixels.info().size() as usize;
+    let num_channels = pixels.info().channels as usize;
 
     // Check for valid dimensions
     if size % 2 == 0 {
@@ -78,22 +73,17 @@ pub fn apply_1d_kernel(pixels: &[f64], kernel: &[f64]) -> ImgProcResult<&[f64]> 
     // Apply kernel
     for i in 0..size {
         for j in 0..num_channels {
-            vec[j] += kernel[i] * pixels[i+j];
+            vec[j] += kernel[i] * pixels[i][j];
         }
     }
 
-    Ok(&vec)
+    Ok(vec)
 }
 
 /// Applies a 2D kernel to `pixels`
-///
-/// # Arguments
-///
-/// * `pixels` - a slice of `Pixel` references
-/// * `kernel` - a slice representing the 2D kernel to be applied; must have odd dimensions
-pub fn apply_2d_kernel(pixels: &[f64], kernel: &[f64]) -> ImgProcResult<&[f64]> {
-    let size = (pixels.len() as f32).sqrt() as usize;
-    let num_channels = pixels[0].num_channels() as usize;
+pub fn apply_2d_kernel(pixels: SubImage<f64>, kernel: &[f64]) -> ImgProcResult<Vec<f64>> {
+    let size = pixels.info().width as usize;
+    let num_channels = pixels.info().channels as usize;
 
     // Check for valid dimensions
     if size % 2 == 0 {
@@ -109,10 +99,10 @@ pub fn apply_2d_kernel(pixels: &[f64], kernel: &[f64]) -> ImgProcResult<&[f64]> 
         for x in 0..size {
             let index = y * size + x;
             for j in 0..num_channels {
-                vec[j] += kernel[index] * pixels[index+j];
+                vec[j] += kernel[index] * pixels[index][j];
             }
         }
     }
 
-    Ok(&vec)
+    Ok(vec)
 }

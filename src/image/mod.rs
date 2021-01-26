@@ -1,9 +1,3 @@
-pub mod pixel;
-pub mod base;
-
-use crate::image::base::{Number, BaseImage};
-use crate::image::pixel::Pixel;
-
 /// A struct representing an image
 #[derive(Debug, Clone, PartialEq)]
 pub struct Image<T: Number> {
@@ -27,10 +21,92 @@ pub struct ImageInfo {
     pub alpha: bool,
 }
 
+/// A trait for valid image channel types
+pub trait Number:
+std::marker::Copy
++ std::fmt::Display
++ std::ops::Add<Output=Self>
++ std::ops::Sub<Output=Self>
++ std::ops::Mul<Output=Self>
++ std::ops::Div<Output=Self>
++ std::ops::AddAssign
++ std::ops::SubAssign
++ std::ops::MulAssign
++ std::ops::DivAssign
++ From<u8>
+    where Self: std::marker::Sized {}
+
+impl<T> Number for T
+    where T:
+    std::marker::Copy
+    + std::fmt::Display
+    + std::ops::Add<Output=T>
+    + std::ops::Sub<Output=T>
+    + std::ops::Mul<Output=T>
+    + std::ops::Div<Output=T>
+    + std::ops::AddAssign
+    + std::ops::SubAssign
+    + std::ops::MulAssign
+    + std::ops::DivAssign
+    + From<u8> {}
+
+/// A trait for a base image
+pub trait BaseImage<T: Number> {
+    /// Returns the image information
+    fn info(&self) -> ImageInfo;
+
+    /// Returns a PixelSlice representing the pixel located at `(x, y)`
+    fn get_pixel(&self, x: u32, y: u32) -> &[T];
+}
+
+/// A trait for image pixels
+pub trait Pixel<T: Number> {
+    /// Returns the last channel of the pixel
+    fn alpha(&self) -> T;
+
+    /// Returns the last channel of the pixel
+    fn channels_without_alpha(&self) -> &[T];
+
+    /// Applies function `f` to each channel
+    fn map_all<S: Number, F>(&self, f: F) -> Vec<S>
+        where F: Fn(T) -> S;
+
+    /// Applies function `f` to each channel except the last channel, and applies
+    /// function `g` to the alpha channel
+    fn map_alpha<S: Number, F, G>(&self, f: F, g: G) -> Vec<S>
+        where F: Fn(T) -> S,
+              G: Fn(T) -> S;
+
+    /// Applies function `f` to each channel
+    fn apply<F>(&mut self, f: F)
+        where F: Fn(T) -> T;
+
+    /// Applies function `f` to each channel except the last channel, and applies
+    /// function `g` to the alpha channel
+    fn apply_alpha<F, G>(&mut self, f: F, g: G)
+        where F: Fn(T) -> T,
+              G: Fn(T) -> T;
+}
+
 impl ImageInfo {
-    /// Returns the width, height, and channels  of the image in that order
-    pub fn dimensions(&self) -> (u32, u32, u8) {
+    /// Creates a new ImageInfo
+    pub fn new(width: u32, height: u32, channels: u8, alpha: bool) -> Self {
+        ImageInfo { width, height, channels, alpha }
+    }
+
+    /// Returns the width and height of the image
+    pub fn wh(&self) -> (u32, u32) {
+        (self.width, self.height)
+    }
+
+    /// Returns the width, height, and channels of the image
+    pub fn whc(&self) -> (u32, u32, u8) {
         (self.width, self.height, self.channels)
+    }
+
+    /// Returns the width, height, channels, and alpha of the image
+    pub fn whca(&self) -> (u32, u32, u8, bool) {
+        (self.width, self.height, self.channels, self.alpha)
     }
 
     /// Returns the size of the image (width * height)
@@ -54,19 +130,34 @@ impl<T: Number> Image<T> {
     }
 
     /// Creates an `Image<T>` populated with zeroes
-    pub fn blank(width: u32, height: u32, channels: u8, alpha: bool) -> Self {
+    pub fn blank(info: ImageInfo) -> Self {
         Image {
-            info: ImageInfo{ width, height, channels, alpha },
-            data: vec![0.into(); (width * height * channels as u32) as usize],
+            info,
+            data: vec![0.into(); info.full_size() as usize],
         }
     }
 
     /// Creates an empty `Image<T>`
-    pub fn empty(width: u32, height: u32, channels: u8, alpha: bool) -> Self {
+    pub fn empty(info: ImageInfo) -> Self {
         Image {
-            info: ImageInfo{ width, height, channels, alpha },
-            data: Vec::with_capacity((width * height * channels as u32) as usize),
+            info,
+            data: Vec::with_capacity(info.full_size() as usize),
         }
+    }
+
+    /// Returns the 1d index corresponding to the 2d `(x, y)` indices
+    pub fn index(&self, x: u32, y: u32) -> usize {
+        ((y * self.info.width + x) * self.info.channels as u32) as usize
+    }
+
+    /// Returns all data as a slice
+    pub fn data(&self) -> &[T] {
+        &self.data[..]
+    }
+
+    /// Returns all data as a mutable slice
+    pub fn data_mut(&mut self) -> &mut [T] {
+        &mut self.data[..]
     }
 
     /// Returns a PixelSliceMut representing the pixel located at `(x, y`
@@ -78,7 +169,7 @@ impl<T: Number> Image<T> {
             panic!("index out of bounds: the height is {}, but the y index is {}", self.info.height, y)
         }
 
-        let start = (y * self.info.width + x) as usize;
+        let start = self.index(x, y);
         &mut self.data[start..(start + self.info.channels as usize)]
     }
 
@@ -93,7 +184,7 @@ impl<T: Number> Image<T> {
             }
         }
 
-        SubImage::new(width, height, self.info.channels, self.info.alpha, &data)
+        SubImage::new(width, height, self.info.channels, self.info.alpha, data)
     }
 
     /// Returns a `SubImage<T>` representing the row or column of pixels of length `size` centered at
@@ -103,27 +194,27 @@ impl<T: Number> Image<T> {
         let mut data = Vec::new();
 
         if is_vert {
-            let start = (y as i32) - (size as i32) / 2;
+            let start_y = (y as i32) - (size as i32) / 2;
 
             for i in 0..size {
                 let mut curr_y = start_y + (i as i32);
                 if curr_y < 0 || curr_y >= self.info.height as i32 { curr_y = y as i32 };
 
-                data.extend_from_slice(self.get_pixel(x, curr_y as u32));
+                data.push(self.get_pixel(x, curr_y as u32));
             }
 
-            SubImage::new(1, size, self.info.channels, self.info.alpha, &data)
+            SubImage::new(1, size, self.info.channels, self.info.alpha, data)
         } else {
-            let start = (x as i32) - (size as i32) / 2;
+            let start_x = (x as i32) - (size as i32) / 2;
 
             for i in 0..size {
                 let mut curr_x = start_x + (i as i32);
                 if curr_x < 0 || curr_x >= self.info.width as i32 { curr_x = x as i32 };
 
-                data.extend_from_slice(self.get_pixel(curr_x as u32, y));
+                data.push(self.get_pixel(curr_x as u32, y));
             }
 
-            SubImage::new(size, 1, self.info.channels, self.info.alpha, &data)
+            SubImage::new(size, 1, self.info.channels, self.info.alpha, data)
         }
     }
 
@@ -142,11 +233,11 @@ impl<T: Number> Image<T> {
                 if curr_x < 0 || curr_x >= self.info.width as i32 { curr_x = x as i32 };
                 if curr_y < 0 || curr_y >= self.info.height as i32 { curr_y = y as i32 };
 
-                data.extend_from_slice(self.get_pixel(curr_x as u32, curr_y as u32));
+                data.push(self.get_pixel(curr_x as u32, curr_y as u32));
             }
         }
 
-        SubImage::new(size, size, self.info.channels, self.info.alpha, &data)
+        SubImage::new(size, size, self.info.channels, self.info.alpha, data)
     }
 
     /// Replaces the pixel located at `(x, y)` with `pixel`
@@ -156,7 +247,7 @@ impl<T: Number> Image<T> {
                 but the pixel length is {}", self.info.channels, pixel.len())
         }
 
-        let start = (y * self.info.width + x) as usize;
+        let start = self.index(x, y);
         for i in 0..(self.info.channels as usize) {
             self.data[i + start] = pixel[i];
         }
@@ -164,8 +255,9 @@ impl<T: Number> Image<T> {
 
     /// Replaces the pixel at index `index` with `pixel`
     pub fn set_pixel_indexed(&mut self, index: usize, pixel: &[T]) {
+        let start = index * self.info.channels as usize;
         for i in 0..(self.info.channels as usize) {
-            self.data[i + index] = pixel[i];
+            self.data[start + i] = pixel[i];
         }
     }
 
@@ -247,12 +339,8 @@ impl<T: Number> Image<T> {
         }
 
         let mut data = Vec::new();
-        for i in (0..(self.info.size() as usize)).step_by(self.info.channels as usize) {
-            for j in 0..(self.info.channels as usize - 1) {
-                data.push(f(self[i][j]));
-            }
-
-            data.push(g(self[i].alpha()));
+        for i in 0..(self.info.size() as usize) {
+            data.append(&mut self[i].map_alpha(&f, &g));
         }
 
         Image {
@@ -306,22 +394,16 @@ impl<T: Number> Image<T> {
             return;
         }
 
-        let alpha_index = self.info.channels as usize - 1;
-        for i in (0..(self.info.size() as usize)).step_by(self.info.channels as usize) {
-            for j in 0..(self.info.channels as usize - 1) {
-                self[i][j] = f(self[i][j]);
-            }
-
-            self[i][alpha_index] = g(self[i].alpha());
+        for i in 0..(self.info.size() as usize) {
+            self[i].apply_alpha(&f, &g);
         }
-
     }
 
     /// Applies function `f` to each channel of index `index` of each pixel. Modifies `self`
     pub fn edit_channel<F>(&mut self, f: F, index: usize)
         where F: Fn(T) -> T {
-        for i in (0..(self.info.size() as usize)).step_by(self.info.channels as usize) {
-            self[i][index] = f(self[i][index]);
+        for i in (index..(self.info.full_size() as usize)).step_by(self.info.channels as usize) {
+            self.data[i] = f(self.data[i]);
         }
     }
 }
@@ -339,8 +421,7 @@ impl<T: Number> BaseImage<T> for Image<T> {
             panic!("index out of bounds: the height is {}, but the y index is {}", self.info.height, y)
         }
 
-        let start = (y * self.info.width + x) as usize;
-        &self.data[start..(start + self.info.channels as usize)]
+        &self[(y * self.info.width + x) as usize]
     }
 }
 
@@ -368,13 +449,17 @@ impl<T: Number> std::ops::IndexMut<usize> for Image<T> {
     }
 }
 
-impl<T: Number> SubImage<'_, T> {
+impl<'a, T: Number> SubImage<'a, T> {
     /// Creates a new `SubImage<T>`
-    pub fn new(width: u32, height: u32, channels: u8, alpha: bool, data: &[&[T]]) -> Self {
+    pub fn new(width: u32, height: u32, channels: u8, alpha: bool, data: Vec<&'a [T]>) -> Self {
         SubImage {
             info: ImageInfo { width, height, channels, alpha },
-            data: data.to_vec(),
+            data,
         }
+    }
+
+    pub fn data(&self) -> &[&[T]] {
+        &self.data[..]
     }
 }
 
@@ -393,5 +478,56 @@ impl<T: Number> std::ops::Index<usize> for SubImage<'_, T> {
 
     fn index(&self, i: usize) -> &Self::Output {
         self.data[i]
+    }
+}
+
+impl<T: Number> Pixel<T> for [T] {
+    fn alpha(&self) -> T {
+        self[self.len()-1]
+    }
+
+    fn channels_without_alpha(&self) -> &[T] {
+        &self[..(self.len()-1)]
+    }
+
+    fn map_all<S: Number, F>(&self, f: F) -> Vec<S>
+        where F: Fn(T) -> S {
+        let mut channels_out = Vec::new();
+
+        for channel in self.iter() {
+            channels_out.push(f(*channel));
+        }
+
+        channels_out
+    }
+
+    fn map_alpha<S: Number, F, G>(&self, f: F, g: G) -> Vec<S>
+        where F: Fn(T) -> S,
+              G: Fn(T) -> S {
+        let mut channels_out = Vec::new();
+
+        for channel in self.channels_without_alpha().iter() {
+            channels_out.push(f(*channel));
+        }
+
+        channels_out.push(g(self.alpha()));
+        channels_out
+    }
+
+    fn apply<F>(&mut self, f: F)
+        where F: Fn(T) -> T {
+        for i in 0..self.len() {
+            self[i] = f(self[i]);
+        }
+    }
+
+    fn apply_alpha<F, G>(&mut self, f: F, g: G)
+        where F: Fn(T) -> T,
+              G: Fn(T) -> T {
+        for i in 0..(self.len() - 1) {
+            self[i] = f(self[i]);
+        }
+
+        self[self.len()-1] = g(self.alpha());
     }
 }
