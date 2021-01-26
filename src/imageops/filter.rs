@@ -1,7 +1,7 @@
-use crate::image::{Image, Pixel};
+use crate::image::{Image, BaseImage};
 use crate::imageops::colorspace;
 use crate::util::math::{apply_1d_kernel, apply_2d_kernel};
-use crate::util::constant::{K_GAUSSIAN_BLUR_1D_3, K_GAUSSIAN_BLUR_1D_5, K_SOBEL_1D_VERT, K_SOBEL_1D_HORZ, K_UNSHARP_MASKING, K_SHARPEN, K_PREWITT_1D_VERT, K_PREWITT_1D_HORZ};
+use crate::util::constant::{K_SOBEL_1D_VERT, K_SOBEL_1D_HORZ, K_UNSHARP_MASKING, K_SHARPEN, K_PREWITT_1D_VERT, K_PREWITT_1D_HORZ};
 use crate::error::{ImgProcError, ImgProcResult};
 
 use rulinalg::matrix::{Matrix, BaseMatrix};
@@ -19,13 +19,13 @@ pub fn filter_1d(input: &Image<f64>, kernel: &[f64], is_vert: bool) -> ImgProcRe
         return Err(ImgProcError::InvalidArgument("kernel length is not odd".to_string()));
     }
 
-    let (width, height, channels) = input.dimensions_with_channels();
-    let mut output = Image::blank(width, height, channels, input.has_alpha());
+    let (width, height) = input.info().wh();
+    let mut output = Image::blank(input.info());
 
     for y in 0..height {
         for x in 0..width {
-            let pixel = apply_1d_kernel(&input.get_neighborhood_vec(x, y, kernel.len() as u32, is_vert), kernel)?;
-            output.put_pixel(x, y, pixel);
+            let pixel = apply_1d_kernel(input.get_neighborhood_1d(x, y, kernel.len() as u32, is_vert), kernel)?;
+            output.set_pixel(x, y, &pixel);
         }
     }
 
@@ -51,13 +51,13 @@ pub fn unseparable_filter(input: &Image<f64>, kernel: &[f64]) -> ImgProcResult<I
         return Err(ImgProcError::InvalidArgument("kernel length is not odd".to_string()));
     }
 
-    let (width, height, channels) = input.dimensions_with_channels();
-    let mut output = Image::blank(width, height, channels, input.has_alpha());
+    let (width, height) = input.info().wh();
+    let mut output = Image::blank(input.info());
 
     for y in 0..height {
         for x in 0..width {
-            let pixel = apply_2d_kernel(&input.get_neighborhood_square(x, y, size), kernel)?;
-            output.put_pixel(x, y, pixel);
+            let pixel = apply_2d_kernel(input.get_neighborhood_2d(x, y, size), kernel)?;
+            output.set_pixel(x, y, &pixel);
         }
     }
 
@@ -199,15 +199,10 @@ pub fn derivative_mask(input: &Image<f64>, vert_kernel: &[f64], horz_kernel: &[f
     let img_x = separable_filter(&gray, &vert_kernel, &horz_kernel)?;
     let img_y = separable_filter(&gray, &horz_kernel, &vert_kernel)?;
 
-    let (width, height, channels) = gray.dimensions_with_channels();
-    let mut output = Image::blank(width, height, channels, input.has_alpha());
+    let mut output = Image::blank(input.info());
 
-    for y in 0..height {
-        for x in 0..width {
-            let channel = (img_x.get_pixel(x, y).channels()[0].powf(2.0)
-                + img_y.get_pixel(x, y).channels()[0].powf(2.0)).sqrt();
-            output.put_pixel(x, y, Pixel::new(&vec![channel]));
-        }
+    for i in 0..(output.info().full_size() as usize) {
+        output.set_pixel_indexed(i, &[img_x[i][0].powf(2.0) + img_y[i][0].powf(2.0).sqrt()]);
     }
 
     Ok(output)

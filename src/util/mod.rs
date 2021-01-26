@@ -1,42 +1,10 @@
 pub mod math;
 pub mod constant;
 
-use crate::image::Image;
+use crate::image::{Image, BaseImage, Number};
 use crate::error::{ImgProcError, ImgProcResult};
 
 use std::collections::{HashMap, BTreeMap};
-
-/// A trait for valid image channel types
-pub trait Number:
-    std::clone::Clone
-    + std::marker::Copy
-    + std::fmt::Display
-    + std::ops::Add<Output=Self>
-    + std::ops::Sub<Output=Self>
-    + std::ops::Mul<Output=Self>
-    + std::ops::Div<Output=Self>
-    + std::ops::AddAssign
-    + std::ops::SubAssign
-    + std::ops::MulAssign
-    + std::ops::DivAssign
-    + From<u8>
-    where Self: std::marker::Sized {}
-
-impl<T> Number for T
-    where T:
-        std::clone::Clone
-        + std::marker::Copy
-        + std::fmt::Display
-        + std::ops::Add<Output=T>
-        + std::ops::Sub<Output=T>
-        + std::ops::Mul<Output=T>
-        + std::ops::Div<Output=T>
-        + std::ops::AddAssign
-        + std::ops::SubAssign
-        + std::ops::MulAssign
-        + std::ops::DivAssign
-        + From<u8>
-{}
 
 ////////////////////////////
 // Image helper functions
@@ -84,18 +52,17 @@ pub fn lab_to_xyz_fn(num: f64) -> f64 {
 /// value to an i32, which can be used as a key in `HashMap` and `BTreeMap`)
 pub fn generate_histogram_percentiles(input: &Image<f64>, percentiles: &mut HashMap<i32, f64>, precision: f64) {
     let mut histogram = BTreeMap::new();
-    let (width, height) = input.dimensions();
 
-    for y in 0..height {
-        for x in 0..width {
-            let p = (input.get_pixel(x, y).channels()[0] * precision).round() as i32;
+    for y in 0..(input.info().height) {
+        for x in 0..(input.info().width) {
+            let p = (input.get_pixel(x, y)[0] * precision).round() as i32;
             let count = histogram.entry(p).or_insert(1);
             *count += 1;
         }
     }
 
     let mut sum: i32 = 0;
-    let num_pixels = (width * height) as f64;
+    let num_pixels = input.info().size() as f64;
     for (key, val) in &histogram {
         sum += val;
         percentiles.insert(*key, sum as f64 / num_pixels);
