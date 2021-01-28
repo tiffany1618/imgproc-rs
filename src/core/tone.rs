@@ -1,5 +1,5 @@
 use crate::util;
-use crate::imageops::colorspace;
+use crate::core::colorspace;
 use crate::image::Image;
 use crate::error::{ImgProcError, ImgProcResult};
 

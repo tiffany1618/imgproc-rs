@@ -1,5 +1,6 @@
 use crate::image::{Image, BaseImage};
-use crate::imageops::colorspace;
+use crate::core::colorspace;
+use crate::util::is_grayscale;
 use crate::util::math::{apply_1d_kernel, apply_2d_kernel};
 use crate::util::constant::{K_SOBEL_1D_VERT, K_SOBEL_1D_HORZ, K_UNSHARP_MASKING, K_SHARPEN, K_PREWITT_1D_VERT, K_PREWITT_1D_HORZ};
 use crate::error::{ImgProcError, ImgProcResult};
@@ -7,7 +8,6 @@ use crate::error::{ImgProcError, ImgProcResult};
 use rulinalg::matrix::{Matrix, BaseMatrix};
 
 use std::f64::consts::{PI, E};
-use crate::util::is_grayscale;
 
 /////////////////////
 // Linear filtering
