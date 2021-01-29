@@ -200,7 +200,7 @@ pub fn derivative_mask(input: &Image<f64>, vert_kernel: &[f64], horz_kernel: &[f
     let img_x = separable_filter(&gray, &vert_kernel, &horz_kernel)?;
     let img_y = separable_filter(&gray, &horz_kernel, &vert_kernel)?;
 
-    let mut output = Image::blank(input.info());
+    let mut output = Image::blank(gray.info());
 
     for i in 0..(output.info().full_size() as usize) {
         output.set_pixel_indexed(i, &[img_x[i][0].powf(2.0) + img_y[i][0].powf(2.0).sqrt()]);

@@ -27,12 +27,20 @@ pub enum ImgIoError {
     UnsupportedFileFormat(String),
     UnsupportedColorType(String),
     IoError(io::Error),
+    ImageReaderError(image::error::ImageError),
+    ImageWriteError(String),
     Other(String),
 }
 
 impl From<io::Error> for ImgIoError {
     fn from(err: io::Error) -> Self {
         ImgIoError::IoError(err)
+    }
+}
+
+impl From<image::error::ImageError> for ImgIoError {
+    fn from(err: image::error::ImageError) -> Self {
+        ImgIoError::ImageReaderError(err)
     }
 }
 
