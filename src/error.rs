@@ -1,7 +1,5 @@
 use std::io;
 
-use png;
-use jpeg_decoder;
 use rulinalg;
 
 /// Type alias for `Result<T, ImgProcError`
@@ -13,7 +11,7 @@ pub type ImgIoResult<T> = Result<T, ImgIoError>;
 /// An enum for image processing errors
 #[derive(Debug)]
 pub enum ImgProcError {
-    InvalidArgument(String),
+    InvalidArgError(String),
     RulinalgError(rulinalg::error::Error),
 }
 
@@ -26,13 +24,12 @@ impl From<rulinalg::error::Error> for ImgProcError {
 /// An enum for image i/o errors
 #[derive(Debug)]
 pub enum ImgIoError {
-    UnsupportedFileFormat(String),
-    UnsupportedImageFormat(String),
+    UnsupportedFileFormatError(String),
+    UnsupportedColorTypeError(String),
     IoError(io::Error),
-    PngDecodingError(png::DecodingError),
-    PngEncodingError(png::EncodingError),
-    JpegDecoderError(jpeg_decoder::Error),
-    Other(String),
+    ImageReaderError(image::error::ImageError),
+    ImageWriteError(String),
+    OtherError(String),
 }
 
 impl From<io::Error> for ImgIoError {
@@ -41,26 +38,14 @@ impl From<io::Error> for ImgIoError {
     }
 }
 
-impl From<png::DecodingError> for ImgIoError {
-    fn from(err: png::DecodingError) -> Self {
-        ImgIoError::PngDecodingError(err)
-    }
-}
-
-impl From<png::EncodingError> for ImgIoError {
-    fn from(err: png::EncodingError) -> Self {
-        ImgIoError::PngEncodingError(err)
-    }
-}
-
-impl From<jpeg_decoder::Error> for ImgIoError {
-    fn from(err: jpeg_decoder::Error) -> Self {
-        ImgIoError::JpegDecoderError(err)
+impl From<image::error::ImageError> for ImgIoError {
+    fn from(err: image::error::ImageError) -> Self {
+        ImgIoError::ImageReaderError(err)
     }
 }
 
 impl From<String> for ImgIoError {
     fn from(err: String) -> Self {
-        ImgIoError::Other(err)
+        ImgIoError::OtherError(err)
     }
 }

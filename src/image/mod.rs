@@ -120,6 +120,12 @@ impl ImageInfo {
     }
 }
 
+impl std::fmt::Display for ImageInfo {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "width: {}\nheight: {}\nchannels: {}\nalpha: {}", self.width, self.height, self.channels, self.alpha)
+    }
+}
+
 impl<T: Number> Image<T> {
     /// Creates a new `Image<T>`
     pub fn new(width: u32, height: u32, channels: u8, alpha: bool, data: &[T]) -> Self {

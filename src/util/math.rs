@@ -8,7 +8,7 @@ pub fn vector_mul<T: Number>(mat: &[T], vec: &[T]) -> ImgProcResult<Vec<T>> {
 
     // Check for valid dimensions
     if mat_cols != rows {
-        return Err(ImgProcError::InvalidArgument("mat and vec dimensions do not match".to_string()));
+        return Err(ImgProcError::InvalidArgError("mat and vec dimensions do not match".to_string()));
     }
 
     let mut output = vec![0.into(); rows];
@@ -63,9 +63,9 @@ pub fn apply_1d_kernel(pixels: SubImage<f64>, kernel: &[f64]) -> ImgProcResult<V
 
     // Check for valid dimensions
     if size % 2 == 0 {
-        return Err(ImgProcError::InvalidArgument("kernel length is not odd".to_string()));
+        return Err(ImgProcError::InvalidArgError("kernel length is not odd".to_string()));
     } else if kernel.len() != size {
-        return Err(ImgProcError::InvalidArgument("pixels and kernel dimensions do not match".to_string()));
+        return Err(ImgProcError::InvalidArgError("pixels and kernel dimensions do not match".to_string()));
     }
 
     let mut vec = vec![0.0; num_channels];
@@ -87,9 +87,9 @@ pub fn apply_2d_kernel(pixels: SubImage<f64>, kernel: &[f64]) -> ImgProcResult<V
 
     // Check for valid dimensions
     if size % 2 == 0 {
-        return Err(ImgProcError::InvalidArgument("kernel dimensions are not odd".to_string()))
+        return Err(ImgProcError::InvalidArgError("kernel dimensions are not odd".to_string()))
     } else if kernel.len() != size * size {
-        return Err(ImgProcError::InvalidArgument("pixels and kernel dimensions do not match".to_string()));
+        return Err(ImgProcError::InvalidArgError("pixels and kernel dimensions do not match".to_string()));
     }
 
     let mut vec = vec![0.0; num_channels];

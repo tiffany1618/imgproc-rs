@@ -1,12 +1,22 @@
 [package]
 name = "imgproc-rs"
 version = "0.1.0"
-authors = ["tiffany1618 <tiffany9342@gmail.com>"]
 edition = "2018"
+license = "MIT"
+description = "Image processing library for Rust"
+authors = ["Tiffany Chieu <tiffany9342@gmail.com>"]
+readme = "README.md"
+repository = "https://github.com/tiffany1618/imgproc-rs"
+homepage = "https://github.com/tiffany1618/imgproc-rs"
+documentation = "https://docs.rs/imgproc-rs"
+exclude = [
+    "tests/*"
+]
+keywords = ["image", "image-processing"]
+categories = ["multimedia::images"]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-png = "0.11.0"
-jpeg-decoder = "0.1"
-rulinalg = "0.4.2"
+image = "0.23"
+rulinalg = "0.4"
