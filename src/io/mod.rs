@@ -2,10 +2,7 @@ use crate::error::{ImgIoError, ImgIoResult};
 use crate::image::{Image, BaseImage};
 
 use image::io::Reader;
-use image::{GenericImageView, ColorType, DynamicImage, ImageBuffer, LumaA};
-use image::error::UnsupportedErrorKind::Color;
-
-use std::io::Cursor;
+use image::{GenericImageView, ColorType, DynamicImage, ImageBuffer};
 
 /// Extracts channels and alpha from an `image::ColorType`
 fn from_color_type(color: ColorType) -> ImgIoResult<(u8, bool)> {
@@ -18,23 +15,7 @@ fn from_color_type(color: ColorType) -> ImgIoResult<(u8, bool)> {
     }
 }
 
-/// Converts channels and alpha to a valid `image::ColorType`
-fn into_color_type(channels: u8, alpha: bool) -> ImgIoResult<ColorType> {
-    if alpha {
-        match channels {
-            2 => Ok(ColorType::La8),
-            4 => Ok(ColorType::Rgba8),
-            _ => Err(ImgIoError::UnsupportedColorType("unsupported color type".to_string()))
-        }
-    } else {
-        match channels {
-            1 => Ok(ColorType::L8),
-            3 => Ok(ColorType::Rgb8),
-            _ => Err(ImgIoError::UnsupportedColorType("unsupported color type".to_string()))
-        }
-    }
-}
-
+// TODO: Fix rotation of JPG images where width < height
 /// Reads an image file into an `Image<u8>`. A wrapper around `image::io::Reader::open()`
 pub fn read(filename: &str) -> ImgIoResult<Image<u8>> {
     let img = Reader::open(filename)?.decode()?;
