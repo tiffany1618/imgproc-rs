@@ -15,7 +15,7 @@ pub fn generate_xyz_tristimulus_vals(ref_white: &str) -> ImgProcResult<(f64, f64
     return match ref_white.to_lowercase().as_str() {
         "d50" => Ok((96.4212, 100.0, 82.5188)),
         "d65" => Ok((95.0489, 100.0, 103.8840)),
-        _ => Err(ImgProcError::InvalidArgument("invalid reference white".to_string())),
+        _ => Err(ImgProcError::InvalidArgError("invalid reference white".to_string())),
     }
 }
 

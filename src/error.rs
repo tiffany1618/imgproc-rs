@@ -11,7 +11,7 @@ pub type ImgIoResult<T> = Result<T, ImgIoError>;
 /// An enum for image processing errors
 #[derive(Debug)]
 pub enum ImgProcError {
-    InvalidArgument(String),
+    InvalidArgError(String),
     RulinalgError(rulinalg::error::Error),
 }
 
@@ -24,12 +24,12 @@ impl From<rulinalg::error::Error> for ImgProcError {
 /// An enum for image i/o errors
 #[derive(Debug)]
 pub enum ImgIoError {
-    UnsupportedFileFormat(String),
-    UnsupportedColorType(String),
+    UnsupportedFileFormatError(String),
+    UnsupportedColorTypeError(String),
     IoError(io::Error),
     ImageReaderError(image::error::ImageError),
     ImageWriteError(String),
-    Other(String),
+    OtherError(String),
 }
 
 impl From<io::Error> for ImgIoError {
@@ -46,6 +46,6 @@ impl From<image::error::ImageError> for ImgIoError {
 
 impl From<String> for ImgIoError {
     fn from(err: String) -> Self {
-        ImgIoError::Other(err)
+        ImgIoError::OtherError(err)
     }
 }

@@ -11,7 +11,7 @@ fn from_color_type(color: ColorType) -> ImgIoResult<(u8, bool)> {
         ColorType::La8 => Ok((2, true)),
         ColorType::Rgb8 | ColorType::Bgr8 => Ok((3, false)),
         ColorType::Rgba8 | ColorType::Bgra8 => Ok((4, true)),
-        _ => Err(ImgIoError::UnsupportedColorType("unsupported color type".to_string()))
+        _ => Err(ImgIoError::UnsupportedColorTypeError("unsupported color type".to_string()))
     }
 }
 
@@ -41,7 +41,7 @@ pub fn write(input: &Image<u8>, filename: &str) -> ImgIoResult<()> {
                     .ok_or_else(|| ImgIoError::ImageWriteError("ImageBuffer Container is not big enough".to_string()))?;
                 img_buf.save(filename)?;
             },
-            _ => return Err(ImgIoError::UnsupportedColorType("unsupported color type".to_string()))
+            _ => return Err(ImgIoError::UnsupportedColorTypeError("unsupported color type".to_string()))
         }
     } else {
         match channels {
@@ -55,7 +55,7 @@ pub fn write(input: &Image<u8>, filename: &str) -> ImgIoResult<()> {
                     .ok_or_else(|| ImgIoError::ImageWriteError("ImageBuffer Container is not big enough".to_string()))?;
                 img_buf.save(filename)?;
             },
-            _ => return Err(ImgIoError::UnsupportedColorType("unsupported color type".to_string()))
+            _ => return Err(ImgIoError::UnsupportedColorTypeError("unsupported color type".to_string()))
         }
     }
 

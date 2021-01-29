@@ -8,7 +8,7 @@ use std::collections::HashMap;
 /// Adjusts brightness by adding `bias` to each RGB channel
 pub fn brightness_rgb(input: &Image<u8>, bias: i32) -> ImgProcResult<Image<u8>> {
     if bias < 0 || bias > 255 {
-        return Err(ImgProcError::InvalidArgument("bias is not in range 0 to 255".to_string()));
+        return Err(ImgProcError::InvalidArgError("bias is not in range 0 to 255".to_string()));
     }
 
     let mut lookup_table: [u8; 256] = [0; 256];
@@ -22,7 +22,7 @@ pub fn brightness_rgb(input: &Image<u8>, bias: i32) -> ImgProcResult<Image<u8>> 
 /// Adjusts brightness by adding `bias` to the luminance value (Y) of `input` in CIE XYZ
 pub fn brightness_xyz(input: &Image<u8>, bias: i32) -> ImgProcResult<Image<u8>> {
     if bias < 0 || bias > 255 {
-        return Err(ImgProcError::InvalidArgument("bias is not in range 0 to 255".to_string()));
+        return Err(ImgProcError::InvalidArgError("bias is not in range 0 to 255".to_string()));
     }
 
     let mut xyz = colorspace::srgb_to_xyz(input);
@@ -34,7 +34,7 @@ pub fn brightness_xyz(input: &Image<u8>, bias: i32) -> ImgProcResult<Image<u8>> 
 // gain > 0
 pub fn contrast_rgb(input: &Image<u8>, gain: f64) -> ImgProcResult<Image<u8>> {
     if gain <= 0.0 {
-        return Err(ImgProcError::InvalidArgument("gain is negative".to_string()));
+        return Err(ImgProcError::InvalidArgError("gain is negative".to_string()));
     }
 
     let mut lookup_table: [u8; 256] = [0; 256];
@@ -49,7 +49,7 @@ pub fn contrast_rgb(input: &Image<u8>, gain: f64) -> ImgProcResult<Image<u8>> {
 // gain > 0
 pub fn contrast_xyz(input: &Image<u8>, gain: f64) -> ImgProcResult<Image<u8>> {
     if gain <= 0.0 {
-        return Err(ImgProcError::InvalidArgument("gain is negative".to_string()));
+        return Err(ImgProcError::InvalidArgError("gain is negative".to_string()));
     }
 
     let mut xyz = colorspace::srgb_to_xyz(input);
@@ -67,9 +67,9 @@ pub fn contrast_xyz(input: &Image<u8>, gain: f64) -> ImgProcResult<Image<u8>> {
 /// * `precision` - See the function `util::generate_histogram_percentiles`
 pub fn histogram_equalization(input: &Image<u8>, alpha: f64, ref_white: &str, precision: f64) -> ImgProcResult<Image<u8>> {
     if alpha < 0.0 || alpha > 1.0 {
-        return Err(ImgProcError::InvalidArgument("alpha is not in range 0 to 1".to_string()));
+        return Err(ImgProcError::InvalidArgError("alpha is not in range 0 to 1".to_string()));
     } else if precision <= 0.0 {
-        return Err(ImgProcError::InvalidArgument("precision is not positive".to_string()));
+        return Err(ImgProcError::InvalidArgError("precision is not positive".to_string()));
     }
 
     let mut lab = colorspace::srgb_to_lab(input, ref_white);

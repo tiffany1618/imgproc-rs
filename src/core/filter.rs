@@ -17,7 +17,7 @@ use std::f64::consts::{PI, E};
 /// as a vertical filter; otherwise applies `kernel` as a horizontal filter
 pub fn filter_1d(input: &Image<f64>, kernel: &[f64], is_vert: bool) -> ImgProcResult<Image<f64>> {
     if kernel.len() % 2 == 0 {
-        return Err(ImgProcError::InvalidArgument("kernel length is not odd".to_string()));
+        return Err(ImgProcError::InvalidArgError("kernel length is not odd".to_string()));
     }
 
     let (width, height) = input.info().wh();
@@ -36,9 +36,9 @@ pub fn filter_1d(input: &Image<f64>, kernel: &[f64], is_vert: bool) -> ImgProcRe
 /// Applies a separable linear filter by first applying `vert_kernel` and then `horz_kernel`
 pub fn separable_filter(input: &Image<f64>, vert_kernel: &[f64], horz_kernel: &[f64]) -> ImgProcResult<Image<f64>> {
     if vert_kernel.len() % 2 == 0 || horz_kernel.len() % 2 == 0 {
-        return Err(ImgProcError::InvalidArgument("kernel lengths are not odd".to_string()));
+        return Err(ImgProcError::InvalidArgError("kernel lengths are not odd".to_string()));
     } else if vert_kernel.len() != horz_kernel.len() {
-        return Err(ImgProcError::InvalidArgument("kernel lengths are not equal".to_string()));
+        return Err(ImgProcError::InvalidArgError("kernel lengths are not equal".to_string()));
     }
 
     let vertical = filter_1d(input, vert_kernel, true)?;
@@ -49,7 +49,7 @@ pub fn separable_filter(input: &Image<f64>, vert_kernel: &[f64], horz_kernel: &[
 pub fn unseparable_filter(input: &Image<f64>, kernel: &[f64]) -> ImgProcResult<Image<f64>> {
     let size = (kernel.len() as f32).sqrt() as u32;
     if kernel.len() != (size * size) as usize {
-        return Err(ImgProcError::InvalidArgument("kernel length is not odd".to_string()));
+        return Err(ImgProcError::InvalidArgError("kernel length is not odd".to_string()));
     }
 
     let (width, height) = input.info().wh();
@@ -71,7 +71,7 @@ pub fn linear_filter(input: &Image<f64>, kernel: &[f64]) -> ImgProcResult<Image<
 
     // Check if kernel is a square matrix
     if kernel.len() != size * size {
-        return Err(ImgProcError::InvalidArgument("kernel is not a square matrix".to_string()));
+        return Err(ImgProcError::InvalidArgError("kernel is not a square matrix".to_string()));
     }
 
     let kernel_mat = Matrix::new(size, size, kernel);
@@ -110,7 +110,7 @@ pub fn linear_filter(input: &Image<f64>, kernel: &[f64]) -> ImgProcResult<Image<
 /// Applies a box filter of odd size `size`
 pub fn box_filter(input: &Image<f64>, size: u32) -> ImgProcResult<Image<f64>> {
     if size % 2 == 0 {
-        return Err(ImgProcError::InvalidArgument("size is not odd".to_string()));
+        return Err(ImgProcError::InvalidArgError("size is not odd".to_string()));
     }
 
     let len = (size * size) as usize;
@@ -122,7 +122,7 @@ pub fn box_filter(input: &Image<f64>, size: u32) -> ImgProcResult<Image<f64>> {
 /// Applies a normalized box filter of odd size `size`
 pub fn box_filter_normalized(input: &Image<f64>, size: u32) -> ImgProcResult<Image<f64>> {
     if size % 2 == 0 {
-        return Err(ImgProcError::InvalidArgument("size is not odd".to_string()));
+        return Err(ImgProcError::InvalidArgError("size is not odd".to_string()));
     }
 
     let len = (size * size) as usize;
@@ -134,7 +134,7 @@ pub fn box_filter_normalized(input: &Image<f64>, size: u32) -> ImgProcResult<Ima
 /// Applies a weighted average filter of odd size `size` with a center weight of `weight`
 pub fn weighted_avg_filter(input: &Image<f64>, size: u32, weight: u32) -> ImgProcResult<Image<f64>> {
     if size % 2 == 0 {
-        return Err(ImgProcError::InvalidArgument("size is not odd".to_string()));
+        return Err(ImgProcError::InvalidArgError("size is not odd".to_string()));
     }
 
     let sum = (size * size) - 1 + weight;
@@ -153,7 +153,7 @@ pub fn gaussian_blur(input: &Image<f64>, size: u32, std_dev: f64) -> ImgProcResu
 
 pub fn generate_gaussian_kernel(size: u32, std_dev: f64) -> ImgProcResult<Vec<f64>> {
     if size % 2 == 0 {
-        return Err(ImgProcError::InvalidArgument("size is not odd".to_string()));
+        return Err(ImgProcError::InvalidArgError("size is not odd".to_string()));
     }
 
     let mut filter = vec![0.0; (size * size) as usize];
@@ -232,7 +232,7 @@ pub fn sobel_weighted(input: &Image<f64>, weight: u32) -> ImgProcResult<Image<f6
 /// If pixel value is greater than `threshold`, it is set to `max`; otherwise, it is set to 0
 pub fn threshold_binary(input: &Image<f64>, threshold: f64, max: f64) -> ImgProcResult<Image<f64>> {
     if !is_grayscale(input.info().channels, input.info().alpha) {
-        return Err(ImgProcError::InvalidArgument("input is not a grayscale image".to_string()));
+        return Err(ImgProcError::InvalidArgError("input is not a grayscale image".to_string()));
     }
 
     Ok(input.map_channels_if_alpha(|channel| {
@@ -247,7 +247,7 @@ pub fn threshold_binary(input: &Image<f64>, threshold: f64, max: f64) -> ImgProc
 /// If pixel value is greater than `threshold`, it is set to 0; otherwise, it is set to `max`
 pub fn threshold_binary_inv(input: &Image<f64>, threshold: f64, max: f64) -> ImgProcResult<Image<f64>> {
     if !is_grayscale(input.info().channels, input.info().alpha) {
-        return Err(ImgProcError::InvalidArgument("input is not a grayscale image".to_string()));
+        return Err(ImgProcError::InvalidArgError("input is not a grayscale image".to_string()));
     }
 
     Ok(input.map_channels_if_alpha(|channel| {
@@ -262,7 +262,7 @@ pub fn threshold_binary_inv(input: &Image<f64>, threshold: f64, max: f64) -> Img
 /// If pixel value is greater than `threshold`, it is set to `threshold`; otherwise, it is unchanged
 pub fn threshold_trunc(input: &Image<f64>, threshold: f64) -> ImgProcResult<Image<f64>> {
     if !is_grayscale(input.info().channels, input.info().alpha) {
-        return Err(ImgProcError::InvalidArgument("input is not a grayscale image".to_string()));
+        return Err(ImgProcError::InvalidArgError("input is not a grayscale image".to_string()));
     }
 
     Ok(input.map_channels_if_alpha(|channel| {
@@ -277,7 +277,7 @@ pub fn threshold_trunc(input: &Image<f64>, threshold: f64) -> ImgProcResult<Imag
 /// If pixel value is greater than `threshold`, it is unchanged; otherwise, it is set to 0
 pub fn threshold_to_zero(input: &Image<f64>, threshold: f64) -> ImgProcResult<Image<f64>> {
     if !is_grayscale(input.info().channels, input.info().alpha) {
-        return Err(ImgProcError::InvalidArgument("input is not a grayscale image".to_string()));
+        return Err(ImgProcError::InvalidArgError("input is not a grayscale image".to_string()));
     }
 
     Ok(input.map_channels_if_alpha(|channel| {
@@ -292,7 +292,7 @@ pub fn threshold_to_zero(input: &Image<f64>, threshold: f64) -> ImgProcResult<Im
 /// If pixel value is greater than `threshold`, it is set to 0; otherwise, it is unchanged
 pub fn threshold_to_zero_inv(input: &Image<f64>, threshold: f64) -> ImgProcResult<Image<f64>> {
     if !is_grayscale(input.info().channels, input.info().alpha) {
-        return Err(ImgProcError::InvalidArgument("input is not a grayscale image".to_string()));
+        return Err(ImgProcError::InvalidArgError("input is not a grayscale image".to_string()));
     }
 
     Ok(input.map_channels_if_alpha(|channel| {
