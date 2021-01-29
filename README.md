@@ -6,10 +6,8 @@ A Rust image processing library.
 
 ## Supported Image Formats
 
-* PNG
-* JPEG
-
-Hopefully, support for more image formats will be added soon.
+`imgproc-rs` uses the i/o functions provided in the [`image`](https://github.com/image-rs/image) crate. A list of 
+supported image formats can be found [here](https://docs.rs/image/0.23.12/image/codecs/index.html#supported-formats). 
 
 ## Examples
 
