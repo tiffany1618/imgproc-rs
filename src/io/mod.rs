@@ -2,7 +2,7 @@ use crate::error::{ImgIoError, ImgIoResult};
 use crate::image::{Image, BaseImage};
 
 use image::io::Reader;
-use image::{GenericImageView, ColorType, DynamicImage, ImageBuffer};
+use image::{GenericImageView, ColorType, ImageBuffer};
 
 /// Extracts channels and alpha from an `image::ColorType`
 fn from_color_type(color: ColorType) -> ImgIoResult<(u8, bool)> {
