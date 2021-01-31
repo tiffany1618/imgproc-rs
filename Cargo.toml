@@ -15,8 +15,6 @@ exclude = [
 keywords = ["image", "image-processing"]
 categories = ["multimedia::images"]
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-
 [dependencies]
-image = "0.23"
-rulinalg = "0.4"
+image = "0.23.12"
+rulinalg = "0.4.2"
