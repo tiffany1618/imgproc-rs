@@ -4,6 +4,7 @@ use crate::image::Image;
 use crate::error::{ImgProcError, ImgProcResult};
 
 use std::collections::HashMap;
+use crate::core::colorspace::{rgb_to_hsv, hsv_to_rgb};
 
 /// Adjusts brightness by adding `bias` to each RGB channel
 pub fn brightness_rgb(input: &Image<u8>, bias: i32) -> ImgProcResult<Image<u8>> {
@@ -55,6 +56,14 @@ pub fn contrast_xyz(input: &Image<u8>, gain: f64) -> ImgProcResult<Image<u8>> {
     let mut xyz = colorspace::srgb_to_xyz(input);
     xyz.edit_channel(|num| num * gain, 1);
     Ok(colorspace::xyz_to_srgb(&xyz))
+}
+
+/// Adjusts saturation by adding `saturation` to the saturation value (S) of `input` in HSV
+pub fn saturation(input: &Image<u8>, saturation: i32) -> ImgProcResult<Image<u8>> {
+    let mut hsv = rgb_to_hsv(input);
+    hsv.edit_channel(|s| (s + (saturation as f64 / 255.0)) as f64, 1);
+
+    Ok(hsv_to_rgb(&hsv))
 }
 
 /// Performs a histogram equalization on `input`
