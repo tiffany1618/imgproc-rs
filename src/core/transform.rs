@@ -101,7 +101,7 @@ pub fn scale_nearest_neighbor<T: Number>(input: &Image<T>, factor: f64) -> ImgPr
 }
 
 /// Scales an image by a factor of `factor` using bilinear interpolation
-pub fn scale_bilinear<T: Number>(input: &Image<T>, factor: f64) -> ImgProcResult<Image<T>> {
+pub fn scale_bilinear(input: &Image<f64>, factor: f64) -> ImgProcResult<Image<f64>> {
     if factor <= 0.0 {
         return Err(ImgProcError::InvalidArgError("factor must be positive".to_string()));
     }
@@ -113,45 +113,29 @@ pub fn scale_bilinear<T: Number>(input: &Image<T>, factor: f64) -> ImgProcResult
 
     for x in 0..width {
         for y in 0..height {
-            // TODO
-        }
-    }
+            let x_f = x as f64 / factor;
+            let y_f = y as f64 / factor;
+            let x_1 = x_f.floor() as u32;
+            let x_2 = std::cmp::min((x_f.ceil() as u32), input.info().width - 1);
+            let y_1 = y_f.floor() as u32;
+            let y_2 = std::cmp::min((y_f.ceil() as u32), input.info().height - 1);
+            let x_weight = x_f - (x_1 as f64);
+            let y_weight = y_f - (y_1 as f64);
 
-    Ok(output)
-}
-/// Scales an image by a factor of `factor` using bicubic interpolation
-pub fn scale_bicubic<T: Number>(input: &Image<T>, factor: f64) -> ImgProcResult<Image<T>> {
-    if factor <= 0.0 {
-        return Err(ImgProcError::InvalidArgError("factor must be positive".to_string()));
-    }
+            let p1 = input.get_pixel(x_1, y_1);
+            let p2 = input.get_pixel(x_2, y_1);
+            let p3 = input.get_pixel(x_1, y_2);
+            let p4 = input.get_pixel(x_2, y_2);
 
-    let width = (input.info().width as f64 * factor).round() as u32;
-    let height = (input.info().height as f64 * factor).round() as u32;
-    let mut output = Image::blank(ImageInfo::new(width, height,
-                                                 input.info().channels, input.info().alpha));
+            let mut pixel = Vec::new();
+            for c in 0..(output.info().channels as usize) {
+                pixel.push(p1[c] * x_weight * y_weight
+                    + p2[c] * (1.0 - x_weight) * y_weight
+                    + p3[c] * x_weight * (1.0 - y_weight)
+                    + p4[c] * (1.0 - x_weight) * (1.0 - y_weight));
+            }
 
-    for x in 0..width {
-        for y in 0..height {
-            // TODO
-        }
-    }
-
-    Ok(output)
-}
-/// Scales an image by a factor of `factor` using Sinc resampling
-pub fn scale_sinc<T: Number>(input: &Image<T>, factor: f64) -> ImgProcResult<Image<T>> {
-    if factor <= 0.0 {
-        return Err(ImgProcError::InvalidArgError("factor must be positive".to_string()));
-    }
-
-    let width = (input.info().width as f64 * factor).round() as u32;
-    let height = (input.info().height as f64 * factor).round() as u32;
-    let mut output = Image::blank(ImageInfo::new(width, height,
-                                                 input.info().channels, input.info().alpha));
-
-    for x in 0..width {
-        for y in 0..height {
-            // TODO
+            output.set_pixel(x, y, &pixel);
         }
     }
 
