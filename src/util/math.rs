@@ -23,7 +23,7 @@ pub fn vector_mul<T: Number>(mat: &[T], vec: &[T]) -> ImgProcResult<Vec<T>> {
 }
 
 /// Returns the maximum of three f64 values
-pub fn max(x: f64, y: f64, z: f64) -> f64 {
+pub fn max_3(x: f64, y: f64, z: f64) -> f64 {
     if x > y {
         if x > z {
             x
@@ -40,7 +40,7 @@ pub fn max(x: f64, y: f64, z: f64) -> f64 {
 }
 
 /// Returns the minimum of three f64 values
-pub fn min(x: f64, y: f64, z: f64) -> f64 {
+pub fn min_3(x: f64, y: f64, z: f64) -> f64 {
     if x < y {
         if x < z {
             x
@@ -53,6 +53,32 @@ pub fn min(x: f64, y: f64, z: f64) -> f64 {
         } else {
             z
         }
+    }
+}
+
+/// Returns the maximum of four f64 values
+pub fn max_4(w: f64, x: f64, y: f64, z: f64) -> f64 {
+    if w > x {
+        max_3(w, y, z)
+    } else if x > y {
+        max_3(w, x, z)
+    } else if y > z {
+        max_3(w, x, y)
+    } else {
+        max_3(x, y, z)
+    }
+}
+
+/// Returns the minimum of four f64 values
+pub fn min_4(w: f64, x: f64, y: f64, z: f64) -> f64 {
+    if w < x {
+        min_3(w, y, z)
+    } else if x < y {
+        min_3(w, x, z)
+    } else if y < z {
+        min_3(w, x, y)
+    } else {
+        min_3(x, y, z)
     }
 }
 

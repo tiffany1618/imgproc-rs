@@ -3,7 +3,7 @@ pub mod constants;
 pub mod enums;
 
 use crate::image::{Image, BaseImage, Number};
-use crate::error::{ImgProcError, ImgProcResult};
+use crate::error::{ImgProcResult};
 use crate::util::enums::White;
 
 use std::collections::{HashMap, BTreeMap};

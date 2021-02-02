@@ -60,11 +60,3 @@ pub enum Refl {
     // /// Reflection axis along the line y = -x
     // DiagonalNeg,
 }
-
-/// An enum for image shearing directions
-pub enum Shear {
-    Left,
-    Right,
-    Up,
-    Down,
-}

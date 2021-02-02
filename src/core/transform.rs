@@ -1,6 +1,6 @@
 use crate::image::{Number, Image, ImageInfo, BaseImage};
 use crate::error::{ImgProcResult, ImgProcError};
-use crate::util::enums::{Scale, Refl, Shear};
+use crate::util::enums::{Scale, Refl};
 use crate::util::math;
 
 /// Crops an image to a rectangle with upper left corner located at `(x, y)` with width `width`
@@ -101,7 +101,7 @@ pub fn scale(input: &Image<f64>, x_factor: f64, y_factor: f64, method: Scale) ->
                     output.set_pixel(x, y, input.get_pixel(index_x, index_y));
                 }
             }
-        }
+        },
         Scale::Bilinear => {
             for x in 0..width {
                 for y in 0..height {
@@ -130,7 +130,7 @@ pub fn scale(input: &Image<f64>, x_factor: f64, y_factor: f64, method: Scale) ->
                     output.set_pixel(x, y, &pixel);
                 }
             }
-        }
+        },
     }
 
     Ok(output)
@@ -152,12 +152,38 @@ pub fn translate<T: Number>(input: &Image<T>, x: u32, y: u32) -> ImgProcResult<I
 
 /// Rotates an image `degrees` degrees counterclockwise around the point `(x, y)`
 pub fn rotate<T: Number>(input: &Image<T>, x: u32, y: u32, degrees: f64) -> ImgProcResult<Image<T>> {
-    let mut output = Image::blank(input.info());
-    let (width, height) = output.info().wh();
+    let (w_in, h_in) = input.info().wh();
+    let (sin, cos) = degrees.to_radians().sin_cos();
+    let mat = [cos, -sin, sin, cos];
 
-    for x in 0..width {
-        for y in 0..height {
+    // Compute dimensions of output image
+    let coords1 = math::vector_mul(&mat, &[-(x as f64), y as f64])?;
+    let coords2 = math::vector_mul(&mat, &[(w_in - x) as f64, y as f64])?;
+    let coords3 = math::vector_mul(&mat, &[-(x as f64), (y - h_in) as f64])?;
+    let coords4 = math::vector_mul(&mat, &[(w_in - x) as f64, (y - h_in) as f64])?;
+    let w_out = (math::max_4(coords1[0], coords2[0], coords3[0], coords4[0])
+        - math::min_4(coords1[0], coords2[0], coords3[0], coords4[0])) as u32 + x;
+    let h_out = y - ((math::max_4(coords1[1], coords2[1], coords3[1], coords4[1])
+        - math::min_4(coords1[1], coords2[1], coords3[1], coords4[1])) as u32);
 
+    let mut output = Image::blank(ImageInfo::new(w_out, h_out,
+                                                 input.info().channels, input.info().alpha));
+
+    for i in 0..w_in {
+        for j in 0..h_in {
+            let x1 = (i as f64) - (x as f64);
+            let y1 = (y as f64) - (j as f64);
+
+            let mut coords = math::vector_mul(&mat, &[x1, y1])?;
+
+            coords[0] += x as f64;
+            coords[1] = (y as f64) - coords[1];
+
+            output.set_pixel(coords[0] as u32, coords[1] as u32,
+                             input.get_pixel(i, j));
+            // println!("ij: {}, {}", i, j);
+            // println!("1: {}, {}", x1, y1);
+            // println!("coords: {}, {}", coords[0], coords[1]);
         }
     }
 
@@ -176,48 +202,45 @@ pub fn reflect<T: Number>(input: &Image<T>, axis: Refl) -> ImgProcResult<Image<T
                     output.set_pixel(x, y, input.get_pixel(x, height - y - 1));
                 }
             }
-        }
+        },
         Refl::Vertical => {
             for x in 0..width {
                 for y in 0..height {
                     output.set_pixel(x, y, input.get_pixel(width - x - 1, y));
                 }
             }
-        }
+        },
     }
 
     Ok(output)
 }
 
-pub fn shear(input: &Image<f64>, shear_factor: f64, direction: Shear) -> ImgProcResult<Image<f64>> {
-    let (mut width, mut height) = input.info().wh();
-    let mut mat = [0.0; 4];
-
-    match direction {
-        Shear::Left => {
-            mat = [1.0, shear_factor, 0.0, 1.0];
-            width = input.info().width + (input.info().height as f64 * shear_factor) as u32;
-        },
-        Shear::Right => {
-            mat = [1.0, 0.0, shear_factor, 1.0];
-            width = input.info().width + (input.info().height as f64 * shear_factor) as u32;
-        },
-        Shear::Up => {
-            mat = [1.0, shear_factor, 0.0, 1.0];
-            height = (input.info().width as f64 * shear_factor) as u32 + input.info().height;
-        },
-        Shear::Down => {
-            mat = [1.0, shear_factor, 0.0, 1.0];
-            height = (input.info().width as f64 * shear_factor) as u32 + input.info().height;
-        },
-    }
-
-    let mut output = Image::blank(ImageInfo::new(width, height,
+/// Shears an image
+pub fn shear(input: &Image<f64>, shear_x: f64, shear_y: f64) -> ImgProcResult<Image<f64>> {
+    let (w_in, h_in) = input.info().wh();
+    let offset_x = (h_in as f64 * shear_x).abs();
+    let offset_y = (w_in as f64 * shear_y).abs();
+    let w_out = w_in + offset_x as u32;
+    let h_out = offset_y as u32 + h_in;
+    let mut output = Image::blank(ImageInfo::new(w_out, h_out,
                                                  input.info().channels, input.info().alpha));
 
-    for x in 0..input.info().width {
-        for y in 0..input.info().height {
-            let coords = math::vector_mul(&mat, &[x as f64, y as f64])?;
+    // Negative sign to give the conventional orientation for a positive shear, since the image
+    // coordinates are flipped from conventional coordinates (i.e. (0,0) is in the top left corner
+    // instead of the bottom left corner)
+    let mat = [1.0, -shear_x, -shear_y, 1.0];
+
+    for x in 0..w_in {
+        for y in 0..h_in {
+            let mut coords = math::vector_mul(&mat, &[x as f64, y as f64])?;
+
+            if shear_x > 0.0 {
+                coords[0] += offset_x;
+            }
+            if shear_y > 0.0 {
+                coords[1] += offset_y;
+            }
+
             output.set_pixel(coords[0] as u32, coords[1] as u32, input.get_pixel(x, y));
         }
     }

@@ -14,18 +14,32 @@ fn vector_mul_test() {
 
 #[test]
 fn max_test() {
-    assert_eq!(3.0, math::max(1.0, 2.0, 3.0));
-    assert_eq!(1.0, math::max(1.0, 1.0, 1.0));
-    assert_eq!(3.0, math::max(1.0, 3.0, 3.0));
-    assert_eq!(3.0, math::max(1.0, 1.0, 3.0));
+    // Test max_3()
+    assert_eq!(3.0, math::max_3(1.0, 2.0, 3.0));
+    assert_eq!(1.0, math::max_3(1.0, 1.0, 1.0));
+    assert_eq!(3.0, math::max_3(1.0, 3.0, 3.0));
+    assert_eq!(3.0, math::max_3(1.0, 1.0, 3.0));
+
+    // Test max_4()
+    assert_eq!(4.0, math::max_4(1.0, 2.0, 3.0, 4.0));
+    assert_eq!(1.0, math::max_4(1.0, 1.0, 1.0, 1.0));
+    assert_eq!(3.0, math::max_4(1.0, 2.0, 2.0, 3.0));
+    assert_eq!(3.0, math::max_4(1.0, 2.0, 3.0, 3.0));
 }
 
 #[test]
 fn min_test() {
-    assert_eq!(1.0, math::min(1.0, 2.0, 3.0));
-    assert_eq!(1.0, math::min(1.0, 1.0, 1.0));
-    assert_eq!(1.0, math::min(1.0, 3.0, 3.0));
-    assert_eq!(1.0, math::min(1.0, 1.0, 3.0));
+    // Test min_3()
+    assert_eq!(1.0, math::min_3(1.0, 2.0, 3.0));
+    assert_eq!(1.0, math::min_3(1.0, 1.0, 1.0));
+    assert_eq!(1.0, math::min_3(1.0, 3.0, 3.0));
+    assert_eq!(1.0, math::min_3(1.0, 1.0, 3.0));
+
+    // Test min_4()
+    assert_eq!(1.0, math::min_4(1.0, 2.0, 3.0, 4.0));
+    assert_eq!(1.0, math::min_4(1.0, 1.0, 1.0, 1.0));
+    assert_eq!(1.0, math::min_4(1.0, 2.0, 2.0, 3.0));
+    assert_eq!(1.0, math::min_4(1.0, 2.0, 3.0, 3.0));
 }
 
 #[test]
