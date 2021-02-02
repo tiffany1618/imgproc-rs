@@ -1,3 +1,5 @@
+//! A module for image transformation operations
+
 use crate::image::{Number, Image, ImageInfo, BaseImage, Pixel};
 use crate::error::{ImgProcResult, ImgProcError};
 use crate::util::enums::{Scale, Refl};
@@ -150,10 +152,15 @@ pub fn translate<T: Number>(input: &Image<T>, x: u32, y: u32) -> ImgProcResult<I
     Ok(output)
 }
 
-/// Rotates an image `degrees` degrees counterclockwise around the point `(x, y)`
-pub fn rotate(input: &Image<f64>, x: u32, y: u32, degrees: f64) -> ImgProcResult<Image<f64>> {
+/// Rotates an image `degrees` degrees counterclockwise around the center of the image
+pub fn rotate(input: &Image<f64>, degrees: f64) -> ImgProcResult<Image<f64>> {
     let (w_in, h_in) = input.info().wh();
     let (sin, cos) = degrees.to_radians().sin_cos();
+
+    // Center coordinates
+    let x = w_in / 2;
+    let y = h_in / 2;
+
     let mat = [cos, -sin, sin, cos];
 
     // Compute dimensions of output image

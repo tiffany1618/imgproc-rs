@@ -1,3 +1,5 @@
+//! A module for image tone operations
+
 use crate::util;
 use crate::util::enums::{Tone, White};
 use crate::core::colorspace;

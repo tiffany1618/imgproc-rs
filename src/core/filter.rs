@@ -1,3 +1,5 @@
+//! A module for image filtering operations
+
 use crate::image::{Image, BaseImage};
 use crate::core::colorspace;
 use crate::util;

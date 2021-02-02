@@ -1,3 +1,5 @@
+//! A module for image errors
+
 use std::io;
 
 use rulinalg;

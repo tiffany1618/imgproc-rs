@@ -1,3 +1,5 @@
+//! A module for utility math functions
+
 use crate::image::{Number, SubImage, BaseImage};
 use crate::error::{ImgProcError, ImgProcResult};
 

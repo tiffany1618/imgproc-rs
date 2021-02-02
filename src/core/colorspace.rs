@@ -1,3 +1,5 @@
+//! A module for image colorspace conversion operations
+
 use crate::util;
 use crate::util::math;
 use crate::util::constants::{GAMMA, SRGB_TO_XYZ_MAT, XYZ_TO_SRGB_MAT};

@@ -1,3 +1,5 @@
+//! A module for image enums
+
 /// An enum for image tone operations
 pub enum Tone {
     /// Tone operation should be carried out using an RGB channels

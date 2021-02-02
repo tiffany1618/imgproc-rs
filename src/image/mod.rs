@@ -1,3 +1,5 @@
+//! A module containing the core image structs and traits
+
 /// A struct representing an image
 #[derive(Debug, Clone, PartialEq)]
 pub struct Image<T: Number> {

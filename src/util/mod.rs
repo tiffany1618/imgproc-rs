@@ -1,3 +1,5 @@
+//! A module for image utility functions
+
 pub mod math;
 pub mod constants;
 pub mod enums;
