@@ -1,8 +1,9 @@
 use crate::image::{Image, BaseImage};
 use crate::core::colorspace;
-use crate::util::is_grayscale;
+use crate::util;
 use crate::util::math::{apply_1d_kernel, apply_2d_kernel};
-use crate::util::constant::{K_SOBEL_1D_VERT, K_SOBEL_1D_HORZ, K_UNSHARP_MASKING, K_SHARPEN, K_PREWITT_1D_VERT, K_PREWITT_1D_HORZ};
+use crate::util::enums::Thresh;
+use crate::util::constants::{K_SOBEL_1D_VERT, K_SOBEL_1D_HORZ, K_UNSHARP_MASKING, K_SHARPEN, K_PREWITT_1D_VERT, K_PREWITT_1D_HORZ};
 use crate::error::{ImgProcError, ImgProcResult};
 
 use rulinalg::matrix::{Matrix, BaseMatrix};
@@ -229,77 +230,57 @@ pub fn sobel_weighted(input: &Image<f64>, weight: u32) -> ImgProcResult<Image<f6
 // Thresholding
 //////////////////
 
-/// If pixel value is greater than `threshold`, it is set to `max`; otherwise, it is set to 0
-pub fn threshold_binary(input: &Image<f64>, threshold: f64, max: f64) -> ImgProcResult<Image<f64>> {
-    if !is_grayscale(input.info().channels, input.info().alpha) {
+/// Performs a thresholding operation based on `method`
+pub fn threshold(input: &Image<f64>, threshold: f64, max: f64, method: Thresh) -> ImgProcResult<Image<f64>> {
+    if !util::is_grayscale(input.info().channels, input.info().alpha) {
         return Err(ImgProcError::InvalidArgError("input is not a grayscale image".to_string()));
     }
 
-    Ok(input.map_channels_if_alpha(|channel| {
-        if channel > threshold {
-            max
-        } else {
-            0.0
-        }
-    }, |a| a))
-}
-
-/// If pixel value is greater than `threshold`, it is set to 0; otherwise, it is set to `max`
-pub fn threshold_binary_inv(input: &Image<f64>, threshold: f64, max: f64) -> ImgProcResult<Image<f64>> {
-    if !is_grayscale(input.info().channels, input.info().alpha) {
-        return Err(ImgProcError::InvalidArgError("input is not a grayscale image".to_string()));
+    match method {
+        Thresh::Binary => {
+            Ok(input.map_channels_if_alpha(|channel| {
+                if channel > threshold {
+                    max
+                } else {
+                    0.0
+                }
+            }, |a| a))
+        },
+        Thresh::BinaryInv => {
+            Ok(input.map_channels_if_alpha(|channel| {
+                if channel > threshold {
+                    0.0
+                } else {
+                    max
+                }
+            }, |a| a))
+        },
+        Thresh::Trunc => {
+            Ok(input.map_channels_if_alpha(|channel| {
+                if channel > threshold {
+                    threshold
+                } else {
+                    channel
+                }
+            }, |a| a))
+        },
+        Thresh::ToZero => {
+            Ok(input.map_channels_if_alpha(|channel| {
+                if channel > threshold {
+                    channel
+                } else {
+                    0.0
+                }
+            }, |a| a))
+        },
+        Thresh::ToZeroInv => {
+            Ok(input.map_channels_if_alpha(|channel| {
+                if channel > threshold {
+                    0.0
+                } else {
+                    channel
+                }
+            }, |a| a))
+        },
     }
-
-    Ok(input.map_channels_if_alpha(|channel| {
-        if channel > threshold {
-            0.0
-        } else {
-            max
-        }
-    }, |a| a))
-}
-
-/// If pixel value is greater than `threshold`, it is set to `threshold`; otherwise, it is unchanged
-pub fn threshold_trunc(input: &Image<f64>, threshold: f64) -> ImgProcResult<Image<f64>> {
-    if !is_grayscale(input.info().channels, input.info().alpha) {
-        return Err(ImgProcError::InvalidArgError("input is not a grayscale image".to_string()));
-    }
-
-    Ok(input.map_channels_if_alpha(|channel| {
-        if channel > threshold {
-            threshold
-        } else {
-            channel
-        }
-    }, |a| a))
-}
-
-/// If pixel value is greater than `threshold`, it is unchanged; otherwise, it is set to 0
-pub fn threshold_to_zero(input: &Image<f64>, threshold: f64) -> ImgProcResult<Image<f64>> {
-    if !is_grayscale(input.info().channels, input.info().alpha) {
-        return Err(ImgProcError::InvalidArgError("input is not a grayscale image".to_string()));
-    }
-
-    Ok(input.map_channels_if_alpha(|channel| {
-        if channel > threshold {
-            channel
-        } else {
-            0.0
-        }
-    }, |a| a))
-}
-
-/// If pixel value is greater than `threshold`, it is set to 0; otherwise, it is unchanged
-pub fn threshold_to_zero_inv(input: &Image<f64>, threshold: f64) -> ImgProcResult<Image<f64>> {
-    if !is_grayscale(input.info().channels, input.info().alpha) {
-        return Err(ImgProcError::InvalidArgError("input is not a grayscale image".to_string()));
-    }
-
-    Ok(input.map_channels_if_alpha(|channel| {
-        if channel > threshold {
-            0.0
-        } else {
-            channel
-        }
-    }, |a| a))
 }

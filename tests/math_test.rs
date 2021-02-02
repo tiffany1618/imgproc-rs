@@ -1,5 +1,5 @@
 use imgproc_rs::util::math;
-use imgproc_rs::util::constant::K_GAUSSIAN_BLUR_2D_3;
+use imgproc_rs::util::constants::K_GAUSSIAN_BLUR_2D_3;
 use imgproc_rs::image::SubImage;
 use core::num::FpCategory::Subnormal;
 

@@ -1,8 +1,10 @@
 pub mod math;
-pub mod constant;
+pub mod constants;
+pub mod enums;
 
 use crate::image::{Image, BaseImage, Number};
 use crate::error::{ImgProcError, ImgProcResult};
+use crate::util::enums::White;
 
 use std::collections::{HashMap, BTreeMap};
 
@@ -11,11 +13,10 @@ use std::collections::{HashMap, BTreeMap};
 ////////////////////////////
 
 /// Returns a tuple representing the XYZ tristimulus values for a given reference white value
-pub fn generate_xyz_tristimulus_vals(ref_white: &str) -> ImgProcResult<(f64, f64, f64)> {
-    return match ref_white.to_lowercase().as_str() {
-        "d50" => Ok((96.4212, 100.0, 82.5188)),
-        "d65" => Ok((95.0489, 100.0, 103.8840)),
-        _ => Err(ImgProcError::InvalidArgError("invalid reference white".to_string())),
+pub fn generate_xyz_tristimulus_vals(ref_white: &White) -> ImgProcResult<(f64, f64, f64)> {
+    return match ref_white {
+        White::D50 => Ok((96.4212, 100.0, 82.5188)),
+        White::D65 => Ok((95.0489, 100.0, 103.8840)),
     }
 }
 
