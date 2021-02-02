@@ -25,6 +25,7 @@ pub struct ImageInfo {
 pub trait Number:
 std::marker::Copy
 + std::fmt::Display
++ std::cmp::PartialEq
 + std::ops::Add<Output=Self>
 + std::ops::Sub<Output=Self>
 + std::ops::Mul<Output=Self>
@@ -40,6 +41,7 @@ impl<T> Number for T
     where T:
     std::marker::Copy
     + std::fmt::Display
+    + std::cmp::PartialEq
     + std::ops::Add<Output=T>
     + std::ops::Sub<Output=T>
     + std::ops::Mul<Output=T>
@@ -86,6 +88,12 @@ pub trait Pixel<T: Number> {
     fn apply_alpha<F, G>(&mut self, f: F, g: G)
         where F: Fn(T) -> T,
               G: Fn(T) -> T;
+
+    /// Returns true if all channel values are zero
+    fn is_black(&self) -> bool;
+
+    /// Returns true if all channel values except the last channel is zero
+    fn is_black_alpha(&self) -> bool;
 }
 
 impl ImageInfo {
@@ -107,6 +115,15 @@ impl ImageInfo {
     /// Returns the width, height, channels, and alpha of the image
     pub fn whca(&self) -> (u32, u32, u8, bool) {
         (self.width, self.height, self.channels, self.alpha)
+    }
+
+    /// Returns the number of non alpha channels in the image
+    pub fn channels_non_alpha(&self) -> u8 {
+        if self.alpha {
+            self.channels - 1
+        } else {
+            self.channels
+        }
     }
 
     /// Returns the size of the image (width * height)
@@ -535,5 +552,25 @@ impl<T: Number> Pixel<T> for [T] {
         }
 
         self[self.len()-1] = g(self.alpha());
+    }
+
+    fn is_black(&self) -> bool {
+        for channel in self.iter() {
+            if *channel != 0.into() {
+                return false;
+            }
+        }
+
+        true
+    }
+
+    fn is_black_alpha(&self) -> bool {
+        for channel in self.channels_without_alpha().iter() {
+            if *channel != 0.into() {
+                return false;
+            }
+        }
+
+        true
     }
 }

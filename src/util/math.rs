@@ -85,7 +85,7 @@ pub fn min_4(w: f64, x: f64, y: f64, z: f64) -> f64 {
 /// Applies a 1D kernel to `pixels`
 pub fn apply_1d_kernel(pixels: SubImage<f64>, kernel: &[f64]) -> ImgProcResult<Vec<f64>> {
     let size = pixels.info().size() as usize;
-    let num_channels = pixels.info().channels as usize;
+    let channels = pixels.info().channels as usize;
 
     // Check for valid dimensions
     if size % 2 == 0 {
@@ -94,11 +94,11 @@ pub fn apply_1d_kernel(pixels: SubImage<f64>, kernel: &[f64]) -> ImgProcResult<V
         return Err(ImgProcError::InvalidArgError("pixels and kernel dimensions do not match".to_string()));
     }
 
-    let mut vec = vec![0.0; num_channels];
+    let mut vec = vec![0.0; channels];
 
     // Apply kernel
     for i in 0..size {
-        for j in 0..num_channels {
+        for j in 0..channels {
             vec[j] += kernel[i] * pixels[i][j];
         }
     }
