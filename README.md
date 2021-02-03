@@ -1,5 +1,7 @@
 # imgproc-rs
 
+[![crates.io](https://img.shields.io/crates/v/imgproc-rs.svg)](https://crates.io/crates/imgproc-rs)
+[![Documentation](https://docs.rs/imgproc-rs/badge.svg)](https://docs.rs/imgproc-rs)
 [![cargo-test](https://github.com/tiffany1618/imgproc-rs/workflows/cargo-test/badge.svg)](https://github.com/tiffany1618/imgproc-rs/actions)
 
 A Rust image processing library.
