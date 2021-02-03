@@ -1,3 +1,4 @@
+#![cfg(not(doctest))]
 //! A module for image reading/writing
 //!
 //! # Examples
