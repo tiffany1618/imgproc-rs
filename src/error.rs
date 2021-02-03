@@ -4,7 +4,7 @@ use std::io;
 
 use rulinalg;
 
-/// Type alias for `Result<T, ImgProcError`
+/// Type alias for `Result<T, ImgProcError>`
 pub type ImgProcResult<T> = Result<T, ImgProcError>;
 
 /// Type alias for `Result<T, ImgIoError>`
