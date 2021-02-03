@@ -11,6 +11,7 @@ homepage = "https://github.com/tiffany1618/imgproc-rs"
 documentation = "https://docs.rs/imgproc-rs"
 exclude = [
     "tests/*"
+    "images/*"
 ]
 keywords = ["image", "image-processing"]
 categories = ["multimedia::images"]
