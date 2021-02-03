@@ -10,7 +10,7 @@ repository = "https://github.com/tiffany1618/imgproc-rs"
 homepage = "https://github.com/tiffany1618/imgproc-rs"
 documentation = "https://docs.rs/imgproc-rs"
 exclude = [
-    "tests/*"
+    "tests/*",
     "images/*"
 ]
 keywords = ["image", "image-processing"]
