@@ -1,6 +1,6 @@
 //! A module for image transformation operations
 
-use crate::image::{Number, Image, ImageInfo, BaseImage, Pixel};
+use crate::image::{Number, Image, ImageInfo, BaseImage};
 use crate::error::{ImgProcResult, ImgProcError};
 use crate::util::enums::{Scale, Refl};
 use crate::util::math;
@@ -164,69 +164,38 @@ pub fn rotate(input: &Image<f64>, degrees: f64) -> ImgProcResult<Image<f64>> {
     let mat = [cos, -sin, sin, cos];
 
     // Compute dimensions of output image
-    let coords1 = math::vector_mul(&mat, &[-((x + 1) as f64), (y + 1) as f64])?;
-    let coords2 = math::vector_mul(&mat, &[(w_in - x + 1) as f64, (y + 1) as f64])?;
-    let coords3 = math::vector_mul(&mat, &[-((x + 1) as f64), (y as f64) - ((h_in + 1) as f64)])?;
-    let coords4 = math::vector_mul(&mat, &[(w_in - x + 1) as f64, (y as f64) - ((h_in + 1) as f64)])?;
+    let coords1 = math::vector_mul(&mat, &[-(x as f64), y as f64])?;
+    let coords2 = math::vector_mul(&mat, &[(w_in - x) as f64, y as f64])?;
+    let coords3 = math::vector_mul(&mat, &[-(x as f64), (y as f64) - (h_in as f64)])?;
+    let coords4 = math::vector_mul(&mat, &[(w_in - x) as f64, (y as f64) - (h_in as f64)])?;
 
     let x_max = math::max_4(coords1[0], coords2[0], coords3[0], coords4[0]);
     let x_min = math::min_4(coords1[0], coords2[0], coords3[0], coords4[0]);
     let y_max = math::max_4(coords1[1], coords2[1], coords3[1], coords4[1]);
     let y_min = math::min_4(coords1[1], coords2[1], coords3[1], coords4[1]);
 
-    let w_out = (x_max - x_min).round() as u32;
-    let h_out = (y_max - y_min).round() as u32;
+    let w_out = (x_max - x_min) as u32;
+    let h_out = (y_max - y_min) as u32;
 
     let mut output = Image::blank(ImageInfo::new(w_out, h_out,
                                                  input.info().channels, input.info().alpha));
 
     for j in 0..h_in {
         for i in 0..w_in {
-            let x1 = ((i + 1) as f64) - (x as f64);
-            let y1 = (y as f64) - ((j + 1) as f64);
+            let x1 = (i as f64) - (x as f64);
+            let y1 = (y as f64) - (j as f64);
 
             let mut coords = math::vector_mul(&mat, &[x1, y1])?;
 
             coords[0] += x_max - 1.0;
             coords[1] = y_max - coords[1] - 1.0;
 
-            output.set_pixel(coords[0].round() as u32, coords[1].round() as u32,
+            output.set_pixel(coords[0] as u32, coords[1] as u32,
                              input.get_pixel(i, j));
-        }
-    }
 
-    // Rotation algorithm leaves holes in the image sometimes; this is a temporary solution to
-    // remove them until something better is worked out.
-    let m1 = (coords1[1] - coords2[1]) / (coords1[0] - coords2[0]);
-    let m2 = (coords4[1] - coords2[1]) / (coords4[0] - coords2[0]);
-    let m3 = (coords3[1] - coords4[1]) / (coords3[0] - coords4[0]);
-    let m4 = (coords1[1] - coords3[1]) / (coords1[0] - coords3[0]);
-
-    for j in 1..(h_out - 1) {
-        for i in 1..(w_out - 1) {
-            let i_x = (i as f64) - x_max ;
-            let j_y = y_max - (j as f64);
-
-            if j_y - coords1[1] <= m1 * (i_x - coords1[0])
-                && j_y - coords2[1] <= m2 * (i_x - coords2[0])
-                && j_y - coords3[1] >= m3 * (i_x - coords3[0])
-                && j_y - coords1[1] >= m4 * (i_x - coords1[0]) {
-                let pixel = output.get_pixel(i, j);
-
-                if (output.info().alpha && pixel.is_black_alpha())
-                    || (!output.info().alpha && pixel.is_black()) {
-                    let p1 = output.get_pixel(i + 1, j);
-                    let p2 = output.get_pixel(i - 1, j);
-                    let p3 = output.get_pixel(i, j + 1);
-                    let p4 = output.get_pixel(i, j - 1);
-
-                    let mut p_new = Vec::new();
-                    for c in 0..(output.info().channels as usize) {
-                        p_new.push((p1[c] + p2[c] + p3[c] + p4[c]) / 4.0);
-                    }
-
-                    output.set_pixel(i, j, &p_new);
-                }
+            // Cover up "holes" left by rotation algorithm
+            if coords[0] >= 1.0 {
+                output.set_pixel(coords[0] as u32 - 1, coords[1] as u32, input.get_pixel(i, j));
             }
         }
     }
