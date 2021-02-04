@@ -19,8 +19,8 @@ pub fn crop<T: Number>(input: &Image<T>, x: u32, y: u32, width: u32, height: u32
     let mut output = Image::blank(ImageInfo::new(width, height,
                                                  input.info().channels, input.info().alpha));
 
-    for i in 0..height {
-        for j in 0..width {
+    for j in 0..height {
+        for i in 0..width {
             output.set_pixel(i, j, input.get_pixel(i + x, j + y));
         }
     }
@@ -42,8 +42,8 @@ pub fn superimpose(back: &Image<f64>, front: &Image<f64>, x: u32, y: u32, alpha:
     let width = std::cmp::min(x + front.info().width, back.info().width);
     let height = std::cmp::min(y + front.info().height, back.info().height);
 
-    for i in x..width {
-        for j in y..height {
+    for j in y..height {
+        for i in x..width {
             let mut pixel_new = Vec::new();
             let pixel_back = back.get_pixel(i, j);
             let pixel_front = front.get_pixel(i - x, j - y);
@@ -69,8 +69,8 @@ pub fn overlay<T: Number>(back: &Image<T>, front: &Image<T>, x: u32, y: u32) -> 
     let width = std::cmp::min(x + front.info().width, back.info().width);
     let height = std::cmp::min(y + front.info().height, back.info().height);
 
-    for i in x..width {
-        for j in y..height {
+    for j in y..height {
+        for i in x..width {
             output.set_pixel(i, j, front.get_pixel(i - x, j - y));
         }
     }
@@ -96,8 +96,8 @@ pub fn scale(input: &Image<f64>, x_factor: f64, y_factor: f64, method: Scale) ->
 
     match method {
         Scale::NearestNeighbor => {
-            for x in 0..width {
-                for y in 0..height {
+            for y in 0..height {
+                for x in 0..width {
                     let index_x = (((x + 1) as f64 / x_factor).ceil() - 1.0) as u32;
                     let index_y = (((y + 1) as f64 / y_factor).ceil() - 1.0) as u32;
                     output.set_pixel(x, y, input.get_pixel(index_x, index_y));
@@ -105,8 +105,8 @@ pub fn scale(input: &Image<f64>, x_factor: f64, y_factor: f64, method: Scale) ->
             }
         },
         Scale::Bilinear => {
-            for x in 0..width {
-                for y in 0..height {
+            for y in 0..height {
+                for x in 0..width {
                     let x_f = x as f64 / x_factor;
                     let y_f = y as f64 / y_factor;
                     let x_1 = x_f.floor() as u32;
@@ -143,8 +143,8 @@ pub fn scale(input: &Image<f64>, x_factor: f64, y_factor: f64, method: Scale) ->
 pub fn translate<T: Number>(input: &Image<T>, x: u32, y: u32) -> ImgProcResult<Image<T>> {
     let mut output = Image::blank(input.info());
 
-    for i in x..output.info().width {
-        for j in y..output.info().height {
+    for j in y..output.info().height {
+        for i in x..output.info().width {
             output.set_pixel(i, j, input.get_pixel(i - x, j - y));
         }
     }
@@ -180,8 +180,8 @@ pub fn rotate(input: &Image<f64>, degrees: f64) -> ImgProcResult<Image<f64>> {
     let mut output = Image::blank(ImageInfo::new(w_out, h_out,
                                                  input.info().channels, input.info().alpha));
 
-    for i in 0..w_in {
-        for j in 0..h_in {
+    for j in 0..h_in {
+        for i in 0..w_in {
             let x1 = ((i + 1) as f64) - (x as f64);
             let y1 = (y as f64) - ((j + 1) as f64);
 
@@ -202,8 +202,8 @@ pub fn rotate(input: &Image<f64>, degrees: f64) -> ImgProcResult<Image<f64>> {
     let m3 = (coords3[1] - coords4[1]) / (coords3[0] - coords4[0]);
     let m4 = (coords1[1] - coords3[1]) / (coords1[0] - coords3[0]);
 
-    for i in 1..(w_out - 1) {
-        for j in 1..(h_out - 1) {
+    for j in 1..(h_out - 1) {
+        for i in 1..(w_out - 1) {
             let i_x = (i as f64) - x_max ;
             let j_y = y_max - (j as f64);
 
@@ -241,15 +241,15 @@ pub fn reflect<T: Number>(input: &Image<T>, axis: Refl) -> ImgProcResult<Image<T
 
     match axis {
         Refl::Horizontal => {
-            for x in 0..width {
-                for y in 0..height {
+            for y in 0..height {
+                for x in 0..width {
                     output.set_pixel(x, y, input.get_pixel(x, height - y - 1));
                 }
             }
         },
         Refl::Vertical => {
-            for x in 0..width {
-                for y in 0..height {
+            for y in 0..height {
+                for x in 0..width {
                     output.set_pixel(x, y, input.get_pixel(width - x - 1, y));
                 }
             }
@@ -274,8 +274,8 @@ pub fn shear(input: &Image<f64>, shear_x: f64, shear_y: f64) -> ImgProcResult<Im
     // instead of the bottom left corner)
     let mat = [1.0, -shear_x, -shear_y, 1.0];
 
-    for x in 0..w_in {
-        for y in 0..h_in {
+    for y in 0..h_in {
+        for x in 0..w_in {
             let mut coords = math::vector_mul(&mat, &[x as f64, y as f64])?;
 
             if shear_x > 0.0 {

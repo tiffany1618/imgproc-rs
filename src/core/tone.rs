@@ -71,7 +71,7 @@ pub fn saturation(input: &Image<u8>, saturation: i32) -> ImgProcResult<Image<u8>
 ///
 /// * `alpha` - Represents the amount of equalization, where 0 corresponds to no equalization and
 /// 1 corresponds to full equalization
-/// * `ref_white` - A string slice representing the reference white value of the image
+/// * `ref_white` - An enum representing the reference white value of the image
 /// * `precision` - See the function `util::generate_histogram_percentiles`
 pub fn histogram_equalization(input: &Image<u8>, alpha: f64, ref_white: &White, precision: f64) -> ImgProcResult<Image<u8>> {
     if alpha < 0.0 || alpha > 1.0 {
