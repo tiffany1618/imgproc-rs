@@ -65,6 +65,17 @@ pub fn saturation(input: &Image<u8>, saturation: i32) -> ImgProcResult<Image<u8>
     Ok(colorspace::hsv_to_rgb(&hsv))
 }
 
+/// Performs a gamma correction. `max` indicates the maximum allowed pixel value of the image
+pub fn gamma(input: &Image<u8>, gamma: f64, max: u8) -> ImgProcResult<Image<u8>> {
+    if gamma < 0.0 {
+        return Err(ImgProcError::InvalidArgError("gamma is not positive".to_string()));
+    }
+
+    Ok(input.map_channels_if_alpha(|channel| {
+        ((channel as f64 / max as f64).powf(gamma) * (max as f64)).round() as u8
+    }, |a| a))
+}
+
 /// Performs a histogram equalization on `input`
 ///
 /// # Arguments

@@ -80,6 +80,46 @@ pub fn create_lookup_table<T: Number, F>(table: &mut [T; 256], f: F)
     }
 }
 
+/// Generates a summed-area table in the format of another `Image` of the same type and dimensions
+/// as `input`
+pub fn summed_area_table(input: &Image<f64>) -> Image<f64> {
+    let mut output = Image::blank(input.info());
+    let (width, height, channels) = input.info().whc();
+
+    for y in 0..height {
+        for x in 0..width {
+            let p_in = input.get_pixel(x, y);
+            let mut p_out = Vec::new();
+            let mut p_top = vec![0.0; channels as usize];
+            let mut p_left = vec![0.0; channels as usize];
+            let mut p_diag = vec![0.0; channels as usize];
+
+            if x > 0 {
+                p_left = output.get_pixel(x - 1, y).to_vec();
+
+                if y > 0 {
+                    p_diag = output.get_pixel(x - 1, y - 1).to_vec();
+                }
+            }
+            if y > 0 {
+                p_top = output.get_pixel(x, y - 1).to_vec();
+            }
+
+            for c in 0..(channels as usize) {
+                p_out.push(p_in[c] + p_top[c] + p_left[c] - p_diag[c]);
+            }
+
+            output.set_pixel(x, y, &p_out);
+        }
+    }
+
+    output
+}
+
+////////////////////////////
+// Image type conversions
+////////////////////////////
+
 /// Converts an `Image<f64>` to an `Image<u8>`
 pub fn image_f64_to_u8(input: &Image<f64>) -> Image<u8> {
     input.map_channels(|channel| channel.round() as u8)
@@ -101,6 +141,10 @@ pub fn image_u8_to_f64(input: &Image<u8>) -> Image<f64> {
 pub fn image_u8_to_f64_scale(input: &Image<u8>, scale: u32) -> Image<f64> {
     input.map_channels(|channel| ((channel as f64 / 255.0) * scale as f64))
 }
+
+//////////
+// Misc.
+//////////
 
 /// Returns `true` if an image is a grayscale image
 pub fn is_grayscale(channels: u8, alpha: bool) -> bool {
