@@ -1,11 +1,11 @@
 //! A module for image filtering operations
 
 use crate::image::{Image, BaseImage};
-use crate::core::colorspace;
+use crate::core;
 use crate::util;
 use crate::util::math::{apply_1d_kernel, apply_2d_kernel};
-use crate::util::enums::Thresh;
 use crate::util::constants::{K_SOBEL_1D_VERT, K_SOBEL_1D_HORZ, K_UNSHARP_MASKING, K_SHARPEN, K_PREWITT_1D_VERT, K_PREWITT_1D_HORZ};
+use crate::enums::Thresh;
 use crate::error::{ImgProcError, ImgProcResult};
 
 use rulinalg::matrix::{Matrix, BaseMatrix};
@@ -179,6 +179,96 @@ pub fn generate_gaussian_kernel(size: u32, std_dev: f64) -> ImgProcResult<Vec<f6
     Ok(filter)
 }
 
+/// Applies a median filter
+pub fn median_filter(input: &Image<f64>, size: u32) -> ImgProcResult<Image<f64>> {
+    if size % 2 == 0 {
+        return Err(ImgProcError::InvalidArgError("size is not odd".to_string()));
+    }
+
+    let (width, height, channels) = input.info().whc();
+    let center = ((size * size) / 2) as usize;
+    let mut output = Image::blank(input.info());
+
+    for y in 0..height {
+        for x in 0..width {
+            let pixels = input.get_neighborhood_2d(x, y, size);
+            let mut p_out = Vec::new();
+
+            for c in 0..(channels as usize) {
+                let mut p_in = Vec::new();
+
+                for i in 0..((size * size) as usize) {
+                    p_in.push(pixels[i][c]);
+                }
+
+                p_in.sort_unstable_by(|a, b| a.partial_cmp(b).unwrap());
+                p_out.push(p_in[center]);
+            }
+
+
+            output.set_pixel(x, y, &p_out);
+        }
+    }
+
+    Ok(output)
+}
+
+/// Applies a weighted median filter
+pub fn median_filter_weighted(input: &Image<f64>, size: u32) -> ImgProcResult<Image<f64>> {
+    if size % 2 == 0 {
+        return Err(ImgProcError::InvalidArgError("size is not odd".to_string()));
+    }
+
+    let (width, height, channels) = input.info().whc();
+    let center = (size * size) / 2;
+    let summed_area_table = util::summed_area_table(&input);
+    let mut output = Image::blank(input.info());
+
+    for y in 0..height {
+        for x in 0..width {
+            let pixels = input.get_neighborhood_2d(x, y, size);
+
+            // TODO: fix this
+            let mut x_top = x;
+            let mut y_top = y;
+            let mut x_bot = x;
+            let mut y_bot = y;
+            if x_top > center {
+                x_top = x - center;
+            }
+            if y_top > center {
+                y_top = y_top - center;
+            }
+            if x + center < width {
+                x_bot += center;
+            }
+            if y + center < height {
+                y_bot += center;
+            }
+
+            let sum = util::rectangular_intensity_sum(&summed_area_table,
+                                                      x_top, y_top, x_bot, y_bot);
+            let mut p_out = Vec::new();
+
+            for c in 0..(channels as usize) {
+                let mut p_in = Vec::new();
+
+                for i in 0..((size * size) as usize) {
+                    p_in.push(pixels[i][c]);
+                }
+
+                p_in.sort_unstable_by(|a, b| a.partial_cmp(b).unwrap());
+                p_out.push(p_in[center as usize]);
+            }
+
+
+            output.set_pixel(x, y, &p_out);
+        }
+    }
+
+    Ok(output)
+}
+
 ////////////////
 // Sharpening
 ////////////////
@@ -199,7 +289,7 @@ pub fn unsharp_masking(input: &Image<f64>) -> ImgProcResult<Image<f64>> {
 
 /// Applies a separable derivative mask; first converts `input` to grayscale
 pub fn derivative_mask(input: &Image<f64>, vert_kernel: &[f64], horz_kernel: &[f64]) -> ImgProcResult<Image<f64>> {
-    let gray = colorspace::rgb_to_grayscale_f64(input);
+    let gray = core::rgb_to_grayscale_f64(input);
     let img_x = separable_filter(&gray, &vert_kernel, &horz_kernel)?;
     let img_y = separable_filter(&gray, &horz_kernel, &vert_kernel)?;
 

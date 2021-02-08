@@ -1,14 +1,13 @@
 //! A module for image utility functions
 
+use std::collections::{BTreeMap, HashMap};
+
+use crate::enums::White;
+use crate::error::ImgProcResult;
+use crate::image::{BaseImage, Image, Number};
+
 pub mod math;
 pub mod constants;
-pub mod enums;
-
-use crate::image::{Image, BaseImage, Number};
-use crate::error::{ImgProcResult};
-use crate::util::enums::White;
-
-use std::collections::{HashMap, BTreeMap};
 
 ////////////////////////////
 // Image helper functions
@@ -85,24 +84,25 @@ pub fn create_lookup_table<T: Number, F>(table: &mut [T; 256], f: F)
 pub fn summed_area_table(input: &Image<f64>) -> Image<f64> {
     let mut output = Image::blank(input.info());
     let (width, height, channels) = input.info().whc();
+    let zeroes = vec![0.0; channels as usize];
 
     for y in 0..height {
         for x in 0..width {
             let p_in = input.get_pixel(x, y);
             let mut p_out = Vec::new();
-            let mut p_top = vec![0.0; channels as usize];
-            let mut p_left = vec![0.0; channels as usize];
-            let mut p_diag = vec![0.0; channels as usize];
+            let mut p_top = zeroes.as_slice();
+            let mut p_left = zeroes.as_slice();
+            let mut p_diag = zeroes.as_slice();
 
             if x > 0 {
-                p_left = output.get_pixel(x - 1, y).to_vec();
+                p_left = output.get_pixel(x - 1, y);
 
                 if y > 0 {
-                    p_diag = output.get_pixel(x - 1, y - 1).to_vec();
+                    p_diag = output.get_pixel(x - 1, y - 1);
                 }
             }
             if y > 0 {
-                p_top = output.get_pixel(x, y - 1).to_vec();
+                p_top = output.get_pixel(x, y - 1);
             }
 
             for c in 0..(channels as usize) {
@@ -116,30 +116,34 @@ pub fn summed_area_table(input: &Image<f64>) -> Image<f64> {
     output
 }
 
-////////////////////////////
-// Image type conversions
-////////////////////////////
+/// Computes the sum of pixel intensities over a rectangular region with top left corner located
+/// at `(x_0, y_0)` and bottom right corner located at `(x_1, y_1)`
+pub fn rectangular_intensity_sum(summed_area_table: &Image<f64>, x_0: u32, y_0: u32, x_1: u32, y_1: u32) -> Vec<f64> {
+    let channels = summed_area_table.info().channels as usize;
+    let mut sum = Vec::new();
 
-/// Converts an `Image<f64>` to an `Image<u8>`
-pub fn image_f64_to_u8(input: &Image<f64>) -> Image<u8> {
-    input.map_channels(|channel| channel.round() as u8)
-}
+    let zeroes = vec![0.0; channels];
+    let mut top_left = zeroes.as_slice();
+    let mut top_right = zeroes.as_slice();
+    let mut bot_left = zeroes.as_slice();
+    let bot_right = summed_area_table.get_pixel(x_1, y_1);
 
-/// Converts an `Image<f64>` with channels in range 0 to `scale` to an `Image<u8>` with channels
-/// in range 0 to 255
-pub fn image_f64_to_u8_scale(input: &Image<f64>, scale: u32) -> Image<u8> {
-    input.map_channels(|channel| (channel / scale as f64 * 255.0).round() as u8)
-}
+    if x_0 != 0 {
+        bot_left = summed_area_table.get_pixel(x_0 - 1, y_1);
 
-/// Converts an `Image<u8>` to an `Image<f64>`
-pub fn image_u8_to_f64(input: &Image<u8>) -> Image<f64> {
-    input.map_channels(|channel| channel as f64)
-}
+        if y_0 != 0 {
+            top_left = summed_area_table.get_pixel(x_0 - 1, y_0 - 1);
+        }
+    }
+    if y_0 != 0 {
+        top_right = summed_area_table.get_pixel(x_1, y_0 - 1);
+    }
 
-/// Converts an `Image<u8>` to with channels in range 0 to 255 to an `Image<f64>` with channels
-/// in range 0 to `scale`
-pub fn image_u8_to_f64_scale(input: &Image<u8>, scale: u32) -> Image<f64> {
-    input.map_channels(|channel| ((channel as f64 / 255.0) * scale as f64))
+    for i in 0..channels {
+        sum.push(bot_right[i] - top_right[i] - bot_left[i] + top_left[i]);
+    }
+
+    sum
 }
 
 //////////

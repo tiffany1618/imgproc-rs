@@ -483,8 +483,20 @@ impl<'a, T: Number> SubImage<'a, T> {
         }
     }
 
+    /// Returns all data as a slice of slices
     pub fn data(&self) -> &[&[T]] {
         &self.data[..]
+    }
+
+    /// Converts all data to a vector
+    pub fn to_vec(&self) -> Vec<T> {
+        let mut data = Vec::new();
+
+        for i in 0..(self.info.size() as usize) {
+            data.extend_from_slice(&self[i]);
+        }
+
+        data
     }
 }
 

@@ -1,6 +1,13 @@
 //! A module for core image processing operations
 
-pub mod colorspace;
-pub mod tone;
-pub mod filter;
-pub mod transform;
+pub use self::colorspace::*;
+pub use self::tone::*;
+pub use self::filter::*;
+pub use self::transform::*;
+pub use self::convert::*;
+
+mod colorspace;
+mod tone;
+mod filter;
+mod transform;
+mod convert;

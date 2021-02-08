@@ -4,9 +4,9 @@ use crate::util;
 use crate::util::math;
 use crate::util::constants::{GAMMA, SRGB_TO_XYZ_MAT, XYZ_TO_SRGB_MAT};
 use crate::image::Image;
+use crate::enums::White;
 
 use std::cmp;
-use crate::util::enums::White;
 
 /// Converts an image from RGB to Grayscale
 pub fn rgb_to_grayscale(input: &Image<u8>) -> Image<u8> {

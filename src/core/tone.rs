@@ -1,8 +1,8 @@
 //! A module for image tone operations
 
 use crate::util;
-use crate::util::enums::{Tone, White};
-use crate::core::colorspace;
+use crate::enums::{Tone, White};
+use crate::core;
 use crate::image::Image;
 use crate::error::{ImgProcError, ImgProcResult};
 
@@ -25,9 +25,9 @@ pub fn brightness(input: &Image<u8>, bias: i32, method: Tone) -> ImgProcResult<I
             Ok(input.map_channels_if_alpha(|channel| lookup_table[channel as usize], |a| a))
         },
         Tone::Xyz => {
-            let mut xyz = colorspace::srgb_to_xyz(input);
+            let mut xyz = core::srgb_to_xyz(input);
             xyz.edit_channel(|num| num + (bias as f64 / 255.0), 1);
-            Ok(colorspace::xyz_to_srgb(&xyz))
+            Ok(core::xyz_to_srgb(&xyz))
         },
     }
 }
@@ -50,19 +50,19 @@ pub fn contrast(input: &Image<u8>, gain: f64, method: Tone) -> ImgProcResult<Ima
             Ok(input.map_channels_if_alpha(|channel| lookup_table[channel as usize], |a| a))
         },
         Tone::Xyz => {
-            let mut xyz = colorspace::srgb_to_xyz(input);
+            let mut xyz = core::srgb_to_xyz(input);
             xyz.edit_channel(|num| num * gain, 1);
-            Ok(colorspace::xyz_to_srgb(&xyz))
+            Ok(core::xyz_to_srgb(&xyz))
         },
     }
 }
 
 /// Adjusts saturation by adding `saturation` to the saturation value (S) of `input` in HSV
 pub fn saturation(input: &Image<u8>, saturation: i32) -> ImgProcResult<Image<u8>> {
-    let mut hsv = colorspace::rgb_to_hsv(input);
+    let mut hsv = core::rgb_to_hsv(input);
     hsv.edit_channel(|s| (s + (saturation as f64 / 255.0)) as f64, 1);
 
-    Ok(colorspace::hsv_to_rgb(&hsv))
+    Ok(core::hsv_to_rgb(&hsv))
 }
 
 /// Performs a gamma correction. `max` indicates the maximum allowed pixel value of the image
@@ -91,7 +91,7 @@ pub fn histogram_equalization(input: &Image<u8>, alpha: f64, ref_white: &White, 
         return Err(ImgProcError::InvalidArgError("precision is not positive".to_string()));
     }
 
-    let mut lab = colorspace::srgb_to_lab(input, ref_white);
+    let mut lab = core::srgb_to_lab(input, ref_white);
     let mut percentiles = HashMap::new();
     util::generate_histogram_percentiles(&lab, &mut percentiles, precision);
 
@@ -100,5 +100,5 @@ pub fn histogram_equalization(input: &Image<u8>, alpha: f64, ref_white: &White, 
         (alpha * percentiles.get(&key).unwrap() * 100.0) + ((1.0 - alpha) * num)
     }, 0);
 
-    Ok(colorspace::lab_to_srgb(&lab, ref_white))
+    Ok(core::lab_to_srgb(&lab, ref_white))
 }

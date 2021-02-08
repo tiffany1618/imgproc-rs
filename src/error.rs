@@ -14,6 +14,7 @@ pub type ImgIoResult<T> = Result<T, ImgIoError>;
 #[derive(Debug)]
 pub enum ImgProcError {
     InvalidArgError(String),
+    NumericError(String),
     RulinalgError(rulinalg::error::Error),
 }
 
