@@ -3,8 +3,9 @@
 use std::collections::{BTreeMap, HashMap};
 
 use crate::enums::White;
-use crate::error::ImgProcResult;
+use crate::error::{ImgProcResult, ImgProcError};
 use crate::image::{BaseImage, Image, Number};
+use std::f64::consts::{PI, E};
 
 pub mod math;
 pub mod constants;
@@ -77,6 +78,32 @@ pub fn create_lookup_table<T: Number, F>(table: &mut [T; 256], f: F)
     for i in 0..256 {
         table[i] = f(i as u8);
     }
+}
+
+/// Generates a Gaussian kernel
+pub fn generate_gaussian_kernel(size: u32, std_dev: f64) -> ImgProcResult<Vec<f64>> {
+    if size % 2 == 0 {
+        return Err(ImgProcError::InvalidArgError("size is not odd".to_string()));
+    }
+
+    let mut filter = vec![0.0; (size * size) as usize];
+    let k = (size - 1) / 2;
+
+    for i in 0..size {
+        for j in 0..size {
+            if i <= j {
+                let num = (1.0 / (2.0 * PI * std_dev * std_dev)) *
+                    (E.powf(-(((i - k) * (i - k) + (j - k) * (j - k)) as f64) / (2.0 * std_dev * std_dev)));
+                filter[(i * size + j) as usize] = num;
+
+                if i != j {
+                    filter[(j * size + i) as usize] = num;
+                }
+            }
+        }
+    }
+
+    Ok(filter)
 }
 
 /// Generates a summed-area table in the format of another `Image` of the same type and dimensions

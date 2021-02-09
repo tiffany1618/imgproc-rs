@@ -44,7 +44,7 @@ pub enum Scale {
     // /// Bicubic interpolation
     // Bicubic,
     //
-    // /// Since resampling
+    // /// Sinc resampling
     // Sinc,
 }
 
@@ -55,10 +55,18 @@ pub enum Refl {
 
     /// Reflection axis along the line y = 0
     Horizontal,
+}
 
-    // /// Reflection axis along the line y = x
-    // DiagonalPos,
-    //
-    // /// Reflection axis along the line y = -x
-    // DiagonalNeg,
+/// An enum for bilateral filter algorithms
+// Read a description of the algorithms here:
+// https://people.csail.mit.edu/sparis/publi/2009/fntcgv/Paris_09_Bilateral_filtering.pdf
+pub enum Bilateral {
+    /// Direct bilateral filter algorithm
+    Direct,
+
+    /// Bilateral grid algorithm
+    Grid,
+
+    /// Local histogram algorithm
+    LocalHistogram,
 }

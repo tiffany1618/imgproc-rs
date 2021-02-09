@@ -5,12 +5,10 @@ use crate::core;
 use crate::util;
 use crate::util::math::{apply_1d_kernel, apply_2d_kernel};
 use crate::util::constants::{K_SOBEL_1D_VERT, K_SOBEL_1D_HORZ, K_UNSHARP_MASKING, K_SHARPEN, K_PREWITT_1D_VERT, K_PREWITT_1D_HORZ};
-use crate::enums::Thresh;
+use crate::enums::{Thresh, Bilateral};
 use crate::error::{ImgProcError, ImgProcResult};
 
 use rulinalg::matrix::{Matrix, BaseMatrix};
-
-use std::f64::consts::{PI, E};
 
 /////////////////////
 // Linear filtering
@@ -150,33 +148,8 @@ pub fn weighted_avg_filter(input: &Image<f64>, size: u32, weight: u32) -> ImgPro
 
 /// Applies a Gaussian blur of odd size `size`. Currently only supports sizes of 3 and 5
 pub fn gaussian_blur(input: &Image<f64>, size: u32, std_dev: f64) -> ImgProcResult<Image<f64>> {
-    let kernel = generate_gaussian_kernel(size, std_dev)?;
+    let kernel = util::generate_gaussian_kernel(size, std_dev)?;
     Ok(linear_filter(input, &kernel)?)
-}
-
-pub fn generate_gaussian_kernel(size: u32, std_dev: f64) -> ImgProcResult<Vec<f64>> {
-    if size % 2 == 0 {
-        return Err(ImgProcError::InvalidArgError("size is not odd".to_string()));
-    }
-
-    let mut filter = vec![0.0; (size * size) as usize];
-    let k = (size - 1) / 2;
-
-    for i in 0..size {
-        for j in 0..size {
-            if i <= j {
-                let num = (1.0 / (2.0 * PI * std_dev * std_dev)) *
-                    (E.powf(-(((i - k) * (i - k) + (j - k) * (j - k)) as f64) / (2.0 * std_dev * std_dev)));
-                filter[(i * size + j) as usize] = num;
-
-                if i != j {
-                    filter[(j * size + i) as usize] = num;
-                }
-            }
-        }
-    }
-
-    Ok(filter)
 }
 
 /// Applies a median filter
@@ -213,60 +186,57 @@ pub fn median_filter(input: &Image<f64>, size: u32) -> ImgProcResult<Image<f64>>
     Ok(output)
 }
 
-/// Applies a weighted median filter
-pub fn median_filter_weighted(input: &Image<f64>, size: u32) -> ImgProcResult<Image<f64>> {
+/// Applies an alpha-trimmed mean filter
+pub fn alpha_trimmed_mean_filter(input: &Image<f64>, size: u32, alpha: u32) -> ImgProcResult<Image<f64>> {
     if size % 2 == 0 {
         return Err(ImgProcError::InvalidArgError("size is not odd".to_string()));
+    } else if alpha % 2 != 0 {
+        return Err(ImgProcError::InvalidArgError("alpha is not even".to_string()));
+    } else if alpha >= (size * size) {
+        return Err(ImgProcError::InvalidArgError(format!("invalid alpha: size is {}, but alpha is {}", size, alpha)));
     }
 
     let (width, height, channels) = input.info().whc();
-    let center = (size * size) / 2;
-    let summed_area_table = util::summed_area_table(&input);
+    let length = (size * size) as usize;
     let mut output = Image::blank(input.info());
 
     for y in 0..height {
         for x in 0..width {
             let pixels = input.get_neighborhood_2d(x, y, size);
-
-            // TODO: fix this
-            let mut x_top = x;
-            let mut y_top = y;
-            let mut x_bot = x;
-            let mut y_bot = y;
-            if x_top > center {
-                x_top = x - center;
-            }
-            if y_top > center {
-                y_top = y_top - center;
-            }
-            if x + center < width {
-                x_bot += center;
-            }
-            if y + center < height {
-                y_bot += center;
-            }
-
-            let sum = util::rectangular_intensity_sum(&summed_area_table,
-                                                      x_top, y_top, x_bot, y_bot);
             let mut p_out = Vec::new();
 
             for c in 0..(channels as usize) {
                 let mut p_in = Vec::new();
+                let mut sum = 0.0;
 
-                for i in 0..((size * size) as usize) {
+                for i in 0..length {
                     p_in.push(pixels[i][c]);
+                    sum += pixels[i][c];
                 }
 
                 p_in.sort_unstable_by(|a, b| a.partial_cmp(b).unwrap());
-                p_out.push(p_in[center as usize]);
-            }
 
+                for _ in 0..((alpha / 2) as usize) {
+                    sum -= p_in[0];
+                    sum -= p_in[p_in.len() - 1];
+                    p_in.remove(0);
+                    p_in.remove(p_in.len() - 1);
+                }
+
+                p_out.push(sum / (p_in.len() as f64));
+            }
 
             output.set_pixel(x, y, &p_out);
         }
     }
 
     Ok(output)
+}
+
+/// Applies a bilateral filter
+pub fn bilateral_filter(input: &Image<f64>, size: u32, range: f64, spatial: f64, algorithm: Bilateral)
+    -> ImgProcResult<Image<f64>> {
+
 }
 
 ////////////////
