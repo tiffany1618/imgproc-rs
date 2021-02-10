@@ -18,7 +18,7 @@ pub mod constants;
 pub fn generate_xyz_tristimulus_vals(ref_white: &White) -> ImgProcResult<(f64, f64, f64)> {
     return match ref_white {
         White::D50 => Ok((96.4212, 100.0, 82.5188)),
-        White::D65 => Ok((95.0489, 100.0, 103.8840)),
+        White::D65 => Ok((95.0489, 100.0, 108.8840)),
     }
 }
 

@@ -2,6 +2,7 @@
 
 use crate::image::{Number, SubImage, BaseImage};
 use crate::error::{ImgProcError, ImgProcResult};
+use std::f64::consts::{PI, E};
 
 /// Returns the result of the multiplication of a square matrix by a vector
 pub fn vector_mul<T: Number>(mat: &[T], vec: &[T]) -> ImgProcResult<Vec<T>> {
@@ -133,4 +134,71 @@ pub fn apply_2d_kernel(pixels: SubImage<f64>, kernel: &[f64]) -> ImgProcResult<V
     }
 
     Ok(vec)
+}
+
+/// Calculates the distance between two points
+pub fn distance(x_1: u32, y_1: u32, x_2: u32, y_2: u32) -> f64 {
+    let x_dist = (x_1 as f64) - (x_2 as f64);
+    let y_dist = (y_1 as f64) - (y_2 as f64);
+
+    ((x_dist * x_dist) + (y_dist * y_dist)).sqrt()
+}
+
+/// Generates a matrix of distances relative to the center of the matrix
+pub fn generate_spatial_mat(size: u32, spatial: f64) -> ImgProcResult<Vec<f64>> {
+    let center = size / 2;
+    let mut mat = vec![0.0; (size * size) as usize];
+
+    for y in 0..(center + 1) {
+        for x in 0..(center + 1) {
+            if mat[(y * size + x) as usize] == 0.0 && !(x == center && y == center) {
+                let dist = distance(center, center, x, y);
+                let g = gaussian_fn(dist, spatial)?;
+                mat[(y * size + x) as usize] = g;
+
+                if x == y {
+                    let delta = center - y;
+                    let coord = center + delta;
+
+                    mat[(coord * size + x) as usize] = g;
+                    mat[(x * size + coord) as usize] = g;
+                    mat[(coord * size + coord) as usize] = g;
+                } else if x == center {
+                    let delta = center - y;
+
+                    mat[(x * size + x - delta) as usize] = g;
+                    mat[(x * size + x + delta) as usize] = g;
+                    mat[((x + delta) * size + x) as usize] = g;
+                } else {
+                    let delta_x = center - x;
+                    let delta_y = center - y;
+                    let pos_x = center + delta_x;
+                    let pos_y = center + delta_y;
+                    let neg_x = center - delta_x;
+                    let neg_y = center - delta_y;
+
+                    mat[(neg_x * size + neg_y) as usize] = g;
+                    mat[(neg_y * size + pos_x) as usize] = g;
+                    mat[(pos_x * size + neg_y) as usize] = g;
+                    mat[(pos_y * size + neg_x) as usize] = g;
+                    mat[(neg_x * size + pos_y) as usize] = g;
+                    mat[(pos_y * size + pos_x) as usize] = g;
+                    mat[(pos_x * size + pos_y) as usize] = g;
+                }
+            }
+        }
+    }
+
+    Ok(mat)
+}
+
+/// Calculates the Gaussian function for G_sigma(x)
+pub fn gaussian_fn(x: f64, sigma: f64) -> ImgProcResult<f64> {
+    if sigma < 0.0 {
+        return Err(ImgProcError::InvalidArgError("sigma must be non-negative".to_string()));
+    }
+
+    let sigma_squared = sigma * sigma;
+
+    Ok((1.0 / (2.0 * PI * sigma_squared)) * E.powf(-(x * x) / (2.0 * sigma_squared)))
 }

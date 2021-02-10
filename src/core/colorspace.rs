@@ -87,9 +87,9 @@ pub fn xyz_to_lab(input: &Image<f64>, ref_white: &White) -> Image<f64> {
     let (x_n, y_n, z_n) = util::generate_xyz_tristimulus_vals(ref_white).unwrap();
 
     input.map_pixels_if_alpha(|channels| {
-        let x = util::xyz_to_lab_fn(channels[0]) * 100.0 / x_n;
-        let y = util::xyz_to_lab_fn(channels[1]) * 100.0 / y_n;
-        let z = util::xyz_to_lab_fn(channels[2]) * 100.0 / z_n;
+        let x = util::xyz_to_lab_fn(channels[0] * 100.0 / x_n);
+        let y = util::xyz_to_lab_fn(channels[1] * 100.0 / y_n);
+        let z = util::xyz_to_lab_fn(channels[2] * 100.0 / z_n);
 
         vec![116.0 * y - 16.0,
              500.0 * (x - y),

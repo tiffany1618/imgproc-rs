@@ -3,9 +3,9 @@
 use crate::image::{Image, BaseImage};
 use crate::core;
 use crate::util;
-use crate::util::math::{apply_1d_kernel, apply_2d_kernel};
+use crate::util::math;
 use crate::util::constants::{K_SOBEL_1D_VERT, K_SOBEL_1D_HORZ, K_UNSHARP_MASKING, K_SHARPEN, K_PREWITT_1D_VERT, K_PREWITT_1D_HORZ};
-use crate::enums::{Thresh, Bilateral};
+use crate::enums::{Thresh, Bilateral, White};
 use crate::error::{ImgProcError, ImgProcResult};
 
 use rulinalg::matrix::{Matrix, BaseMatrix};
@@ -26,7 +26,8 @@ pub fn filter_1d(input: &Image<f64>, kernel: &[f64], is_vert: bool) -> ImgProcRe
 
     for y in 0..height {
         for x in 0..width {
-            let pixel = apply_1d_kernel(input.get_neighborhood_1d(x, y, kernel.len() as u32, is_vert), kernel)?;
+            let pixel = math::apply_1d_kernel(input.get_neighborhood_1d(x, y,
+                                                        kernel.len() as u32, is_vert), kernel)?;
             output.set_pixel(x, y, &pixel);
         }
     }
@@ -58,7 +59,7 @@ pub fn unseparable_filter(input: &Image<f64>, kernel: &[f64]) -> ImgProcResult<I
 
     for y in 0..height {
         for x in 0..width {
-            let pixel = apply_2d_kernel(input.get_neighborhood_2d(x, y, size), kernel)?;
+            let pixel = math::apply_2d_kernel(input.get_neighborhood_2d(x, y, size), kernel)?;
             output.set_pixel(x, y, &pixel);
         }
     }
@@ -234,9 +235,52 @@ pub fn alpha_trimmed_mean_filter(input: &Image<f64>, size: u32, alpha: u32) -> I
 }
 
 /// Applies a bilateral filter
-pub fn bilateral_filter(input: &Image<f64>, size: u32, range: f64, spatial: f64, algorithm: Bilateral)
-    -> ImgProcResult<Image<f64>> {
+pub fn bilateral_filter(input: &Image<u8>, range: f64, spatial: f64, algorithm: Bilateral)
+    -> ImgProcResult<Image<u8>> {
+    if range < 0.0 {
+        return Err(ImgProcError::InvalidArgError("range must be non-negative".to_string()));
+    } else if spatial < 0.0 {
+        return Err(ImgProcError::InvalidArgError("spatial must be non-negative".to_string()));
+    }
 
+    let (width, height, channels) = input.info().whc();
+    let size = ((spatial * 4.0) + 1.0) as u32;
+    let spatial_mat = math::generate_spatial_mat(size, spatial)?;
+
+    let lab = core::srgb_to_lab(&input, &White::D65);
+    let mut output = Image::blank(lab.info());
+
+    match algorithm {
+        Bilateral::Direct => {
+            for y in 0..height {
+                for x in 0..width {
+                    let p_n = lab.get_neighborhood_2d(x, y, size as u32);
+                    let p_in = lab.get_pixel(x, y);
+                    let mut p_out = Vec::new();
+
+                    for c in 0..(channels as usize) {
+                        let mut total_weight = 0.0;
+                        let mut p_curr = 0.0;
+
+                        for i in 0..((size * size) as usize) {
+                            let g_r = math::gaussian_fn((p_in[c] - p_n[i][c]).abs(), range)?;
+                            let weight = spatial_mat[i] * g_r;
+
+                            p_curr += weight * p_n[i][c];
+                            total_weight += weight;
+                        }
+
+                        p_out.push(p_curr / total_weight);
+                    }
+
+                    output.set_pixel(x, y, &p_out);
+                }
+            }
+        },
+        _ => {},
+    }
+
+    Ok(core::lab_to_srgb(&output, &White::D65))
 }
 
 ////////////////
