@@ -277,7 +277,6 @@ pub fn bilateral_filter(input: &Image<u8>, range: f64, spatial: f64, algorithm: 
                 }
             }
         },
-        _ => {},
     }
 
     Ok(core::lab_to_srgb(&output, &White::D65))
