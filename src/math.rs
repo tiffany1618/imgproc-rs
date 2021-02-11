@@ -191,3 +191,33 @@ pub fn gaussian_fn(x: f64, sigma: f64) -> ImgProcResult<f64> {
 
     Ok((1.0 / (2.0 * PI * sigma_squared)) * E.powf(-(x * x) / (2.0 * sigma_squared)))
 }
+
+/// Cubic weighting function for bicubic interpolation
+pub fn cubic_weighting_fn(x: f64) -> f64 {
+    (1.0 / 6.0) * (clamp_zero(x + 2.0).powf(3.0)
+        - 4.0 * clamp_zero(x + 1.0).powf(3.0)
+        + 6.0 * clamp_zero(x).powf(3.0)
+        - 4.0 * clamp_zero(x - 1.0).powf(3.0))
+}
+
+/// Creates a lower bound of zero
+pub fn clamp_zero(x: f64) -> f64 {
+    if x <= 0.0 {
+        return 0.0;
+    }
+
+    x
+}
+
+/// Clamps `x` in the range from `min` to `max`, inclusive
+pub fn clamp<T: Number>(x: T, min: T, max: T) -> T {
+    if x <= min {
+        return min;
+    }
+
+    if x >= max {
+        return max;
+    }
+
+    x
+}

@@ -1,6 +1,6 @@
 //! A module for image transformation operations
 
-use crate::{math, error};
+use crate::{math, error, convert};
 use crate::image::{Number, Image, ImageInfo, BaseImage};
 use crate::error::{ImgProcResult, ImgProcError};
 use crate::enums::{Scale, Refl};
@@ -85,7 +85,6 @@ pub fn scale(input: &Image<f64>, x_factor: f64, y_factor: f64, method: Scale) ->
     error::check_non_neg(x_factor, "x_factor")?;
     error::check_non_neg(y_factor, "y_factor")?;
 
-
     let width = (input.info().width as f64 * x_factor).round() as u32;
     let height = (input.info().height as f64 * y_factor).round() as u32;
     let mut output = Image::blank(ImageInfo::new(width, height,
@@ -130,6 +129,35 @@ pub fn scale(input: &Image<f64>, x_factor: f64, y_factor: f64, method: Scale) ->
                 }
             }
         },
+        Scale::Bicubic => {
+            for y in 0..height {
+                for x in 0..width {
+                    let x_f = (x as f64) / x_factor;
+                    let y_f = (y as f64) / y_factor;
+                    let delta_x = x_f - x_f.floor();
+                    let delta_y = y_f - y_f.floor();
+
+                    let mut p_out = vec![0.0; output.info().channels as usize];
+                    for m in -1..2 {
+                        for n in -1..2 {
+                            let p_in = input.get_pixel(math::clamp((x_f as f64) + (m as f64), 0.0, (input.info().width - 1) as f64) as u32,
+                                                       math::clamp((y_f as f64) + (n as f64), 0.0, (input.info().height - 1) as f64) as u32);
+                            let r = math::cubic_weighting_fn((m as f64) - delta_x)
+                                            * math::cubic_weighting_fn(delta_y - (n as f64));
+
+                            for c in 0..(output.info().channels as usize) {
+                                p_out[c] += p_in[c] * r;
+                            }
+                        }
+                    }
+
+                    output.set_pixel(x, y, &p_out);
+                }
+            }
+        },
+        Scale::Sinc => {
+
+        }
     }
 
     Ok(output)

@@ -41,11 +41,11 @@ pub enum Scale {
     /// Bilinear interpolation
     Bilinear,
 
-    // /// Bicubic interpolation
-    // Bicubic,
-    //
-    // /// Sinc resampling
-    // Sinc,
+    /// Bicubic interpolation
+    Bicubic,
+
+    /// Sinc resampling
+    Sinc,
 }
 
 /// An enum for image reflection axes
