@@ -1,8 +1,7 @@
 //! A module for image filtering operations
 
+use crate::{util, colorspace, error, math};
 use crate::image::{Image, BaseImage};
-use crate::{util, colorspace};
-use crate::math;
 use crate::util::constants::{K_SOBEL_1D_VERT, K_SOBEL_1D_HORZ, K_UNSHARP_MASKING, K_SHARPEN, K_PREWITT_1D_VERT, K_PREWITT_1D_HORZ};
 use crate::enums::{Thresh, Bilateral, White};
 use crate::error::{ImgProcError, ImgProcResult};
@@ -16,9 +15,7 @@ use rulinalg::matrix::{Matrix, BaseMatrix};
 /// Applies a 1D filter. If `is_vert` is true, applies `kernel`
 /// as a vertical filter; otherwise applies `kernel` as a horizontal filter
 pub fn filter_1d(input: &Image<f64>, kernel: &[f64], is_vert: bool) -> ImgProcResult<Image<f64>> {
-    if kernel.len() % 2 == 0 {
-        return Err(ImgProcError::InvalidArgError("kernel length is not odd".to_string()));
-    }
+    error::check_odd(kernel.len(), "kernel length")?;
 
     let (width, height) = input.info().wh();
     let mut output = Image::blank(input.info());
@@ -36,11 +33,9 @@ pub fn filter_1d(input: &Image<f64>, kernel: &[f64], is_vert: bool) -> ImgProcRe
 
 /// Applies a separable linear filter by first applying `vert_kernel` and then `horz_kernel`
 pub fn separable_filter(input: &Image<f64>, vert_kernel: &[f64], horz_kernel: &[f64]) -> ImgProcResult<Image<f64>> {
-    if vert_kernel.len() % 2 == 0 || horz_kernel.len() % 2 == 0 {
-        return Err(ImgProcError::InvalidArgError("kernel lengths are not odd".to_string()));
-    } else if vert_kernel.len() != horz_kernel.len() {
-        return Err(ImgProcError::InvalidArgError("kernel lengths are not equal".to_string()));
-    }
+    error::check_odd(vert_kernel.len(), "vert_kernel length")?;
+    error::check_odd(horz_kernel.len(), "horz_kernel length")?;
+    error::check_equal(vert_kernel.len(), horz_kernel.len(), "kernel lengths")?;
 
     let vertical = filter_1d(input, vert_kernel, true)?;
     Ok(filter_1d(&vertical, horz_kernel, false)?)
@@ -48,11 +43,10 @@ pub fn separable_filter(input: &Image<f64>, vert_kernel: &[f64], horz_kernel: &[
 
 /// Applies an unseparable linear filter
 pub fn unseparable_filter(input: &Image<f64>, kernel: &[f64]) -> ImgProcResult<Image<f64>> {
-    let size = (kernel.len() as f32).sqrt() as u32;
-    if kernel.len() != (size * size) as usize {
-        return Err(ImgProcError::InvalidArgError("kernel length is not odd".to_string()));
-    }
+    error::check_odd(kernel.len(), "kernel length")?;
+    error::check_square(kernel.len() as f64, "kernel length")?;
 
+    let size = (kernel.len() as f32).sqrt() as u32;
     let (width, height) = input.info().wh();
     let mut output = Image::blank(input.info());
 
@@ -68,13 +62,10 @@ pub fn unseparable_filter(input: &Image<f64>, kernel: &[f64]) -> ImgProcResult<I
 
 /// Applies a linear filter using the 2D `kernel`
 pub fn linear_filter(input: &Image<f64>, kernel: &[f64]) -> ImgProcResult<Image<f64>> {
+    error::check_odd(kernel.len(), "kernel length")?;
+    error::check_square(kernel.len() as f64, "kernel length")?;
+
     let size = (kernel.len() as f32).sqrt() as usize;
-
-    // Check if kernel is a square matrix
-    if kernel.len() != size * size {
-        return Err(ImgProcError::InvalidArgError("kernel is not a square matrix".to_string()));
-    }
-
     let kernel_mat = Matrix::new(size, size, kernel);
     let size = kernel_mat.cols();
     let (s, u, v) = kernel_mat.svd()?;
@@ -110,9 +101,7 @@ pub fn linear_filter(input: &Image<f64>, kernel: &[f64]) -> ImgProcResult<Image<
 
 /// Applies a box filter of odd size `size`
 pub fn box_filter(input: &Image<f64>, size: u32) -> ImgProcResult<Image<f64>> {
-    if size % 2 == 0 {
-        return Err(ImgProcError::InvalidArgError("size is not odd".to_string()));
-    }
+    error::check_odd(size, "size")?;
 
     let len = (size * size) as usize;
     let kernel = vec![1.0; len];
@@ -122,9 +111,7 @@ pub fn box_filter(input: &Image<f64>, size: u32) -> ImgProcResult<Image<f64>> {
 
 /// Applies a normalized box filter of odd size `size`
 pub fn box_filter_normalized(input: &Image<f64>, size: u32) -> ImgProcResult<Image<f64>> {
-    if size % 2 == 0 {
-        return Err(ImgProcError::InvalidArgError("size is not odd".to_string()));
-    }
+    error::check_odd(size, "size")?;
 
     let len = (size * size) as usize;
     let kernel = vec![1.0 / ((size * size) as f64); len];
@@ -134,9 +121,7 @@ pub fn box_filter_normalized(input: &Image<f64>, size: u32) -> ImgProcResult<Ima
 
 /// Applies a weighted average filter of odd size `size` with a center weight of `weight`
 pub fn weighted_avg_filter(input: &Image<f64>, size: u32, weight: u32) -> ImgProcResult<Image<f64>> {
-    if size % 2 == 0 {
-        return Err(ImgProcError::InvalidArgError("size is not odd".to_string()));
-    }
+    error::check_odd(size, "size")?;
 
     let sum = (size * size) - 1 + weight;
     let center = (size / 2) * size + (size / 2);
@@ -154,9 +139,7 @@ pub fn gaussian_blur(input: &Image<f64>, size: u32, std_dev: f64) -> ImgProcResu
 
 /// Applies a median filter
 pub fn median_filter(input: &Image<f64>, size: u32) -> ImgProcResult<Image<f64>> {
-    if size % 2 == 0 {
-        return Err(ImgProcError::InvalidArgError("size is not odd".to_string()));
-    }
+    error::check_odd(size, "size")?;
 
     let (width, height, channels) = input.info().whc();
     let center = ((size * size) / 2) as usize;
@@ -188,11 +171,9 @@ pub fn median_filter(input: &Image<f64>, size: u32) -> ImgProcResult<Image<f64>>
 
 /// Applies an alpha-trimmed mean filter
 pub fn alpha_trimmed_mean_filter(input: &Image<f64>, size: u32, alpha: u32) -> ImgProcResult<Image<f64>> {
-    if size % 2 == 0 {
-        return Err(ImgProcError::InvalidArgError("size is not odd".to_string()));
-    } else if alpha % 2 != 0 {
-        return Err(ImgProcError::InvalidArgError("alpha is not even".to_string()));
-    } else if alpha >= (size * size) {
+    error::check_odd(size, "size")?;
+    error::check_even(alpha, "alpha")?;
+    if alpha >= (size * size) {
         return Err(ImgProcError::InvalidArgError(format!("invalid alpha: size is {}, but alpha is {}", size, alpha)));
     }
 
@@ -236,11 +217,8 @@ pub fn alpha_trimmed_mean_filter(input: &Image<f64>, size: u32, alpha: u32) -> I
 /// Applies a bilateral filter
 pub fn bilateral_filter(input: &Image<u8>, range: f64, spatial: f64, algorithm: Bilateral)
     -> ImgProcResult<Image<u8>> {
-    if range < 0.0 {
-        return Err(ImgProcError::InvalidArgError("range must be non-negative".to_string()));
-    } else if spatial < 0.0 {
-        return Err(ImgProcError::InvalidArgError("spatial must be non-negative".to_string()));
-    }
+    error::check_non_neg(range, "range")?;
+    error::check_non_neg(spatial, "spatial")?;
 
     let (width, height, channels) = input.info().whc();
     let size = ((spatial * 4.0) + 1.0) as u32;
@@ -342,9 +320,7 @@ pub fn sobel_weighted(input: &Image<f64>, weight: u32) -> ImgProcResult<Image<f6
 
 /// Performs a thresholding operation based on `method`
 pub fn threshold(input: &Image<f64>, threshold: f64, max: f64, method: Thresh) -> ImgProcResult<Image<f64>> {
-    if !util::is_grayscale(input.info().channels, input.info().alpha) {
-        return Err(ImgProcError::InvalidArgError("input is not a grayscale image".to_string()));
-    }
+    error::check_grayscale(input.info().channels, input.info().alpha)?;
 
     match method {
         Thresh::Binary => {

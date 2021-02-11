@@ -1,6 +1,6 @@
 //! A module for image tone operations
 
-use crate::{util, colorspace};
+use crate::{util, colorspace, error};
 use crate::enums::{Tone, White};
 use crate::image::Image;
 use crate::error::{ImgProcError, ImgProcResult};
@@ -35,9 +35,7 @@ pub fn brightness(input: &Image<u8>, bias: i32, method: Tone) -> ImgProcResult<I
 /// multiplying the luminance value (Y) of `input` in CIE XYZ by `gain` if `method` is `Tone::Xyz`
 // gain > 0
 pub fn contrast(input: &Image<u8>, gain: f64, method: Tone) -> ImgProcResult<Image<u8>> {
-    if gain <= 0.0 {
-        return Err(ImgProcError::InvalidArgError("gain is negative".to_string()));
-    }
+    error::check_non_neg(gain, "gain")?;
 
     match method {
         Tone::Rgb => {
@@ -66,9 +64,7 @@ pub fn saturation(input: &Image<u8>, saturation: i32) -> ImgProcResult<Image<u8>
 
 /// Performs a gamma correction. `max` indicates the maximum allowed pixel value of the image
 pub fn gamma(input: &Image<u8>, gamma: f64, max: u8) -> ImgProcResult<Image<u8>> {
-    if gamma < 0.0 {
-        return Err(ImgProcError::InvalidArgError("gamma is not positive".to_string()));
-    }
+    error::check_non_neg(gamma, "gamma")?;
 
     Ok(input.map_channels_if_alpha(|channel| {
         ((channel as f64 / max as f64).powf(gamma) * (max as f64)).round() as u8
@@ -84,10 +80,9 @@ pub fn gamma(input: &Image<u8>, gamma: f64, max: u8) -> ImgProcResult<Image<u8>>
 /// * `ref_white` - An enum representing the reference white value of the image
 /// * `precision` - See the function `util::generate_histogram_percentiles`
 pub fn histogram_equalization(input: &Image<u8>, alpha: f64, ref_white: &White, precision: f64) -> ImgProcResult<Image<u8>> {
+    error::check_non_neg(precision, "precision")?;
     if alpha < 0.0 || alpha > 1.0 {
         return Err(ImgProcError::InvalidArgError("alpha is not in range 0 to 1".to_string()));
-    } else if precision <= 0.0 {
-        return Err(ImgProcError::InvalidArgError("precision is not positive".to_string()));
     }
 
     let mut lab = colorspace::srgb_to_lab(input, ref_white);

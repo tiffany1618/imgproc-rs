@@ -1,7 +1,9 @@
 //! A module for utility math functions
 
+use crate::error;
 use crate::image::{Number, SubImage, BaseImage};
-use crate::error::{ImgProcError, ImgProcResult};
+use crate::error::ImgProcResult;
+
 use std::f64::consts::{PI, E};
 
 /// Returns the result of the multiplication of a square matrix by a vector
@@ -9,10 +11,7 @@ pub fn vector_mul<T: Number>(mat: &[T], vec: &[T]) -> ImgProcResult<Vec<T>> {
     let rows = vec.len();
     let mat_cols = mat.len() / rows;
 
-    // Check for valid dimensions
-    if mat_cols != rows {
-        return Err(ImgProcError::InvalidArgError("mat and vec dimensions do not match".to_string()));
-    }
+    error::check_equal(mat_cols, rows, "mat and vec dimensions")?;
 
     let mut output = vec![0.into(); rows];
 
@@ -90,12 +89,8 @@ pub fn apply_1d_kernel(pixels: SubImage<f64>, kernel: &[f64]) -> ImgProcResult<V
     let size = pixels.info().size() as usize;
     let channels = pixels.info().channels as usize;
 
-    // Check for valid dimensions
-    if size % 2 == 0 {
-        return Err(ImgProcError::InvalidArgError("kernel length is not odd".to_string()));
-    } else if kernel.len() != size {
-        return Err(ImgProcError::InvalidArgError("pixels and kernel dimensions do not match".to_string()));
-    }
+    error::check_odd(kernel.len(), "kernel length")?;
+    error::check_equal(kernel.len(), size, "pixels and kernel dimensions")?;
 
     let mut vec = vec![0.0; channels];
 
@@ -114,12 +109,8 @@ pub fn apply_2d_kernel(pixels: SubImage<f64>, kernel: &[f64]) -> ImgProcResult<V
     let size = pixels.info().width as usize;
     let num_channels = pixels.info().channels as usize;
 
-    // Check for valid dimensions
-    if size % 2 == 0 {
-        return Err(ImgProcError::InvalidArgError("kernel dimensions are not odd".to_string()))
-    } else if kernel.len() != size * size {
-        return Err(ImgProcError::InvalidArgError("pixels and kernel dimensions do not match".to_string()));
-    }
+    error::check_odd(kernel.len(), "kernel length")?;
+    error::check_equal(kernel.len(), size, "pixels and kernel dimensions")?;
 
     let mut vec = vec![0.0; num_channels];
 
@@ -194,9 +185,7 @@ pub fn generate_spatial_mat(size: u32, spatial: f64) -> ImgProcResult<Vec<f64>> 
 
 /// Calculates the Gaussian function for G_sigma(x)
 pub fn gaussian_fn(x: f64, sigma: f64) -> ImgProcResult<f64> {
-    if sigma < 0.0 {
-        return Err(ImgProcError::InvalidArgError("sigma must be non-negative".to_string()));
-    }
+    error::check_non_neg(sigma, "sigma")?;
 
     let sigma_squared = sigma * sigma;
 

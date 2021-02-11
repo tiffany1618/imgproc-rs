@@ -1,5 +1,9 @@
 //! A module for image errors
 
+pub use self::messages::*;
+
+mod messages;
+
 use std::io;
 
 use rulinalg;

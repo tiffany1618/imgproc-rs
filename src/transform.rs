@@ -1,9 +1,9 @@
 //! A module for image transformation operations
 
+use crate::{math, error};
 use crate::image::{Number, Image, ImageInfo, BaseImage};
 use crate::error::{ImgProcResult, ImgProcError};
 use crate::enums::{Scale, Refl};
-use crate::math;
 
 /// Crops an image to a rectangle with upper left corner located at `(x, y)` with width `width`
 /// and height `height`
@@ -32,9 +32,8 @@ pub fn crop<T: Number>(input: &Image<T>, x: u32, y: u32, width: u32, height: u32
 /// the two images with weight `alpha` for pixel values of `back` and weight 1 - `alpha` for
 /// pixel values of `front`
 pub fn superimpose(back: &Image<f64>, front: &Image<f64>, x: u32, y: u32, alpha: f64) -> ImgProcResult<Image<f64>> {
-    if back.info().channels != front.info().channels {
-        return Err(ImgProcError::InvalidArgError("input images do not have the same number of channels".to_string()));
-    } else if alpha < 0.0 || alpha > 1.0 {
+    error::check_equal(back.info().channels, front.info().channels, "image channels")?;
+    if alpha < 0.0 || alpha > 1.0 {
         return Err(ImgProcError::InvalidArgError("alpha is not in range [0.0, 1.0]".to_string()));
     }
 
@@ -61,9 +60,7 @@ pub fn superimpose(back: &Image<f64>, front: &Image<f64>, x: u32, y: u32, alpha:
 /// Aligns the top left corner of `front` onto the location `(x, y)` on `back` and overlays
 /// `front` on `back`
 pub fn overlay<T: Number>(back: &Image<T>, front: &Image<T>, x: u32, y: u32) -> ImgProcResult<Image<T>> {
-    if back.info().channels != front.info().channels {
-        return Err(ImgProcError::InvalidArgError("input images do not have the same number of channels".to_string()));
-    }
+    error::check_equal(back.info().channels, front.info().channels, "image channels")?;
 
     let mut output = back.clone();
     let width = std::cmp::min(x + front.info().width, back.info().width);
@@ -85,9 +82,9 @@ pub fn overlay<T: Number>(back: &Image<T>, front: &Image<T>, x: u32, y: u32) -> 
 /// Scales an image horizontally by `x_factor` and vertically by `y_factor` using the specified
 /// `method`
 pub fn scale(input: &Image<f64>, x_factor: f64, y_factor: f64, method: Scale) -> ImgProcResult<Image<f64>> {
-    if x_factor <= 0.0 || y_factor <= 0.0 {
-        return Err(ImgProcError::InvalidArgError("factors must be positive".to_string()));
-    }
+    error::check_non_neg(x_factor, "x_factor")?;
+    error::check_non_neg(y_factor, "y_factor")?;
+
 
     let width = (input.info().width as f64 * x_factor).round() as u32;
     let height = (input.info().height as f64 * y_factor).round() as u32;

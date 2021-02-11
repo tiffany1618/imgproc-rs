@@ -1,23 +1,24 @@
 //! A module for image utility functions
 
-use std::collections::{BTreeMap, HashMap};
-use std::f64::consts::{E, PI};
+pub mod constants;
 
+use crate::error;
 use crate::enums::White;
-use crate::error::{ImgProcError, ImgProcResult};
+use crate::error::ImgProcResult;
 use crate::image::{BaseImage, Image, Number};
 
-pub mod constants;
+use std::collections::{BTreeMap, HashMap};
+use std::f64::consts::{E, PI};
 
 ////////////////////////////
 // Image helper functions
 ////////////////////////////
 
 /// Returns a tuple representing the XYZ tristimulus values for a given reference white value
-pub fn generate_xyz_tristimulus_vals(ref_white: &White) -> ImgProcResult<(f64, f64, f64)> {
+pub fn generate_xyz_tristimulus_vals(ref_white: &White) -> (f64, f64, f64) {
     return match ref_white {
-        White::D50 => Ok((96.4212, 100.0, 82.5188)),
-        White::D65 => Ok((95.0489, 100.0, 108.8840)),
+        White::D50 => (96.4212, 100.0, 82.5188),
+        White::D65 => (95.0489, 100.0, 108.8840),
     }
 }
 
@@ -81,9 +82,7 @@ pub fn create_lookup_table<T: Number, F>(table: &mut [T; 256], f: F)
 
 /// Generates a Gaussian kernel
 pub fn generate_gaussian_kernel(size: u32, std_dev: f64) -> ImgProcResult<Vec<f64>> {
-    if size % 2 == 0 {
-        return Err(ImgProcError::InvalidArgError("size is not odd".to_string()));
-    }
+    error::check_odd(size, "size")?;
 
     let mut filter = vec![0.0; (size * size) as usize];
     let k = (size - 1) / 2;
@@ -170,13 +169,4 @@ pub fn rectangular_intensity_sum(summed_area_table: &Image<f64>, x_0: u32, y_0: 
     }
 
     sum
-}
-
-//////////
-// Misc.
-//////////
-
-/// Returns `true` if an image is a grayscale image
-pub fn is_grayscale(channels: u8, alpha: bool) -> bool {
-    (alpha && channels == 2) || (!alpha && channels == 1)
 }
