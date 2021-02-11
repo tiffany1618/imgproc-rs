@@ -2,9 +2,11 @@
 
 pub use self::sub_image::*;
 pub use self::pixel::*;
+pub use self::from_impl::*;
 
 mod sub_image;
 mod pixel;
+mod from_impl;
 
 /// A struct representing an image
 #[derive(Debug, Clone, PartialEq)]
