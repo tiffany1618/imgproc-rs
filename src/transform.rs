@@ -3,7 +3,7 @@
 use crate::image::{Number, Image, ImageInfo, BaseImage};
 use crate::error::{ImgProcResult, ImgProcError};
 use crate::enums::{Scale, Refl};
-use crate::util::math;
+use crate::math;
 
 /// Crops an image to a rectangle with upper left corner located at `(x, y)` with width `width`
 /// and height `height`

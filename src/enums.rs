@@ -64,9 +64,9 @@ pub enum Bilateral {
     /// Direct bilateral filter algorithm
     Direct,
 
-    // /// Bilateral grid algorithm
-    // Grid,
-    //
-    // /// Local histogram algorithm
-    // LocalHistogram,
+    /// Bilateral grid algorithm
+    Grid,
+
+    /// Local histogram algorithm
+    LocalHistogram,
 }

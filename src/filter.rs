@@ -1,9 +1,8 @@
 //! A module for image filtering operations
 
 use crate::image::{Image, BaseImage};
-use crate::core;
-use crate::util;
-use crate::util::math;
+use crate::{util, colorspace};
+use crate::math;
 use crate::util::constants::{K_SOBEL_1D_VERT, K_SOBEL_1D_HORZ, K_UNSHARP_MASKING, K_SHARPEN, K_PREWITT_1D_VERT, K_PREWITT_1D_HORZ};
 use crate::enums::{Thresh, Bilateral, White};
 use crate::error::{ImgProcError, ImgProcResult};
@@ -247,7 +246,7 @@ pub fn bilateral_filter(input: &Image<u8>, range: f64, spatial: f64, algorithm: 
     let size = ((spatial * 4.0) + 1.0) as u32;
     let spatial_mat = math::generate_spatial_mat(size, spatial)?;
 
-    let lab = core::srgb_to_lab(&input, &White::D65);
+    let lab = colorspace::srgb_to_lab(&input, &White::D65);
     let mut output = Image::blank(lab.info());
 
     match algorithm {
@@ -277,9 +276,15 @@ pub fn bilateral_filter(input: &Image<u8>, range: f64, spatial: f64, algorithm: 
                 }
             }
         },
+        Bilateral::Grid => {
+
+        },
+        Bilateral::LocalHistogram => {
+
+        },
     }
 
-    Ok(core::lab_to_srgb(&output, &White::D65))
+    Ok(colorspace::lab_to_srgb(&output, &White::D65))
 }
 
 ////////////////
@@ -302,7 +307,7 @@ pub fn unsharp_masking(input: &Image<f64>) -> ImgProcResult<Image<f64>> {
 
 /// Applies a separable derivative mask; first converts `input` to grayscale
 pub fn derivative_mask(input: &Image<f64>, vert_kernel: &[f64], horz_kernel: &[f64]) -> ImgProcResult<Image<f64>> {
-    let gray = core::rgb_to_grayscale_f64(input);
+    let gray = colorspace::rgb_to_grayscale_f64(input);
     let img_x = separable_filter(&gray, &vert_kernel, &horz_kernel)?;
     let img_y = separable_filter(&gray, &horz_kernel, &vert_kernel)?;
 

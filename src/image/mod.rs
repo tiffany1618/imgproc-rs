@@ -1,17 +1,16 @@
 //! A module for the core image structs and traits
 
+pub use self::sub_image::*;
+pub use self::pixel::*;
+
+mod sub_image;
+mod pixel;
+
 /// A struct representing an image
 #[derive(Debug, Clone, PartialEq)]
 pub struct Image<T: Number> {
     info: ImageInfo,
     data: Vec<T>,
-}
-
-/// A struct representing a part of an image
-#[derive(Debug, Clone)]
-pub struct SubImage<'a, T: Number> {
-    info: ImageInfo,
-    data: Vec<&'a [T]>,
 }
 
 /// A struct containing image information
@@ -61,41 +60,6 @@ pub trait BaseImage<T: Number> {
 
     /// Returns a PixelSlice representing the pixel located at `(x, y)`
     fn get_pixel(&self, x: u32, y: u32) -> &[T];
-}
-
-/// A trait for image pixels
-pub trait Pixel<T: Number> {
-    /// Returns the last channel of the pixel
-    fn alpha(&self) -> T;
-
-    /// Returns the last channel of the pixel
-    fn channels_without_alpha(&self) -> &[T];
-
-    /// Applies function `f` to each channel
-    fn map_all<S: Number, F>(&self, f: F) -> Vec<S>
-        where F: Fn(T) -> S;
-
-    /// Applies function `f` to each channel except the last channel, and applies
-    /// function `g` to the alpha channel
-    fn map_alpha<S: Number, F, G>(&self, f: F, g: G) -> Vec<S>
-        where F: Fn(T) -> S,
-              G: Fn(T) -> S;
-
-    /// Applies function `f` to each channel
-    fn apply<F>(&mut self, f: F)
-        where F: Fn(T) -> T;
-
-    /// Applies function `f` to each channel except the last channel, and applies
-    /// function `g` to the alpha channel
-    fn apply_alpha<F, G>(&mut self, f: F, g: G)
-        where F: Fn(T) -> T,
-              G: Fn(T) -> T;
-
-    /// Returns true if all channel values are zero
-    fn is_black(&self) -> bool;
-
-    /// Returns true if all channel values except the last channel is zero
-    fn is_black_alpha(&self) -> bool;
 }
 
 impl ImageInfo {
@@ -471,120 +435,5 @@ impl<T: Number> std::ops::IndexMut<usize> for Image<T> {
 
         let start = i * (self.info.channels as usize);
         &mut self.data[start..(start + self.info.channels as usize)]
-    }
-}
-
-impl<'a, T: Number> SubImage<'a, T> {
-    /// Creates a new `SubImage<T>`
-    pub fn new(width: u32, height: u32, channels: u8, alpha: bool, data: Vec<&'a [T]>) -> Self {
-        SubImage {
-            info: ImageInfo { width, height, channels, alpha },
-            data,
-        }
-    }
-
-    /// Returns all data as a slice of slices
-    pub fn data(&self) -> &[&[T]] {
-        &self.data[..]
-    }
-
-    /// Converts all data to a vector
-    pub fn to_vec(&self) -> Vec<T> {
-        let mut data = Vec::new();
-
-        for i in 0..(self.info.size() as usize) {
-            data.extend_from_slice(&self[i]);
-        }
-
-        data
-    }
-}
-
-impl<T: Number> BaseImage<T> for SubImage<'_, T> {
-    fn info(&self) -> ImageInfo {
-        self.info
-    }
-
-    fn get_pixel(&self, x: u32, y: u32) -> &[T] {
-        &self[(y * self.info.width + x) as usize]
-    }
-}
-
-impl<T: Number> std::ops::Index<usize> for SubImage<'_, T> {
-    type Output = [T];
-
-    fn index(&self, i: usize) -> &Self::Output {
-        self.data[i]
-    }
-}
-
-impl<T: Number> Pixel<T> for [T] {
-    fn alpha(&self) -> T {
-        self[self.len()-1]
-    }
-
-    fn channels_without_alpha(&self) -> &[T] {
-        &self[..(self.len()-1)]
-    }
-
-    fn map_all<S: Number, F>(&self, f: F) -> Vec<S>
-        where F: Fn(T) -> S {
-        let mut channels_out = Vec::new();
-
-        for channel in self.iter() {
-            channels_out.push(f(*channel));
-        }
-
-        channels_out
-    }
-
-    fn map_alpha<S: Number, F, G>(&self, f: F, g: G) -> Vec<S>
-        where F: Fn(T) -> S,
-              G: Fn(T) -> S {
-        let mut channels_out = Vec::new();
-
-        for channel in self.channels_without_alpha().iter() {
-            channels_out.push(f(*channel));
-        }
-
-        channels_out.push(g(self.alpha()));
-        channels_out
-    }
-
-    fn apply<F>(&mut self, f: F)
-        where F: Fn(T) -> T {
-        for i in 0..self.len() {
-            self[i] = f(self[i]);
-        }
-    }
-
-    fn apply_alpha<F, G>(&mut self, f: F, g: G)
-        where F: Fn(T) -> T,
-              G: Fn(T) -> T {
-        for i in 0..(self.len() - 1) {
-            self[i] = f(self[i]);
-        }
-
-        self[self.len()-1] = g(self.alpha());
-    }
-
-    fn is_black(&self) -> bool {
-        for channel in self.iter() {
-            if *channel != 0.into() {
-                return false;
-            }
-        }
-
-        true
-    }
-
-    fn is_black_alpha(&self) -> bool {
-        for channel in self.channels_without_alpha().iter() {
-            if *channel != 0.into() {
-                return false;
-            }
-        }
-
-        true
     }
 }

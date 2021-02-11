@@ -1,13 +1,12 @@
 //! A module for image utility functions
 
 use std::collections::{BTreeMap, HashMap};
+use std::f64::consts::{E, PI};
 
 use crate::enums::White;
-use crate::error::{ImgProcResult, ImgProcError};
+use crate::error::{ImgProcError, ImgProcResult};
 use crate::image::{BaseImage, Image, Number};
-use std::f64::consts::{PI, E};
 
-pub mod math;
 pub mod constants;
 
 ////////////////////////////
