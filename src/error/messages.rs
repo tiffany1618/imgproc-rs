@@ -25,7 +25,7 @@ pub(crate) fn check_non_neg<T: Number>(val: T, name: &str) -> ImgProcResult<()> 
     Ok(())
 }
 
-pub(crate) fn check_equal<T: Number>(val_1: T, val_2: T, name: &str) -> ImgProcResult<()> {
+pub(crate) fn check_equal<T: std::cmp::PartialEq>(val_1: T, val_2: T, name: &str) -> ImgProcResult<()> {
     if val_1 != val_2 {
         return Err(ImgProcError::InvalidArgError(format!("{} must be equal", name)));
     }

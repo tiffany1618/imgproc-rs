@@ -1,7 +1,7 @@
 //! A module for image filtering operations
 
 use crate::{util, colorspace, error, math};
-use crate::image::{Image, BaseImage};
+use crate::image::{Image, BaseImage, Number};
 use crate::util::constants::{K_SOBEL_1D_VERT, K_SOBEL_1D_HORZ, K_UNSHARP_MASKING, K_SHARPEN, K_PREWITT_1D_VERT, K_PREWITT_1D_HORZ};
 use crate::enums::{Thresh, Bilateral, White};
 use crate::error::{ImgProcError, ImgProcResult};
@@ -214,7 +214,7 @@ pub fn alpha_trimmed_mean_filter(input: &Image<f64>, size: u32, alpha: u32) -> I
     Ok(output)
 }
 
-/// Applies a bilateral filter
+/// Applies a bilateral filter using CIE LAB
 pub fn bilateral_filter(input: &Image<u8>, range: f64, spatial: f64, algorithm: Bilateral)
     -> ImgProcResult<Image<u8>> {
     error::check_non_neg(range, "range")?;
@@ -369,4 +369,29 @@ pub fn threshold(input: &Image<f64>, threshold: f64, max: f64, method: Thresh) -
             }, |a| a))
         },
     }
+}
+
+//////////
+// Other
+//////////
+
+/// Returns the residual image of a filter operation
+pub fn residual<T: Number>(original: &Image<T>, filtered: &Image<T>) -> ImgProcResult<Image<T>> {
+    error::check_equal(original.info(), filtered.info(), "image dimensions")?;
+
+    let (width, height, channels, alpha) = original.info().whca();
+    let mut data = Vec::new();
+
+    for y in 0..height {
+        for x in 0..width {
+            let p_1 = original.get_pixel(x, y);
+            let p_2 = filtered.get_pixel(x, y);
+
+            for c in 0..(channels as usize) {
+                data.push(p_1[c] - p_2[c]);
+            }
+        }
+    }
+
+    Ok(Image::new(width, height, channels, alpha, &data))
 }

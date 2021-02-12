@@ -44,7 +44,7 @@ pub enum Scale {
     /// Bicubic interpolation
     Bicubic,
 
-    /// Lanczos resampling
+    /// Lanczos resampling with kernel size of 3
     Lanczos,
 }
 

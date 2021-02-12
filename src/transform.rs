@@ -101,10 +101,25 @@ pub fn scale(input: &Image<f64>, x_factor: f64, y_factor: f64, method: Scale) ->
             scale_bicubic(input, &mut output, x_factor, y_factor);
         },
         Scale::Lanczos => {
-            scale_lanczos(input, &mut output, x_factor, y_factor, 3);
+            scale_lanczos_resampling(input, &mut output, x_factor, y_factor, 3);
         }
     }
 
+    Ok(output)
+}
+
+/// Scales an image using Lanczos resampling with kernel of variable size `size`
+pub fn scale_lanczos(input: &Image<f64>, x_factor: f64, y_factor: f64, size: u32) -> ImgProcResult<Image<f64>> {
+    error::check_non_neg(x_factor, "x_factor")?;
+    error::check_non_neg(y_factor, "y_factor")?;
+    error::check_non_neg(size, "size")?;
+
+    let width = (input.info().width as f64 * x_factor).round() as u32;
+    let height = (input.info().height as f64 * y_factor).round() as u32;
+    let mut output = Image::blank(ImageInfo::new(width, height,
+                                                 input.info().channels, input.info().alpha));
+
+    scale_lanczos_resampling(input, &mut output, x_factor, y_factor, size);
     Ok(output)
 }
 
@@ -302,7 +317,7 @@ fn scale_bicubic(input: &Image<f64>, output: &mut Image<f64>, x_factor: f64, y_f
     }
 }
 
-fn scale_lanczos(input: &Image<f64>, output: &mut Image<f64>, x_factor: f64, y_factor: f64, size: u32) {
+fn scale_lanczos_resampling(input: &Image<f64>, output: &mut Image<f64>, x_factor: f64, y_factor: f64, size: u32) {
     for y in 0..output.info().height {
         for x in 0..output.info().width {
             let x_in = (x as f64) / x_factor;
