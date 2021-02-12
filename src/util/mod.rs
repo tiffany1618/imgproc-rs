@@ -2,7 +2,7 @@
 
 pub mod constants;
 
-use crate::error;
+use crate::{error, math};
 use crate::enums::White;
 use crate::error::ImgProcResult;
 use crate::image::{BaseImage, Image, Number};
@@ -102,6 +102,54 @@ pub fn generate_gaussian_kernel(size: u32, std_dev: f64) -> ImgProcResult<Vec<f6
     }
 
     Ok(filter)
+}
+
+/// Generates a matrix of distances relative to the center of the matrix
+pub fn generate_spatial_mat(size: u32, spatial: f64) -> ImgProcResult<Vec<f64>> {
+    let center = size / 2;
+    let mut mat = vec![0.0; (size * size) as usize];
+
+    for y in 0..(center + 1) {
+        for x in 0..(center + 1) {
+            if mat[(y * size + x) as usize] == 0.0 && !(x == center && y == center) {
+                let dist = math::distance(center, center, x, y);
+                let g = math::gaussian_fn(dist, spatial)?;
+                mat[(y * size + x) as usize] = g;
+
+                if x == y {
+                    let delta = center - y;
+                    let coord = center + delta;
+
+                    mat[(coord * size + x) as usize] = g;
+                    mat[(x * size + coord) as usize] = g;
+                    mat[(coord * size + coord) as usize] = g;
+                } else if x == center {
+                    let delta = center - y;
+
+                    mat[(x * size + x - delta) as usize] = g;
+                    mat[(x * size + x + delta) as usize] = g;
+                    mat[((x + delta) * size + x) as usize] = g;
+                } else {
+                    let delta_x = center - x;
+                    let delta_y = center - y;
+                    let pos_x = center + delta_x;
+                    let pos_y = center + delta_y;
+                    let neg_x = center - delta_x;
+                    let neg_y = center - delta_y;
+
+                    mat[(neg_x * size + neg_y) as usize] = g;
+                    mat[(neg_y * size + pos_x) as usize] = g;
+                    mat[(pos_x * size + neg_y) as usize] = g;
+                    mat[(pos_y * size + neg_x) as usize] = g;
+                    mat[(neg_x * size + pos_y) as usize] = g;
+                    mat[(pos_y * size + pos_x) as usize] = g;
+                    mat[(pos_x * size + pos_y) as usize] = g;
+                }
+            }
+        }
+    }
+
+    Ok(mat)
 }
 
 /// Generates a summed-area table in the format of another `Image` of the same type and dimensions

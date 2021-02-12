@@ -1,6 +1,6 @@
 //! A module for image transformation operations
 
-use crate::{math, error, convert};
+use crate::{math, error};
 use crate::image::{Number, Image, ImageInfo, BaseImage};
 use crate::error::{ImgProcResult, ImgProcError};
 use crate::enums::{Scale, Refl};
@@ -92,71 +92,16 @@ pub fn scale(input: &Image<f64>, x_factor: f64, y_factor: f64, method: Scale) ->
 
     match method {
         Scale::NearestNeighbor => {
-            for y in 0..height {
-                for x in 0..width {
-                    let index_x = (((x + 1) as f64 / x_factor).ceil() - 1.0) as u32;
-                    let index_y = (((y + 1) as f64 / y_factor).ceil() - 1.0) as u32;
-                    output.set_pixel(x, y, input.get_pixel(index_x, index_y));
-                }
-            }
+            scale_nearest_neighbor(input, &mut output, x_factor, y_factor);
         },
         Scale::Bilinear => {
-            for y in 0..height {
-                for x in 0..width {
-                    let x_f = x as f64 / x_factor;
-                    let y_f = y as f64 / y_factor;
-                    let x_1 = x_f.floor() as u32;
-                    let x_2 = std::cmp::min(x_f.ceil() as u32, input.info().width - 1);
-                    let y_1 = y_f.floor() as u32;
-                    let y_2 = std::cmp::min(y_f.ceil() as u32, input.info().height - 1);
-                    let x_weight = x_f - (x_1 as f64);
-                    let y_weight = y_f - (y_1 as f64);
-
-                    let p1 = input.get_pixel(x_1, y_1);
-                    let p2 = input.get_pixel(x_2, y_1);
-                    let p3 = input.get_pixel(x_1, y_2);
-                    let p4 = input.get_pixel(x_2, y_2);
-
-                    let mut pixel = Vec::new();
-                    for c in 0..(output.info().channels as usize) {
-                        pixel.push(p1[c] * x_weight * y_weight
-                            + p2[c] * (1.0 - x_weight) * y_weight
-                            + p3[c] * x_weight * (1.0 - y_weight)
-                            + p4[c] * (1.0 - x_weight) * (1.0 - y_weight));
-                    }
-
-                    output.set_pixel(x, y, &pixel);
-                }
-            }
+            scale_bilinear(input, &mut output, x_factor, y_factor);
         },
         Scale::Bicubic => {
-            for y in 0..height {
-                for x in 0..width {
-                    let x_f = (x as f64) / x_factor;
-                    let y_f = (y as f64) / y_factor;
-                    let delta_x = x_f - x_f.floor();
-                    let delta_y = y_f - y_f.floor();
-
-                    let mut p_out = vec![0.0; output.info().channels as usize];
-                    for m in -1..2 {
-                        for n in -1..2 {
-                            let p_in = input.get_pixel(math::clamp((x_f as f64) + (m as f64), 0.0, (input.info().width - 1) as f64) as u32,
-                                                       math::clamp((y_f as f64) + (n as f64), 0.0, (input.info().height - 1) as f64) as u32);
-                            let r = math::cubic_weighting_fn((m as f64) - delta_x)
-                                            * math::cubic_weighting_fn(delta_y - (n as f64));
-
-                            for c in 0..(output.info().channels as usize) {
-                                p_out[c] += p_in[c] * r;
-                            }
-                        }
-                    }
-
-                    output.set_pixel(x, y, &p_out);
-                }
-            }
+            scale_bicubic(input, &mut output, x_factor, y_factor);
         },
-        Scale::Sinc => {
-
+        Scale::Lanczos => {
+            scale_lanczos(input, &mut output, x_factor, y_factor, 3);
         }
     }
 
@@ -284,4 +229,102 @@ pub fn shear(input: &Image<f64>, shear_x: f64, shear_y: f64) -> ImgProcResult<Im
     }
 
     Ok(output)
+}
+
+///////////////////////
+// Scaling Algorithms
+///////////////////////
+
+fn scale_nearest_neighbor(input: &Image<f64>, output: &mut Image<f64>, x_factor: f64, y_factor: f64) {
+    for y in 0..output.info().height {
+        for x in 0..output.info().width {
+            let x_in = (((x + 1) as f64 / x_factor).ceil() - 1.0) as u32;
+            let y_in = (((y + 1) as f64 / y_factor).ceil() - 1.0) as u32;
+            output.set_pixel(x, y, input.get_pixel(x_in, y_in));
+        }
+    }
+}
+
+fn scale_bilinear(input: &Image<f64>, output: &mut Image<f64>, x_factor: f64, y_factor: f64) {
+    for y in 0..output.info().height {
+        for x in 0..output.info().width {
+            let x_in = x as f64 / x_factor;
+            let y_in = y as f64 / y_factor;
+            let x_1 = x_in.floor() as u32;
+            let x_2 = std::cmp::min(x_in.ceil() as u32, input.info().width - 1);
+            let y_1 = y_in.floor() as u32;
+            let y_2 = std::cmp::min(y_in.ceil() as u32, input.info().height - 1);
+            let x_weight = x_in - (x_1 as f64);
+            let y_weight = y_in - (y_1 as f64);
+
+            let p1 = input.get_pixel(x_1, y_1);
+            let p2 = input.get_pixel(x_2, y_1);
+            let p3 = input.get_pixel(x_1, y_2);
+            let p4 = input.get_pixel(x_2, y_2);
+
+            let mut p_out = Vec::new();
+            for c in 0..(output.info().channels as usize) {
+                p_out.push(p1[c] * x_weight * y_weight
+                    + p2[c] * (1.0 - x_weight) * y_weight
+                    + p3[c] * x_weight * (1.0 - y_weight)
+                    + p4[c] * (1.0 - x_weight) * (1.0 - y_weight));
+            }
+
+            output.set_pixel(x, y, &p_out);
+        }
+    }
+}
+
+fn scale_bicubic(input: &Image<f64>, output: &mut Image<f64>, x_factor: f64, y_factor: f64) {
+    for y in 0..output.info().height {
+        for x in 0..output.info().width {
+            let x_in = (x as f64) / x_factor;
+            let y_in = (y as f64) / y_factor;
+            let delta_x = x_in - x_in.floor();
+            let delta_y = y_in - y_in.floor();
+
+            let mut p_out = vec![0.0; output.info().channels as usize];
+            for m in -1..3 {
+                for n in -1..3 {
+                    let p_in = input.get_pixel(math::clamp((x_in + (m as f64)) as u32, 0, input.info().width - 1),
+                                               math::clamp((y_in + (n as f64)) as u32, 0, input.info().height - 1));
+                    let r = math::cubic_weighting_fn((m as f64) - delta_x)
+                        * math::cubic_weighting_fn(delta_y - (n as f64));
+
+                    for c in 0..(output.info().channels as usize) {
+                        p_out[c] += p_in[c] * r;
+                    }
+                }
+            }
+
+            output.set_pixel(x, y, &p_out);
+        }
+    }
+}
+
+fn scale_lanczos(input: &Image<f64>, output: &mut Image<f64>, x_factor: f64, y_factor: f64, size: u32) {
+    for y in 0..output.info().height {
+        for x in 0..output.info().width {
+            let x_in = (x as f64) / x_factor;
+            let y_in = (y as f64) / y_factor;
+            let delta_x = x_in - x_in.floor();
+            let delta_y = y_in - y_in.floor();
+
+            let mut p_out = vec![0.0; output.info().channels as usize];
+            for i in (1 - (size as i32))..(size as i32 + 1) {
+                for j in (1 - (size as i32))..(size as i32 + 1) {
+                    let p_in = input.get_pixel(math::clamp((x_in + (i as f64)) as u32, 0, input.info().width - 1),
+                                                        math::clamp((y_in + (j as f64)) as u32, 0, input.info().height - 1));
+                    let lanczos = math::lanczos_kernel(delta_x - (i as f64), size as f64)
+                                        * math::lanczos_kernel(delta_y - (j as f64), size as f64);
+
+                    for c in 0..(output.info().channels as usize) {
+                        p_out[c] += p_in[c] * lanczos;
+                    }
+                }
+            }
+
+            output.set_pixel(x, y, &p_out);
+        }
+    }
 }

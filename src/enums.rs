@@ -44,8 +44,8 @@ pub enum Scale {
     /// Bicubic interpolation
     Bicubic,
 
-    /// Sinc resampling
-    Sinc,
+    /// Lanczos resampling
+    Lanczos,
 }
 
 /// An enum for image reflection axes

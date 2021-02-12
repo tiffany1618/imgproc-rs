@@ -1,6 +1,6 @@
 //! A module for image errors
 
-pub use self::messages::*;
+pub(crate) use self::messages::*;
 
 mod messages;
 

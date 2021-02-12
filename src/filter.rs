@@ -222,7 +222,7 @@ pub fn bilateral_filter(input: &Image<u8>, range: f64, spatial: f64, algorithm: 
 
     let (width, height, channels) = input.info().whc();
     let size = ((spatial * 4.0) + 1.0) as u32;
-    let spatial_mat = math::generate_spatial_mat(size, spatial)?;
+    let spatial_mat = util::generate_spatial_mat(size, spatial)?;
 
     let lab = colorspace::srgb_to_lab(&input, &White::D65);
     let mut output = Image::blank(lab.info());

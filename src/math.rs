@@ -135,54 +135,6 @@ pub fn distance(x_1: u32, y_1: u32, x_2: u32, y_2: u32) -> f64 {
     ((x_dist * x_dist) + (y_dist * y_dist)).sqrt()
 }
 
-/// Generates a matrix of distances relative to the center of the matrix
-pub fn generate_spatial_mat(size: u32, spatial: f64) -> ImgProcResult<Vec<f64>> {
-    let center = size / 2;
-    let mut mat = vec![0.0; (size * size) as usize];
-
-    for y in 0..(center + 1) {
-        for x in 0..(center + 1) {
-            if mat[(y * size + x) as usize] == 0.0 && !(x == center && y == center) {
-                let dist = distance(center, center, x, y);
-                let g = gaussian_fn(dist, spatial)?;
-                mat[(y * size + x) as usize] = g;
-
-                if x == y {
-                    let delta = center - y;
-                    let coord = center + delta;
-
-                    mat[(coord * size + x) as usize] = g;
-                    mat[(x * size + coord) as usize] = g;
-                    mat[(coord * size + coord) as usize] = g;
-                } else if x == center {
-                    let delta = center - y;
-
-                    mat[(x * size + x - delta) as usize] = g;
-                    mat[(x * size + x + delta) as usize] = g;
-                    mat[((x + delta) * size + x) as usize] = g;
-                } else {
-                    let delta_x = center - x;
-                    let delta_y = center - y;
-                    let pos_x = center + delta_x;
-                    let pos_y = center + delta_y;
-                    let neg_x = center - delta_x;
-                    let neg_y = center - delta_y;
-
-                    mat[(neg_x * size + neg_y) as usize] = g;
-                    mat[(neg_y * size + pos_x) as usize] = g;
-                    mat[(pos_x * size + neg_y) as usize] = g;
-                    mat[(pos_y * size + neg_x) as usize] = g;
-                    mat[(neg_x * size + pos_y) as usize] = g;
-                    mat[(pos_y * size + pos_x) as usize] = g;
-                    mat[(pos_x * size + pos_y) as usize] = g;
-                }
-            }
-        }
-    }
-
-    Ok(mat)
-}
-
 /// Calculates the Gaussian function for G_sigma(x)
 pub fn gaussian_fn(x: f64, sigma: f64) -> ImgProcResult<f64> {
     error::check_non_neg(sigma, "sigma")?;
@@ -220,4 +172,24 @@ pub fn clamp<T: Number>(x: T, min: T, max: T) -> T {
     }
 
     x
+}
+
+/// Normalized sinc function
+pub fn sinc_norm(x: f64) -> f64 {
+    if x == 0.0 {
+        return 1.0;
+    }
+
+    let pi_x = PI * x;
+
+    pi_x.sin() / pi_x
+}
+
+/// Lanczos kernel
+pub fn lanczos_kernel(x: f64, a: f64) -> f64 {
+    if x > -a && x < a {
+        return sinc_norm(x) * sinc_norm(x / a);
+    }
+
+    0.0
 }
