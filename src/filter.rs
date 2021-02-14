@@ -215,32 +215,34 @@ pub fn gaussian_blur_par(input: &Image<f64>, size: u32, std_dev: f64) -> ImgProc
 pub fn median_filter(input: &Image<f64>, size: u32) -> ImgProcResult<Image<f64>> {
     error::check_odd(size, "size")?;
 
-    let (width, height, channels) = input.info().whc();
-    let center = ((size * size) / 2) as usize;
+    let (width, height) = input.info().wh();
     let mut output = Image::blank(input.info());
 
     for y in 0..height {
         for x in 0..width {
-            let pixels = input.get_neighborhood_2d(x, y, size);
-            let mut p_out = Vec::new();
-
-            for c in 0..(channels as usize) {
-                let mut p_in = Vec::new();
-
-                for i in 0..((size * size) as usize) {
-                    p_in.push(pixels[i][c]);
-                }
-
-                p_in.sort_unstable_by(|a, b| a.partial_cmp(b).unwrap());
-                p_out.push(p_in[center]);
-            }
-
-
+            let p_out = median_pixel(input, size, x, y);
             output.set_pixel(x, y, &p_out);
         }
     }
 
     Ok(output)
+}
+
+/// (Parallel) Applies a median filter
+pub fn median_filter_par(input: &Image<f64>, size: u32) -> ImgProcResult<Image<f64>> {
+    error::check_odd(size, "size")?;
+
+    let (width, height, channels, alpha) = input.info().whca();
+
+    let data: Vec<Vec<f64>> = (0..input.info().size())
+        .into_par_iter()
+        .map(|i| {
+            let (x, y) = util::get_2d_coords(i, width);
+            median_pixel(input, size, x, y)
+        })
+        .collect();
+
+    Ok(Image::from_vec_of_vec(width, height, channels, alpha, data))
 }
 
 /// Applies an alpha-trimmed mean filter
@@ -251,41 +253,38 @@ pub fn alpha_trimmed_mean_filter(input: &Image<f64>, size: u32, alpha: u32) -> I
         return Err(ImgProcError::InvalidArgError(format!("invalid alpha: size is {}, but alpha is {}", size, alpha)));
     }
 
-    let (width, height, channels) = input.info().whc();
-    let length = (size * size) as usize;
+    let (width, height) = input.info().wh();
     let mut output = Image::blank(input.info());
 
     for y in 0..height {
         for x in 0..width {
-            let pixels = input.get_neighborhood_2d(x, y, size);
-            let mut p_out = Vec::new();
-
-            for c in 0..(channels as usize) {
-                let mut p_in = Vec::new();
-                let mut sum = 0.0;
-
-                for i in 0..length {
-                    p_in.push(pixels[i][c]);
-                    sum += pixels[i][c];
-                }
-
-                p_in.sort_unstable_by(|a, b| a.partial_cmp(b).unwrap());
-
-                for _ in 0..((alpha / 2) as usize) {
-                    sum -= p_in[0];
-                    sum -= p_in[p_in.len() - 1];
-                    p_in.remove(0);
-                    p_in.remove(p_in.len() - 1);
-                }
-
-                p_out.push(sum / (p_in.len() as f64));
-            }
-
+            let p_out = alpha_trimmed_mean_pixel(input, size, alpha, x, y);
             output.set_pixel(x, y, &p_out);
         }
     }
 
     Ok(output)
+}
+
+/// (Parallel) Applies an alpha-trimmed mean filter
+pub fn alpha_trimmed_mean_filter_par(input: &Image<f64>, size: u32, alpha: u32) -> ImgProcResult<Image<f64>> {
+    error::check_odd(size, "size")?;
+    error::check_even(alpha, "alpha")?;
+    if alpha >= (size * size) {
+        return Err(ImgProcError::InvalidArgError(format!("invalid alpha: size is {}, but alpha is {}", size, alpha)));
+    }
+
+    let (width, height, channels, img_alpha) = input.info().whca();
+
+    let data: Vec<Vec<f64>> = (0..input.info().size())
+        .into_par_iter()
+        .map(|i| {
+            let (x, y) = util::get_2d_coords(i, width);
+            alpha_trimmed_mean_pixel(input, size, alpha, x, y)
+        })
+        .collect();
+
+    Ok(Image::from_vec_of_vec(width, height, channels, img_alpha, data))
 }
 
 /// Applies a bilateral filter using CIE LAB
@@ -294,7 +293,7 @@ pub fn bilateral_filter(input: &Image<u8>, range: f64, spatial: f64, algorithm: 
     error::check_non_neg(range, "range")?;
     error::check_non_neg(spatial, "spatial")?;
 
-    let (width, height, channels) = input.info().whc();
+    let (width, height) = input.info().wh();
     let size = ((spatial * 4.0) + 1.0) as u32;
     let spatial_mat = util::generate_spatial_mat(size, spatial)?;
 
@@ -305,25 +304,7 @@ pub fn bilateral_filter(input: &Image<u8>, range: f64, spatial: f64, algorithm: 
         Bilateral::Direct => {
             for y in 0..height {
                 for x in 0..width {
-                    let p_n = lab.get_neighborhood_2d(x, y, size as u32);
-                    let p_in = lab.get_pixel(x, y);
-                    let mut p_out = Vec::with_capacity(channels as usize);
-
-                    for c in 0..(channels as usize) {
-                        let mut total_weight = 0.0;
-                        let mut p_curr = 0.0;
-
-                        for i in 0..((size * size) as usize) {
-                            let g_r = math::gaussian_fn((p_in[c] - p_n[i][c]).abs(), range)?;
-                            let weight = spatial_mat[i] * g_r;
-
-                            p_curr += weight * p_n[i][c];
-                            total_weight += weight;
-                        }
-
-                        p_out.push(p_curr / total_weight);
-                    }
-
+                    let p_out = bilateral_direct_pixel(&lab, range, &spatial_mat, size, x, y);
                     output.set_pixel(x, y, &p_out);
                 }
             }
@@ -343,7 +324,7 @@ pub fn bilateral_filter_par(input: &Image<u8>, range: f64, spatial: f64, algorit
     error::check_non_neg(range, "range")?;
     error::check_non_neg(spatial, "spatial")?;
 
-    let (width, height, channels) = input.info().whc();
+    let (width, height, channels, alpha) = input.info().whca();
     let size = ((spatial * 4.0) + 1.0) as u32;
     let spatial_mat = util::generate_spatial_mat(size, spatial)?;
 
@@ -355,30 +336,11 @@ pub fn bilateral_filter_par(input: &Image<u8>, range: f64, spatial: f64, algorit
                 .into_par_iter()
                 .map(|i| {
                     let (x, y) = util::get_2d_coords(i, width);
-                    let p_n = lab.get_neighborhood_2d(x, y, size as u32);
-                    let p_in = lab.get_pixel(x, y);
-                    let mut p_out = Vec::with_capacity(channels as usize);
-
-                    for c in 0..(channels as usize) {
-                        let mut total_weight = 0.0;
-                        let mut p_curr = 0.0;
-
-                        for i in 0..((size * size) as usize) {
-                            let g_r = math::gaussian_fn((p_in[c] - p_n[i][c]).abs(), range).unwrap();
-                            let weight = spatial_mat[i] * g_r;
-
-                            p_curr += weight * p_n[i][c];
-                            total_weight += weight;
-                        }
-
-                        p_out.push(p_curr / total_weight);
-                    }
-
-                    p_out
+                    bilateral_direct_pixel(&lab, range, &spatial_mat, size, x, y)
                 })
                 .collect();
 
-            let output = Image::from_vec_of_vec(width, height, channels, input.info().alpha, data);
+            let output = Image::from_vec_of_vec(width, height, channels, alpha, data);
             Ok(colorspace::lab_to_srgb(&output, &White::D65))
         },
         // Bilateral::Grid => {
@@ -399,9 +361,19 @@ pub fn sharpen(input: &Image<f64>) -> ImgProcResult<Image<f64>> {
     Ok(unseparable_filter(input, &K_SHARPEN)?)
 }
 
+/// (Parallel) Sharpens image
+pub fn sharpen_par(input: &Image<f64>) -> ImgProcResult<Image<f64>> {
+    Ok(unseparable_filter_par(input, &K_SHARPEN)?)
+}
+
 /// Sharpens image by applying the unsharp masking kernel
 pub fn unsharp_masking(input: &Image<f64>) -> ImgProcResult<Image<f64>> {
     Ok(unseparable_filter(input, &K_UNSHARP_MASKING)?)
+}
+
+/// (Parallel) Sharpens image by applying the unsharp masking kernel
+pub fn unsharp_masking_par(input: &Image<f64>) -> ImgProcResult<Image<f64>> {
+    Ok(unseparable_filter_par(input, &K_UNSHARP_MASKING)?)
 }
 
 ////////////////////
@@ -417,7 +389,21 @@ pub fn derivative_mask(input: &Image<f64>, vert_kernel: &[f64], horz_kernel: &[f
     let mut output = Image::blank(gray.info());
 
     for i in 0..(output.info().full_size() as usize) {
-        output.set_pixel_indexed(i, &[img_x[i][0].powf(2.0) + img_y[i][0].powf(2.0).sqrt()]);
+        output.set_pixel_indexed(i, &[(img_x[i][0].powf(2.0) + img_y[i][0].powf(2.0)).sqrt()]);
+    }
+
+    Ok(output)
+}
+
+/// (Parallel) Applies a separable derivative mask; first converts `input` to grayscale
+pub fn derivative_mask_par(input: &Image<f64>, vert_kernel: &[f64], horz_kernel: &[f64]) -> ImgProcResult<Image<f64>> {
+    let gray = colorspace::rgb_to_grayscale_f64(input);
+    let img_x = separable_filter_par(&gray, &vert_kernel, &horz_kernel)?;
+    let img_y = separable_filter_par(&gray, &horz_kernel, &vert_kernel)?;
+    let mut output = Image::blank(gray.info());
+
+    for i in 0..(output.info().full_size() as usize) {
+        output.set_pixel_indexed(i, &[(img_x[i][0].powf(2.0) + img_y[i][0].powf(2.0)).sqrt()]);
     }
 
     Ok(output)
@@ -428,15 +414,31 @@ pub fn prewitt(input: &Image<f64>) -> ImgProcResult<Image<f64>> {
     Ok(derivative_mask(input, &K_PREWITT_1D_VERT, &K_PREWITT_1D_HORZ)?)
 }
 
+/// (Parallel) Applies the Prewitt operator
+pub fn prewitt_par(input: &Image<f64>) -> ImgProcResult<Image<f64>> {
+    Ok(derivative_mask_par(input, &K_PREWITT_1D_VERT, &K_PREWITT_1D_HORZ)?)
+}
+
 /// Applies the Sobel operator
 pub fn sobel(input: &Image<f64>) -> ImgProcResult<Image<f64>> {
     Ok(derivative_mask(input, &K_SOBEL_1D_VERT, &K_SOBEL_1D_HORZ)?)
+}
+
+/// (Parallel) Applies the Sobel operator
+pub fn sobel_par(input: &Image<f64>) -> ImgProcResult<Image<f64>> {
+    Ok(derivative_mask_par(input, &K_SOBEL_1D_VERT, &K_SOBEL_1D_HORZ)?)
 }
 
 /// Applies a Sobel operator with weight `weight`
 pub fn sobel_weighted(input: &Image<f64>, weight: u32) -> ImgProcResult<Image<f64>> {
     let vert_kernel = vec![1.0, weight as f64, 1.0];
     Ok(derivative_mask(input, &vert_kernel, &K_SOBEL_1D_HORZ)?)
+}
+
+/// (Parallel) Applies a Sobel operator with weight `weight`
+pub fn sobel_weighted_par(input: &Image<f64>, weight: u32) -> ImgProcResult<Image<f64>> {
+    let vert_kernel = vec![1.0, weight as f64, 1.0];
+    Ok(derivative_mask_par(input, &vert_kernel, &K_SOBEL_1D_HORZ)?)
 }
 
 //////////////////
@@ -519,4 +521,75 @@ pub fn residual<T: Number>(original: &Image<T>, filtered: &Image<T>) -> ImgProcR
     }
 
     Ok(Image::from_slice(width, height, channels, alpha, &data))
+}
+
+fn median_pixel(input: &Image<f64>, size: u32, x: u32, y: u32) -> Vec<f64> {
+    let center = ((size * size) / 2) as usize;
+    let pixels = input.get_neighborhood_2d(x, y, size);
+    let mut p_out = Vec::with_capacity(input.info().channels as usize);
+
+    for c in 0..(input.info().channels as usize) {
+        let mut p_in = Vec::with_capacity(input.info().channels as usize);
+
+        for i in 0..((size * size) as usize) {
+            p_in.push(pixels[i][c]);
+        }
+
+        p_in.sort_unstable_by(|a, b| a.partial_cmp(b).unwrap());
+        p_out.push(p_in[center]);
+    }
+
+    p_out
+}
+
+fn alpha_trimmed_mean_pixel(input: &Image<f64>, size: u32, alpha: u32, x: u32, y: u32) -> Vec<f64> {
+    let length = (size * size) as usize;
+    let pixels = input.get_neighborhood_2d(x, y, size);
+    let mut p_out = Vec::new();
+
+    for c in 0..(input.info().channels as usize) {
+        let mut p_in = Vec::new();
+        let mut sum = 0.0;
+
+        for i in 0..length {
+            p_in.push(pixels[i][c]);
+            sum += pixels[i][c];
+        }
+
+        p_in.sort_unstable_by(|a, b| a.partial_cmp(b).unwrap());
+
+        for _ in 0..((alpha / 2) as usize) {
+            sum -= p_in[0];
+            sum -= p_in[p_in.len() - 1];
+            p_in.remove(0);
+            p_in.remove(p_in.len() - 1);
+        }
+
+        p_out.push(sum / (p_in.len() as f64));
+    }
+
+    p_out
+}
+
+fn bilateral_direct_pixel(input: &Image<f64>, range: f64, spatial_mat: &[f64], size: u32, x: u32, y: u32) -> Vec<f64> {
+    let p_n = input.get_neighborhood_2d(x, y, size as u32);
+    let p_in = input.get_pixel(x, y);
+    let mut p_out = Vec::with_capacity(input.info().channels as usize);
+
+    for c in 0..(input.info().channels as usize) {
+        let mut total_weight = 0.0;
+        let mut p_curr = 0.0;
+
+        for i in 0..((size * size) as usize) {
+            let g_r = math::gaussian_fn((p_in[c] - p_n[i][c]).abs(), range).unwrap();
+            let weight = spatial_mat[i] * g_r;
+
+            p_curr += weight * p_n[i][c];
+            total_weight += weight;
+        }
+
+        p_out.push(p_curr / total_weight);
+    }
+
+    p_out
 }
