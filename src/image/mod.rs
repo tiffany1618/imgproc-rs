@@ -3,10 +3,12 @@
 pub use self::sub_image::*;
 pub use self::pixel::*;
 pub use self::from_impl::*;
+pub use self::pixel_iter::*;
 
 mod sub_image;
 mod pixel;
 mod from_impl;
+mod pixel_iter;
 
 /// A struct representing an image
 #[derive(Debug, Clone, PartialEq)]
@@ -30,6 +32,7 @@ std::marker::Copy
 + std::fmt::Display
 + std::cmp::PartialEq
 + std::cmp::PartialOrd
++ std::marker::Sync
 + std::ops::Add<Output=Self>
 + std::ops::Sub<Output=Self>
 + std::ops::Mul<Output=Self>
@@ -49,6 +52,7 @@ impl<T> Number for T
     + std::fmt::Display
     + std::cmp::PartialEq
     + std::cmp::PartialOrd
+    + std::marker::Sync
     + std::ops::Add<Output=T>
     + std::ops::Sub<Output=T>
     + std::ops::Mul<Output=T>
@@ -118,11 +122,45 @@ impl std::fmt::Display for ImageInfo {
 }
 
 impl<T: Number> Image<T> {
-    /// Creates a new `Image<T>`
-    pub fn new(width: u32, height: u32, channels: u8, alpha: bool, data: &[T]) -> Self {
+    /// Creates a new `Image<T>` from a slice
+    pub fn from_slice(width: u32, height: u32, channels: u8, alpha: bool, data: &[T]) -> Self {
         Image {
             info: ImageInfo{ width, height, channels, alpha },
             data: data.to_vec(),
+        }
+    }
+
+    /// Creates a new `Image<T>` from a vector
+    pub fn from_vec(width: u32, height: u32, channels: u8, alpha: bool, data: Vec<T>) -> Self {
+        Image {
+            info: ImageInfo{ width, height, channels, alpha },
+            data,
+        }
+    }
+
+    /// Creates a new `Image<T>` from a vector of vectors
+    pub fn from_vec_of_vec(width: u32, height: u32, channels: u8, alpha: bool, data: Vec<Vec<T>>) -> Self {
+        let mut data_vec = Vec::with_capacity((width * height * channels as u32) as usize);
+        for vec in &data {
+            data_vec.extend_from_slice(vec)
+        }
+
+        Image {
+            info: ImageInfo{ width, height, channels, alpha },
+            data: data_vec,
+        }
+    }
+
+    /// Creates a new `Image<T>` from a vector of slices
+    pub fn from_vec_of_slice(width: u32, height: u32, channels: u8, alpha: bool, data: Vec<&[T]>) -> Self {
+        let mut data_vec = Vec::with_capacity((width * height * channels as u32) as usize);
+        for vec in data {
+            data_vec.extend_from_slice(vec)
+        }
+
+        Image {
+            info: ImageInfo{ width, height, channels, alpha },
+            data: data_vec,
         }
     }
 

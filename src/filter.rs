@@ -393,5 +393,5 @@ pub fn residual<T: Number>(original: &Image<T>, filtered: &Image<T>) -> ImgProcR
         }
     }
 
-    Ok(Image::new(width, height, channels, alpha, &data))
+    Ok(Image::from_slice(width, height, channels, alpha, &data))
 }

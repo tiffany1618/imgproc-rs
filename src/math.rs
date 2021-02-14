@@ -110,7 +110,7 @@ pub fn apply_2d_kernel(pixels: SubImage<f64>, kernel: &[f64]) -> ImgProcResult<V
     let num_channels = pixels.info().channels as usize;
 
     error::check_odd(kernel.len(), "kernel length")?;
-    error::check_equal(kernel.len(), size, "pixels and kernel dimensions")?;
+    error::check_equal(kernel.len(), size * size, "pixels and kernel dimensions")?;
 
     let mut vec = vec![0.0; num_channels];
 

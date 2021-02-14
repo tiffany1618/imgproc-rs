@@ -2,8 +2,8 @@ use imgproc_rs::image::{Image, ImageInfo, SubImage, BaseImage, Pixel};
 
 #[test]
 fn image_general_test() {
-    let mut img_new: Image<u8> = Image::new(3, 3, 4, true,
-                             &[1, 2, 3, 4, 2, 3, 4, 5, 3, 4, 5, 6,
+    let mut img_new: Image<u8> = Image::from_slice(3, 3, 4, true,
+                                                   &[1, 2, 3, 4, 2, 3, 4, 5, 3, 4, 5, 6,
                                     1, 2, 3, 4, 2, 3, 4, 5, 3, 4, 5, 6,
                                     1, 2, 3, 4, 2, 3, 4, 10, 3, 4, 5, 6]);
     let img_blank: Image<f64> = Image::blank(ImageInfo::new(3, 3, 3, false));
@@ -36,8 +36,8 @@ fn image_general_test() {
 
 #[test]
 fn image_get_subimage_test() {
-    let img: Image<u8> = Image::new(3, 3, 4, true,
-                                        &[1, 2, 3, 4, 2, 3, 4, 5, 3, 4, 5, 6,
+    let img: Image<u8> = Image::from_slice(3, 3, 4, true,
+                                           &[1, 2, 3, 4, 2, 3, 4, 5, 3, 4, 5, 6,
                                                 6, 5, 4, 3, 5, 4, 3, 2, 4, 3, 2, 1,
                                                 2, 4, 6, 8, 3, 5, 7, 9, 1, 3, 5, 7]);
 
@@ -88,10 +88,10 @@ fn image_get_subimage_test() {
 
 #[test]
 fn image_map_test() {
-    let mut img1: Image<u8> = Image::new(2, 2, 4, true,
-                                    &[1, 2, 3, 4, 2, 3, 4, 5, 6, 5, 4, 3, 5, 4, 3, 2]);
-    let img2: Image<u8> = Image::new(2, 2, 4, false,
-                                     &[1, 2, 3, 4, 2, 3, 4, 5, 6, 5, 4, 3, 5, 4, 3, 2]);
+    let mut img1: Image<u8> = Image::from_slice(2, 2, 4, true,
+                                                &[1, 2, 3, 4, 2, 3, 4, 5, 6, 5, 4, 3, 5, 4, 3, 2]);
+    let img2: Image<u8> = Image::from_slice(2, 2, 4, false,
+                                            &[1, 2, 3, 4, 2, 3, 4, 5, 6, 5, 4, 3, 5, 4, 3, 2]);
 
     // Test map_pixels()
     let map1 = img1.map_pixels(|channels| {
@@ -138,10 +138,10 @@ fn image_map_test() {
 
 #[test]
 fn image_apply_test() {
-    let mut img1: Image<u8> = Image::new(2, 2, 4, true,
-                                         &[1, 2, 3, 4, 2, 3, 4, 5, 6, 5, 4, 3, 5, 4, 3, 2]);
-    let mut img2: Image<u8> = Image::new(2, 2, 4, false,
-                                     &[1, 2, 3, 4, 2, 3, 4, 5, 6, 5, 4, 3, 5, 4, 3, 2]);
+    let mut img1: Image<u8> = Image::from_slice(2, 2, 4, true,
+                                                &[1, 2, 3, 4, 2, 3, 4, 5, 6, 5, 4, 3, 5, 4, 3, 2]);
+    let mut img2: Image<u8> = Image::from_slice(2, 2, 4, false,
+                                                &[1, 2, 3, 4, 2, 3, 4, 5, 6, 5, 4, 3, 5, 4, 3, 2]);
 
     // Test apply_pixels()
     img1.apply_pixels(|channels| {

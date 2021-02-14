@@ -19,3 +19,4 @@ categories = ["multimedia::images"]
 [dependencies]
 image = "0.23.12"
 rulinalg = "0.4.2"
+rayon = "1.5.0"

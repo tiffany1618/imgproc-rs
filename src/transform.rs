@@ -1,9 +1,11 @@
 //! A module for image transformation operations
 
-use crate::{math, error};
+use crate::{math, error, util};
 use crate::image::{Number, Image, ImageInfo, BaseImage};
 use crate::error::{ImgProcResult, ImgProcError};
 use crate::enums::{Scale, Refl};
+
+use rayon::prelude::*;
 
 /// Crops an image to a rectangle with upper left corner located at `(x, y)` with width `width`
 /// and height `height`
@@ -28,6 +30,29 @@ pub fn crop<T: Number>(input: &Image<T>, x: u32, y: u32, width: u32, height: u32
     Ok(output)
 }
 
+/// (Parallel) Crops an image to a rectangle with upper left corner located at `(x, y)` with width `width`
+/// and height `height`
+pub fn crop_par<T: Number>(input: &Image<T>, x: u32, y: u32, width: u32, height: u32) -> ImgProcResult<Image<T>> {
+    if (x + width) >= input.info().width {
+        return Err(ImgProcError::InvalidArgError(format!("invalid width: input width is {} \
+            but x + width is {}", input.info().width, (x + width))));
+    } else if (y + height) >= input.info().height {
+        return Err(ImgProcError::InvalidArgError(format!("invalid height: input height is {} \
+            but y + height is {}", input.info().height, (y + height))));
+    }
+
+    let size = width * height;
+    let data: Vec<&[T]> = (0..size)
+        .into_par_iter()
+        .map(|i| {
+            let (a, b) = util::get_2d_coords(i, width);
+            input.get_pixel(a + x, b + y)
+        })
+        .collect();
+
+    Ok(Image::from_vec_of_slice(width, height, input.info().channels, input.info().alpha, data))
+}
+
 /// Aligns the top left corner of `front` onto the location `(x, y)` on `back` and superimposes
 /// the two images with weight `alpha` for pixel values of `back` and weight 1 - `alpha` for
 /// pixel values of `front`
@@ -43,14 +68,14 @@ pub fn superimpose(back: &Image<f64>, front: &Image<f64>, x: u32, y: u32, alpha:
 
     for j in y..height {
         for i in x..width {
-            let mut pixel_new = Vec::new();
-            let pixel_back = back.get_pixel(i, j);
-            let pixel_front = front.get_pixel(i - x, j - y);
+            let mut p_in = Vec::with_capacity(output.info().channels as usize);
+            let p_back = back.get_pixel(i, j);
+            let p_front = front.get_pixel(i - x, j - y);
             for k in 0..(output.info().channels as usize) {
-                pixel_new.push(alpha * pixel_back[k] + (1.0 - alpha) * pixel_front[k]);
+                p_in.push(alpha * p_back[k] + (1.0 - alpha) * p_front[k]);
             }
 
-            output.set_pixel(i, j, &pixel_new);
+            output.set_pixel(i, j, &p_in);
         }
     }
 
@@ -108,6 +133,32 @@ pub fn scale(input: &Image<f64>, x_factor: f64, y_factor: f64, method: Scale) ->
     Ok(output)
 }
 
+/// (Parallel) Scales an image horizontally by `x_factor` and vertically by `y_factor` using the specified
+/// `method`
+pub fn scale_par(input: &Image<f64>, x_factor: f64, y_factor: f64, method: Scale) -> ImgProcResult<Image<f64>> {
+    error::check_non_neg(x_factor, "x_factor")?;
+    error::check_non_neg(y_factor, "y_factor")?;
+
+    let width = (input.info().width as f64 * x_factor).round() as u32;
+    let height = (input.info().height as f64 * y_factor).round() as u32;
+    let info = ImageInfo::new(width, height, input.info().channels, input.info().alpha);
+
+    return match method {
+        Scale::NearestNeighbor => {
+            Ok(scale_nearest_neighbor_par(input, &info, x_factor, y_factor))
+        },
+        Scale::Bilinear => {
+            Ok(scale_bilinear_par(input, &info, x_factor, y_factor))
+        },
+        Scale::Bicubic => {
+            Ok(scale_bicubic_par(input, &info, x_factor, y_factor))
+        },
+        Scale::Lanczos => {
+            Ok(scale_lanczos_resampling_par(input, &info, x_factor, y_factor, 3))
+        }
+    }
+}
+
 /// Scales an image using Lanczos resampling with kernel of variable size `size`
 pub fn scale_lanczos(input: &Image<f64>, x_factor: f64, y_factor: f64, size: u32) -> ImgProcResult<Image<f64>> {
     error::check_non_neg(x_factor, "x_factor")?;
@@ -121,6 +172,19 @@ pub fn scale_lanczos(input: &Image<f64>, x_factor: f64, y_factor: f64, size: u32
 
     scale_lanczos_resampling(input, &mut output, x_factor, y_factor, size);
     Ok(output)
+}
+
+/// (Parallel) Scales an image using Lanczos resampling with kernel of variable size `size`
+pub fn scale_lanczos_par(input: &Image<f64>, x_factor: f64, y_factor: f64, size: u32) -> ImgProcResult<Image<f64>> {
+    error::check_non_neg(x_factor, "x_factor")?;
+    error::check_non_neg(y_factor, "y_factor")?;
+    error::check_non_neg(size, "size")?;
+
+    let width = (input.info().width as f64 * x_factor).round() as u32;
+    let height = (input.info().height as f64 * y_factor).round() as u32;
+    let info = ImageInfo::new(width, height, input.info().channels, input.info().alpha);
+
+    Ok(scale_lanczos_resampling_par(input, &info, x_factor, y_factor, size))
 }
 
 /// Translates an image to the position with upper left corner located at `(x, y)`. Fills in the
@@ -250,6 +314,24 @@ pub fn shear(input: &Image<f64>, shear_x: f64, shear_y: f64) -> ImgProcResult<Im
 // Scaling Algorithms
 ///////////////////////
 
+fn scale_nearest_neighbor_par(input: &Image<f64>, info: &ImageInfo, x_factor: f64, y_factor: f64) -> Image<f64> {
+    let size = info.size();
+    let (width, height, channels) = info.whc();
+
+    let data: Vec<&[f64]> = (0..size)
+        .into_par_iter()
+        .map(|i| {
+            let (x, y) = util::get_2d_coords(i, width);
+            let x_in = (((x + 1) as f64 / x_factor).ceil() - 1.0) as u32;
+            let y_in = (((y + 1) as f64 / y_factor).ceil() - 1.0) as u32;
+
+            input.get_pixel(x_in, y_in)
+        })
+        .collect();
+
+    Image::from_vec_of_slice(width, height, channels, info.alpha, data)
+}
+
 fn scale_nearest_neighbor(input: &Image<f64>, output: &mut Image<f64>, x_factor: f64, y_factor: f64) {
     for y in 0..output.info().height {
         for x in 0..output.info().width {
@@ -258,6 +340,43 @@ fn scale_nearest_neighbor(input: &Image<f64>, output: &mut Image<f64>, x_factor:
             output.set_pixel(x, y, input.get_pixel(x_in, y_in));
         }
     }
+}
+
+fn scale_bilinear_par(input: &Image<f64>, info: &ImageInfo, x_factor: f64, y_factor: f64) -> Image<f64> {
+    let size = info.size();
+    let (width, height, channels) = info.whc();
+
+    let data: Vec<Vec<f64>> = (0..size)
+        .into_par_iter()
+        .map(|i| {
+            let (x, y) = util::get_2d_coords(i, width);
+            let x_in = x as f64 / x_factor;
+            let y_in = y as f64 / y_factor;
+            let x_1 = x_in.floor() as u32;
+            let x_2 = std::cmp::min(x_in.ceil() as u32, input.info().width - 1);
+            let y_1 = y_in.floor() as u32;
+            let y_2 = std::cmp::min(y_in.ceil() as u32, input.info().height - 1);
+            let x_weight = x_in - (x_1 as f64);
+            let y_weight = y_in - (y_1 as f64);
+
+            let p1 = input.get_pixel(x_1, y_1);
+            let p2 = input.get_pixel(x_2, y_1);
+            let p3 = input.get_pixel(x_1, y_2);
+            let p4 = input.get_pixel(x_2, y_2);
+
+            let mut p_out = Vec::with_capacity(info.channels as usize);
+            for c in 0..(channels as usize) {
+                p_out.push(p1[c] * x_weight * y_weight
+                    + p2[c] * (1.0 - x_weight) * y_weight
+                    + p3[c] * x_weight * (1.0 - y_weight)
+                    + p4[c] * (1.0 - x_weight) * (1.0 - y_weight));
+            }
+
+            p_out
+        })
+        .collect();
+
+    Image::from_vec_of_vec(width, height, channels, info.alpha, data)
 }
 
 fn scale_bilinear(input: &Image<f64>, output: &mut Image<f64>, x_factor: f64, y_factor: f64) {
@@ -277,7 +396,7 @@ fn scale_bilinear(input: &Image<f64>, output: &mut Image<f64>, x_factor: f64, y_
             let p3 = input.get_pixel(x_1, y_2);
             let p4 = input.get_pixel(x_2, y_2);
 
-            let mut p_out = Vec::new();
+            let mut p_out = Vec::with_capacity(output.info().channels as usize);
             for c in 0..(output.info().channels as usize) {
                 p_out.push(p1[c] * x_weight * y_weight
                     + p2[c] * (1.0 - x_weight) * y_weight
@@ -288,6 +407,40 @@ fn scale_bilinear(input: &Image<f64>, output: &mut Image<f64>, x_factor: f64, y_
             output.set_pixel(x, y, &p_out);
         }
     }
+}
+
+fn scale_bicubic_par(input: &Image<f64>, info: &ImageInfo, x_factor: f64, y_factor: f64) -> Image<f64> {
+    let size = info.size();
+    let (width, height, channels) = info.whc();
+
+    let data: Vec<Vec<f64>> = (0..size)
+        .into_par_iter()
+        .map(|i: u32| -> Vec<f64> {
+            let (x, y) = util::get_2d_coords(i, width);
+            let x_in = (x as f64) / x_factor;
+            let y_in = (y as f64) / y_factor;
+            let delta_x = x_in - x_in.floor();
+            let delta_y = y_in - y_in.floor();
+
+            let mut p_out = vec![0.0; channels as usize];
+            for m in -1..3 {
+                for n in -1..3 {
+                    let p_in = input.get_pixel(math::clamp((x_in + (m as f64)) as u32, 0, input.info().width - 1),
+                                               math::clamp((y_in + (n as f64)) as u32, 0, input.info().height - 1));
+                    let r = math::cubic_weighting_fn((m as f64) - delta_x)
+                        * math::cubic_weighting_fn(delta_y - (n as f64));
+
+                    for c in 0..(channels as usize) {
+                        p_out[c] += p_in[c] * r;
+                    }
+                }
+            }
+
+            p_out
+        })
+        .collect();
+
+    Image::from_vec_of_vec(width, height, channels, info.alpha, data)
 }
 
 fn scale_bicubic(input: &Image<f64>, output: &mut Image<f64>, x_factor: f64, y_factor: f64) {
@@ -315,6 +468,41 @@ fn scale_bicubic(input: &Image<f64>, output: &mut Image<f64>, x_factor: f64, y_f
             output.set_pixel(x, y, &p_out);
         }
     }
+}
+
+fn scale_lanczos_resampling_par(input: &Image<f64>, info: &ImageInfo, x_factor: f64, y_factor: f64, size: u32) -> Image<f64> {
+    let img_size = info.size();
+    let (width, height, channels) = info.whc();
+
+    let data: Vec<Vec<f64>> = (0..img_size)
+        .into_par_iter()
+        .map(|i: u32| -> Vec<f64> {
+            let (x, y) = util::get_2d_coords(i, width);
+            let x_in = (x as f64) / x_factor;
+            let y_in = (y as f64) / y_factor;
+            let delta_x = x_in - x_in.floor();
+            let delta_y = y_in - y_in.floor();
+
+            let mut p_out = vec![0.0; channels as usize];
+            for i in (1 - (size as i32))..(size as i32 + 1) {
+                for j in (1 - (size as i32))..(size as i32 + 1) {
+                    let p_in = input.get_pixel(math::clamp((x_in + (i as f64)) as u32, 0, input.info().width - 1),
+                                               math::clamp((y_in + (j as f64)) as u32, 0, input.info().height - 1));
+                    let lanczos = math::lanczos_kernel(delta_x - (i as f64), size as f64)
+                        * math::lanczos_kernel(delta_y - (j as f64), size as f64);
+
+                    for c in 0..(channels as usize) {
+                        p_out[c] += p_in[c] * lanczos;
+                    }
+                }
+            }
+
+            p_out
+        })
+        .collect();
+
+    Image::from_vec_of_vec(width, height, channels, info.alpha, data)
+
 }
 
 fn scale_lanczos_resampling(input: &Image<f64>, output: &mut Image<f64>, x_factor: f64, y_factor: f64, size: u32) {

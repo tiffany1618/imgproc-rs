@@ -218,3 +218,10 @@ pub fn rectangular_intensity_sum(summed_area_table: &Image<f64>, x_0: u32, y_0: 
 
     sum
 }
+
+pub fn get_2d_coords(i: u32, width: u32) -> (u32, u32) {
+    let x = i % width;
+    let y = (i - x) / width;
+
+    (x, y)
+}
