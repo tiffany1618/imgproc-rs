@@ -7,6 +7,7 @@ use crate::enums::{Thresh, Bilateral, White};
 use crate::error::{ImgProcError, ImgProcResult};
 
 use rulinalg::matrix::{Matrix, BaseMatrix};
+use rayon::prelude::*;
 
 /////////////////////
 // Linear filtering
@@ -233,7 +234,7 @@ pub fn bilateral_filter(input: &Image<u8>, range: f64, spatial: f64, algorithm: 
                 for x in 0..width {
                     let p_n = lab.get_neighborhood_2d(x, y, size as u32);
                     let p_in = lab.get_pixel(x, y);
-                    let mut p_out = Vec::new();
+                    let mut p_out = Vec::with_capacity(channels as usize);
 
                     for c in 0..(channels as usize) {
                         let mut total_weight = 0.0;
@@ -254,15 +255,64 @@ pub fn bilateral_filter(input: &Image<u8>, range: f64, spatial: f64, algorithm: 
                 }
             }
         },
-        Bilateral::Grid => {
-
-        },
-        Bilateral::LocalHistogram => {
-
-        },
+        // Bilateral::Grid => {
+        // },
+        // Bilateral::LocalHistogram => {
+        // },
     }
 
     Ok(colorspace::lab_to_srgb(&output, &White::D65))
+}
+
+/// (Parallel) Applies a bilateral filter using CIE LAB
+pub fn bilateral_filter_par(input: &Image<u8>, range: f64, spatial: f64, algorithm: Bilateral)
+    -> ImgProcResult<Image<u8>> {
+    error::check_non_neg(range, "range")?;
+    error::check_non_neg(spatial, "spatial")?;
+
+    let (width, height, channels) = input.info().whc();
+    let size = ((spatial * 4.0) + 1.0) as u32;
+    let spatial_mat = util::generate_spatial_mat(size, spatial)?;
+
+    let lab = colorspace::srgb_to_lab(&input, &White::D65);
+
+    match algorithm {
+        Bilateral::Direct => {
+            let data: Vec<Vec<f64>> = (0..input.info().size())
+                .into_par_iter()
+                .map(|i| {
+                    let (x, y) = util::get_2d_coords(i, width);
+                    let p_n = lab.get_neighborhood_2d(x, y, size as u32);
+                    let p_in = lab.get_pixel(x, y);
+                    let mut p_out = Vec::with_capacity(channels as usize);
+
+                    for c in 0..(channels as usize) {
+                        let mut total_weight = 0.0;
+                        let mut p_curr = 0.0;
+
+                        for i in 0..((size * size) as usize) {
+                            let g_r = math::gaussian_fn((p_in[c] - p_n[i][c]).abs(), range).unwrap();
+                            let weight = spatial_mat[i] * g_r;
+
+                            p_curr += weight * p_n[i][c];
+                            total_weight += weight;
+                        }
+
+                        p_out.push(p_curr / total_weight);
+                    }
+
+                    p_out
+                })
+                .collect();
+
+            let output = Image::from_vec_of_vec(width, height, channels, input.info().alpha, data);
+            Ok(colorspace::lab_to_srgb(&output, &White::D65))
+        },
+        // Bilateral::Grid => {
+        // },
+        // Bilateral::LocalHistogram => {
+        // },
+    }
 }
 
 ////////////////
