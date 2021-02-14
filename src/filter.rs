@@ -6,7 +6,6 @@ use crate::util::constants::{K_SOBEL_1D_VERT, K_SOBEL_1D_HORZ, K_UNSHARP_MASKING
 use crate::enums::{Thresh, Bilateral, White};
 use crate::error::{ImgProcError, ImgProcResult};
 
-use rulinalg::matrix::{Matrix, BaseMatrix};
 use rayon::prelude::*;
 
 /////////////////////
@@ -32,6 +31,24 @@ pub fn filter_1d(input: &Image<f64>, kernel: &[f64], is_vert: bool) -> ImgProcRe
     Ok(output)
 }
 
+/// (Parallel) Applies a 1D filter. If `is_vert` is true, applies `kernel`
+/// as a vertical filter; otherwise applies `kernel` as a horizontal filter
+pub fn filter_1d_par(input: &Image<f64>, kernel: &[f64], is_vert: bool) -> ImgProcResult<Image<f64>> {
+    error::check_odd(kernel.len(), "kernel length")?;
+
+    let (width, height, channels, alpha) = input.info().whca();
+
+    let data: Vec<Vec<f64>> = (0..input.info().size())
+        .into_par_iter()
+        .map(|i| {
+            let (x, y) = util::get_2d_coords(i, width);
+            math::apply_1d_kernel(input.get_neighborhood_1d(x, y,kernel.len() as u32, is_vert), kernel).unwrap()
+        })
+        .collect();
+
+    Ok(Image::from_vec_of_vec(width, height, channels, alpha, data))
+}
+
 /// Applies a separable linear filter by first applying `vert_kernel` and then `horz_kernel`
 pub fn separable_filter(input: &Image<f64>, vert_kernel: &[f64], horz_kernel: &[f64]) -> ImgProcResult<Image<f64>> {
     error::check_odd(vert_kernel.len(), "vert_kernel length")?;
@@ -40,6 +57,16 @@ pub fn separable_filter(input: &Image<f64>, vert_kernel: &[f64], horz_kernel: &[
 
     let vertical = filter_1d(input, vert_kernel, true)?;
     Ok(filter_1d(&vertical, horz_kernel, false)?)
+}
+
+/// (Parallel) Applies a separable linear filter by first applying `vert_kernel` and then `horz_kernel`
+pub fn separable_filter_par(input: &Image<f64>, vert_kernel: &[f64], horz_kernel: &[f64]) -> ImgProcResult<Image<f64>> {
+    error::check_odd(vert_kernel.len(), "vert_kernel length")?;
+    error::check_odd(horz_kernel.len(), "horz_kernel length")?;
+    error::check_equal(vert_kernel.len(), horz_kernel.len(), "kernel lengths")?;
+
+    let vertical = filter_1d_par(input, vert_kernel, true)?;
+    Ok(filter_1d_par(&vertical, horz_kernel, false)?)
 }
 
 /// Applies an unseparable linear filter
@@ -61,38 +88,46 @@ pub fn unseparable_filter(input: &Image<f64>, kernel: &[f64]) -> ImgProcResult<I
     Ok(output)
 }
 
+/// (Parallel) Applies an unseparable linear filter
+pub fn unseparable_filter_par(input: &Image<f64>, kernel: &[f64]) -> ImgProcResult<Image<f64>> {
+    error::check_odd(kernel.len(), "kernel length")?;
+    error::check_square(kernel.len() as f64, "kernel length")?;
+
+    let size = (kernel.len() as f32).sqrt() as u32;
+    let (width, height, channels, alpha) = input.info().whca();
+
+    let data: Vec<Vec<f64>> = (0..input.info().size())
+        .into_par_iter()
+        .map(|i| {
+            let (x, y) = util::get_2d_coords(i, width);
+            math::apply_2d_kernel(input.get_neighborhood_2d(x, y, size), kernel).unwrap()
+        })
+        .collect();
+
+    Ok(Image::from_vec_of_vec(width, height, channels, alpha, data))
+}
+
 /// Applies a linear filter using the 2D `kernel`
 pub fn linear_filter(input: &Image<f64>, kernel: &[f64]) -> ImgProcResult<Image<f64>> {
     error::check_odd(kernel.len(), "kernel length")?;
     error::check_square(kernel.len() as f64, "kernel length")?;
 
-    let size = (kernel.len() as f32).sqrt() as usize;
-    let kernel_mat = Matrix::new(size, size, kernel);
-    let size = kernel_mat.cols();
-    let (s, u, v) = kernel_mat.svd()?;
-    let mut is_separable = true;
-
-    // Check if kernel is separable
-    if s.data()[0] != 0.0 {
-        for i in 1..size {
-            if s.data()[i * size + i] != 0.0 {
-                is_separable = false;
-                break;
-            }
-        }
-    } else {
-        is_separable = false;
+    let separable = math::separate_kernel(kernel);
+    match separable {
+        Some((vert, horz)) => Ok(separable_filter(input, &vert, &horz)?),
+        None => Ok(unseparable_filter(input, &kernel)?)
     }
+}
 
-    if is_separable {
-        println!("separable");
-        let scalar = s.data()[0].sqrt();
-        let vertical_kernel = (u.col(0).as_slice().into_matrix() * scalar).into_vec();
-        let horizontal_kernel = (v.transpose().row(0).as_slice().into_matrix() * scalar).into_vec();
+/// (Parallel) Applies a linear filter using the 2D `kernel`
+pub fn linear_filter_par(input: &Image<f64>, kernel: &[f64]) -> ImgProcResult<Image<f64>> {
+    error::check_odd(kernel.len(), "kernel length")?;
+    error::check_square(kernel.len() as f64, "kernel length")?;
 
-        Ok(separable_filter(input, &vertical_kernel, &horizontal_kernel)?)
-    } else {
-        Ok(unseparable_filter(input, &kernel)?)
+    let separable = math::separate_kernel(kernel);
+    match separable {
+        Some((vert, horz)) => Ok(separable_filter_par(input, &vert, &horz)?),
+        None => Ok(unseparable_filter_par(input, &kernel)?)
     }
 }
 
@@ -110,6 +145,16 @@ pub fn box_filter(input: &Image<f64>, size: u32) -> ImgProcResult<Image<f64>> {
     Ok(separable_filter(input, &kernel, &kernel)?)
 }
 
+/// (Parallel) Applies a box filter of odd size `size`
+pub fn box_filter_par(input: &Image<f64>, size: u32) -> ImgProcResult<Image<f64>> {
+    error::check_odd(size, "size")?;
+
+    let len = (size * size) as usize;
+    let kernel = vec![1.0; len];
+
+    Ok(separable_filter_par(input, &kernel, &kernel)?)
+}
+
 /// Applies a normalized box filter of odd size `size`
 pub fn box_filter_normalized(input: &Image<f64>, size: u32) -> ImgProcResult<Image<f64>> {
     error::check_odd(size, "size")?;
@@ -118,6 +163,16 @@ pub fn box_filter_normalized(input: &Image<f64>, size: u32) -> ImgProcResult<Ima
     let kernel = vec![1.0 / ((size * size) as f64); len];
 
     Ok(separable_filter(input, &kernel, &kernel)?)
+}
+
+/// (Parallel) Applies a normalized box filter of odd size `size`
+pub fn box_filter_normalized_par(input: &Image<f64>, size: u32) -> ImgProcResult<Image<f64>> {
+    error::check_odd(size, "size")?;
+
+    let len = (size * size) as usize;
+    let kernel = vec![1.0 / ((size * size) as f64); len];
+
+    Ok(separable_filter_par(input, &kernel, &kernel)?)
 }
 
 /// Applies a weighted average filter of odd size `size` with a center weight of `weight`
@@ -132,10 +187,28 @@ pub fn weighted_avg_filter(input: &Image<f64>, size: u32, weight: u32) -> ImgPro
     Ok(unseparable_filter(input, &kernel)?)
 }
 
+/// (Parallel) Applies a weighted average filter of odd size `size` with a center weight of `weight`
+pub fn weighted_avg_filter_par(input: &Image<f64>, size: u32, weight: u32) -> ImgProcResult<Image<f64>> {
+    error::check_odd(size, "size")?;
+
+    let sum = (size * size) - 1 + weight;
+    let center = (size / 2) * size + (size / 2);
+    let mut kernel = vec![1.0 / (sum as f64); (size * size) as usize];
+    kernel[center as usize] = (weight as f64) / (sum as f64);
+
+    Ok(unseparable_filter_par(input, &kernel)?)
+}
+
 /// Applies a Gaussian blur of odd size `size`. Currently only supports sizes of 3 and 5
 pub fn gaussian_blur(input: &Image<f64>, size: u32, std_dev: f64) -> ImgProcResult<Image<f64>> {
     let kernel = util::generate_gaussian_kernel(size, std_dev)?;
     Ok(linear_filter(input, &kernel)?)
+}
+
+/// (Parallel) Applies a Gaussian blur of odd size `size`. Currently only supports sizes of 3 and 5
+pub fn gaussian_blur_par(input: &Image<f64>, size: u32, std_dev: f64) -> ImgProcResult<Image<f64>> {
+    let kernel = util::generate_gaussian_kernel(size, std_dev)?;
+    Ok(linear_filter_par(input, &kernel)?)
 }
 
 /// Applies a median filter
@@ -314,6 +387,8 @@ pub fn bilateral_filter_par(input: &Image<u8>, range: f64, spatial: f64, algorit
         // },
     }
 }
+
+// pub fn bilateral_arrayfire
 
 ////////////////
 // Sharpening

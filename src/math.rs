@@ -5,6 +5,7 @@ use crate::image::{Number, SubImage, BaseImage};
 use crate::error::ImgProcResult;
 
 use std::f64::consts::{PI, E};
+use rulinalg::matrix::{Matrix, BaseMatrix};
 
 /// Returns the result of the multiplication of a square matrix by a vector
 pub fn vector_mul<T: Number>(mat: &[T], vec: &[T]) -> ImgProcResult<Vec<T>> {
@@ -22,6 +23,30 @@ pub fn vector_mul<T: Number>(mat: &[T], vec: &[T]) -> ImgProcResult<Vec<T>> {
     }
 
     Ok(output)
+}
+
+/// If `kernel` is separable, returns the (vertical kernel, horizontal kernel); otherwise returns None
+pub fn separate_kernel(kernel: &[f64]) -> Option<(Vec<f64>, Vec<f64>)> {
+    let size = (kernel.len() as f32).sqrt() as usize;
+    let kernel_mat = Matrix::new(size, size, kernel);
+    let size = kernel_mat.cols();
+    let (s, u, v) = kernel_mat.svd().unwrap();
+
+    // Check if kernel is separable
+    if s.data()[0] != 0.0 {
+        for i in 1..size {
+            if s.data()[i * size + i] != 0.0 {
+                return None;
+            }
+        }
+    } else {
+        return None;
+    }
+
+    let scalar = s.data()[0].sqrt();
+    let vertical_kernel = (u.col(0).as_slice().into_matrix() * scalar).into_vec();
+    let horizontal_kernel = (v.transpose().row(0).as_slice().into_matrix() * scalar).into_vec();
+    Some((vertical_kernel, horizontal_kernel))
 }
 
 /// Returns the maximum of three f64 values

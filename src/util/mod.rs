@@ -9,6 +9,7 @@ use crate::image::{BaseImage, Image, Number};
 
 use std::collections::{BTreeMap, HashMap};
 use std::f64::consts::{E, PI};
+use rayon::prelude::*;
 
 ////////////////////////////
 // Image helper functions

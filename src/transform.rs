@@ -314,6 +314,15 @@ pub fn shear(input: &Image<f64>, shear_x: f64, shear_y: f64) -> ImgProcResult<Im
 // Scaling Algorithms
 ///////////////////////
 
+fn scale_nearest_neighbor(input: &Image<f64>, output: &mut Image<f64>, x_factor: f64, y_factor: f64) {
+    for y in 0..output.info().height {
+        for x in 0..output.info().width {
+            let p_out = interpolate_nearest_neighbor(input, x_factor, y_factor, x, y);
+            output.set_pixel(x, y, p_out);
+        }
+    }
+}
+
 fn scale_nearest_neighbor_par(input: &Image<f64>, info: &ImageInfo, x_factor: f64, y_factor: f64) -> Image<f64> {
     let size = info.size();
     let (width, height, channels) = info.whc();
@@ -322,22 +331,18 @@ fn scale_nearest_neighbor_par(input: &Image<f64>, info: &ImageInfo, x_factor: f6
         .into_par_iter()
         .map(|i| {
             let (x, y) = util::get_2d_coords(i, width);
-            let x_in = (((x + 1) as f64 / x_factor).ceil() - 1.0) as u32;
-            let y_in = (((y + 1) as f64 / y_factor).ceil() - 1.0) as u32;
-
-            input.get_pixel(x_in, y_in)
+            interpolate_nearest_neighbor(input, x_factor, y_factor, x, y)
         })
         .collect();
 
     Image::from_vec_of_slice(width, height, channels, info.alpha, data)
 }
 
-fn scale_nearest_neighbor(input: &Image<f64>, output: &mut Image<f64>, x_factor: f64, y_factor: f64) {
+fn scale_bilinear(input: &Image<f64>, output: &mut Image<f64>, x_factor: f64, y_factor: f64) {
     for y in 0..output.info().height {
         for x in 0..output.info().width {
-            let x_in = (((x + 1) as f64 / x_factor).ceil() - 1.0) as u32;
-            let y_in = (((y + 1) as f64 / y_factor).ceil() - 1.0) as u32;
-            output.set_pixel(x, y, input.get_pixel(x_in, y_in));
+            let p_out = interpolate_bilinear(input, x_factor, y_factor, x, y);
+            output.set_pixel(x, y, &p_out);
         }
     }
 }
@@ -350,60 +355,17 @@ fn scale_bilinear_par(input: &Image<f64>, info: &ImageInfo, x_factor: f64, y_fac
         .into_par_iter()
         .map(|i| {
             let (x, y) = util::get_2d_coords(i, width);
-            let x_in = x as f64 / x_factor;
-            let y_in = y as f64 / y_factor;
-            let x_1 = x_in.floor() as u32;
-            let x_2 = std::cmp::min(x_in.ceil() as u32, input.info().width - 1);
-            let y_1 = y_in.floor() as u32;
-            let y_2 = std::cmp::min(y_in.ceil() as u32, input.info().height - 1);
-            let x_weight = x_in - (x_1 as f64);
-            let y_weight = y_in - (y_1 as f64);
-
-            let p1 = input.get_pixel(x_1, y_1);
-            let p2 = input.get_pixel(x_2, y_1);
-            let p3 = input.get_pixel(x_1, y_2);
-            let p4 = input.get_pixel(x_2, y_2);
-
-            let mut p_out = Vec::with_capacity(info.channels as usize);
-            for c in 0..(channels as usize) {
-                p_out.push(p1[c] * x_weight * y_weight
-                    + p2[c] * (1.0 - x_weight) * y_weight
-                    + p3[c] * x_weight * (1.0 - y_weight)
-                    + p4[c] * (1.0 - x_weight) * (1.0 - y_weight));
-            }
-
-            p_out
+            interpolate_bilinear(input, x_factor, y_factor, x, y)
         })
         .collect();
 
     Image::from_vec_of_vec(width, height, channels, info.alpha, data)
 }
 
-fn scale_bilinear(input: &Image<f64>, output: &mut Image<f64>, x_factor: f64, y_factor: f64) {
+fn scale_bicubic(input: &Image<f64>, output: &mut Image<f64>, x_factor: f64, y_factor: f64) {
     for y in 0..output.info().height {
         for x in 0..output.info().width {
-            let x_in = x as f64 / x_factor;
-            let y_in = y as f64 / y_factor;
-            let x_1 = x_in.floor() as u32;
-            let x_2 = std::cmp::min(x_in.ceil() as u32, input.info().width - 1);
-            let y_1 = y_in.floor() as u32;
-            let y_2 = std::cmp::min(y_in.ceil() as u32, input.info().height - 1);
-            let x_weight = x_in - (x_1 as f64);
-            let y_weight = y_in - (y_1 as f64);
-
-            let p1 = input.get_pixel(x_1, y_1);
-            let p2 = input.get_pixel(x_2, y_1);
-            let p3 = input.get_pixel(x_1, y_2);
-            let p4 = input.get_pixel(x_2, y_2);
-
-            let mut p_out = Vec::with_capacity(output.info().channels as usize);
-            for c in 0..(output.info().channels as usize) {
-                p_out.push(p1[c] * x_weight * y_weight
-                    + p2[c] * (1.0 - x_weight) * y_weight
-                    + p3[c] * x_weight * (1.0 - y_weight)
-                    + p4[c] * (1.0 - x_weight) * (1.0 - y_weight));
-            }
-
+            let p_out = interpolate_bicubic(input, x_factor, y_factor, x, y);
             output.set_pixel(x, y, &p_out);
         }
     }
@@ -417,54 +379,17 @@ fn scale_bicubic_par(input: &Image<f64>, info: &ImageInfo, x_factor: f64, y_fact
         .into_par_iter()
         .map(|i: u32| -> Vec<f64> {
             let (x, y) = util::get_2d_coords(i, width);
-            let x_in = (x as f64) / x_factor;
-            let y_in = (y as f64) / y_factor;
-            let delta_x = x_in - x_in.floor();
-            let delta_y = y_in - y_in.floor();
-
-            let mut p_out = vec![0.0; channels as usize];
-            for m in -1..3 {
-                for n in -1..3 {
-                    let p_in = input.get_pixel(math::clamp((x_in + (m as f64)) as u32, 0, input.info().width - 1),
-                                               math::clamp((y_in + (n as f64)) as u32, 0, input.info().height - 1));
-                    let r = math::cubic_weighting_fn((m as f64) - delta_x)
-                        * math::cubic_weighting_fn(delta_y - (n as f64));
-
-                    for c in 0..(channels as usize) {
-                        p_out[c] += p_in[c] * r;
-                    }
-                }
-            }
-
-            p_out
+            interpolate_bicubic(input, x_factor, y_factor, x, y)
         })
         .collect();
 
     Image::from_vec_of_vec(width, height, channels, info.alpha, data)
 }
 
-fn scale_bicubic(input: &Image<f64>, output: &mut Image<f64>, x_factor: f64, y_factor: f64) {
+fn scale_lanczos_resampling(input: &Image<f64>, output: &mut Image<f64>, x_factor: f64, y_factor: f64, size: u32) {
     for y in 0..output.info().height {
         for x in 0..output.info().width {
-            let x_in = (x as f64) / x_factor;
-            let y_in = (y as f64) / y_factor;
-            let delta_x = x_in - x_in.floor();
-            let delta_y = y_in - y_in.floor();
-
-            let mut p_out = vec![0.0; output.info().channels as usize];
-            for m in -1..3 {
-                for n in -1..3 {
-                    let p_in = input.get_pixel(math::clamp((x_in + (m as f64)) as u32, 0, input.info().width - 1),
-                                               math::clamp((y_in + (n as f64)) as u32, 0, input.info().height - 1));
-                    let r = math::cubic_weighting_fn((m as f64) - delta_x)
-                        * math::cubic_weighting_fn(delta_y - (n as f64));
-
-                    for c in 0..(output.info().channels as usize) {
-                        p_out[c] += p_in[c] * r;
-                    }
-                }
-            }
-
+            let p_out = interpolate_lanczos(input, x_factor, y_factor, size, x, y);
             output.set_pixel(x, y, &p_out);
         }
     }
@@ -478,26 +403,7 @@ fn scale_lanczos_resampling_par(input: &Image<f64>, info: &ImageInfo, x_factor: 
         .into_par_iter()
         .map(|i: u32| -> Vec<f64> {
             let (x, y) = util::get_2d_coords(i, width);
-            let x_in = (x as f64) / x_factor;
-            let y_in = (y as f64) / y_factor;
-            let delta_x = x_in - x_in.floor();
-            let delta_y = y_in - y_in.floor();
-
-            let mut p_out = vec![0.0; channels as usize];
-            for i in (1 - (size as i32))..(size as i32 + 1) {
-                for j in (1 - (size as i32))..(size as i32 + 1) {
-                    let p_in = input.get_pixel(math::clamp((x_in + (i as f64)) as u32, 0, input.info().width - 1),
-                                               math::clamp((y_in + (j as f64)) as u32, 0, input.info().height - 1));
-                    let lanczos = math::lanczos_kernel(delta_x - (i as f64), size as f64)
-                        * math::lanczos_kernel(delta_y - (j as f64), size as f64);
-
-                    for c in 0..(channels as usize) {
-                        p_out[c] += p_in[c] * lanczos;
-                    }
-                }
-            }
-
-            p_out
+            interpolate_lanczos(input, x_factor, y_factor, size, x, y)
         })
         .collect();
 
@@ -505,29 +411,81 @@ fn scale_lanczos_resampling_par(input: &Image<f64>, info: &ImageInfo, x_factor: 
 
 }
 
-fn scale_lanczos_resampling(input: &Image<f64>, output: &mut Image<f64>, x_factor: f64, y_factor: f64, size: u32) {
-    for y in 0..output.info().height {
-        for x in 0..output.info().width {
-            let x_in = (x as f64) / x_factor;
-            let y_in = (y as f64) / y_factor;
-            let delta_x = x_in - x_in.floor();
-            let delta_y = y_in - y_in.floor();
+fn interpolate_nearest_neighbor(input: &Image<f64>, x_factor: f64, y_factor: f64, x: u32, y: u32) -> &[f64] {
+    let x_in = (((x + 1) as f64 / x_factor).ceil() - 1.0) as u32;
+    let y_in = (((y + 1) as f64 / y_factor).ceil() - 1.0) as u32;
 
-            let mut p_out = vec![0.0; output.info().channels as usize];
-            for i in (1 - (size as i32))..(size as i32 + 1) {
-                for j in (1 - (size as i32))..(size as i32 + 1) {
-                    let p_in = input.get_pixel(math::clamp((x_in + (i as f64)) as u32, 0, input.info().width - 1),
-                                                        math::clamp((y_in + (j as f64)) as u32, 0, input.info().height - 1));
-                    let lanczos = math::lanczos_kernel(delta_x - (i as f64), size as f64)
-                                        * math::lanczos_kernel(delta_y - (j as f64), size as f64);
+    input.get_pixel(x_in, y_in)
+}
 
-                    for c in 0..(output.info().channels as usize) {
-                        p_out[c] += p_in[c] * lanczos;
-                    }
-                }
+fn interpolate_bilinear(input: &Image<f64>, x_factor: f64, y_factor: f64, x: u32, y: u32) -> Vec<f64> {
+    let x_in = x as f64 / x_factor;
+    let y_in = y as f64 / y_factor;
+    let x_1 = x_in.floor() as u32;
+    let x_2 = std::cmp::min(x_in.ceil() as u32, input.info().width - 1);
+    let y_1 = y_in.floor() as u32;
+    let y_2 = std::cmp::min(y_in.ceil() as u32, input.info().height - 1);
+    let x_weight = x_in - (x_1 as f64);
+    let y_weight = y_in - (y_1 as f64);
+
+    let p1 = input.get_pixel(x_1, y_1);
+    let p2 = input.get_pixel(x_2, y_1);
+    let p3 = input.get_pixel(x_1, y_2);
+    let p4 = input.get_pixel(x_2, y_2);
+
+    let mut p_out = Vec::with_capacity(input.info().channels as usize);
+    for c in 0..(input.info().channels as usize) {
+        p_out.push(p1[c] * x_weight * y_weight
+            + p2[c] * (1.0 - x_weight) * y_weight
+            + p3[c] * x_weight * (1.0 - y_weight)
+            + p4[c] * (1.0 - x_weight) * (1.0 - y_weight));
+    }
+
+    p_out
+}
+
+fn interpolate_bicubic(input: &Image<f64>, x_factor: f64, y_factor: f64, x: u32, y: u32) -> Vec<f64> {
+    let x_in = (x as f64) / x_factor;
+    let y_in = (y as f64) / y_factor;
+    let delta_x = x_in - x_in.floor();
+    let delta_y = y_in - y_in.floor();
+
+    let mut p_out = vec![0.0; input.info().channels as usize];
+    for m in -1..3 {
+        for n in -1..3 {
+            let p_in = input.get_pixel(math::clamp((x_in + (m as f64)) as u32, 0, input.info().width - 1),
+                                       math::clamp((y_in + (n as f64)) as u32, 0, input.info().height - 1));
+            let r = math::cubic_weighting_fn((m as f64) - delta_x)
+                * math::cubic_weighting_fn(delta_y - (n as f64));
+
+            for c in 0..(input.info().channels as usize) {
+                p_out[c] += p_in[c] * r;
             }
-
-            output.set_pixel(x, y, &p_out);
         }
     }
+
+    p_out
+}
+
+fn interpolate_lanczos(input: &Image<f64>, x_factor: f64, y_factor: f64, size: u32, x: u32, y: u32) -> Vec<f64> {
+    let x_in = (x as f64) / x_factor;
+    let y_in = (y as f64) / y_factor;
+    let delta_x = x_in - x_in.floor();
+    let delta_y = y_in - y_in.floor();
+
+    let mut p_out = vec![0.0; input.info().channels as usize];
+    for i in (1 - (size as i32))..(size as i32 + 1) {
+        for j in (1 - (size as i32))..(size as i32 + 1) {
+            let p_in = input.get_pixel(math::clamp((x_in + (i as f64)) as u32, 0, input.info().width - 1),
+                                       math::clamp((y_in + (j as f64)) as u32, 0, input.info().height - 1));
+            let lanczos = math::lanczos_kernel(delta_x - (i as f64), size as f64)
+                * math::lanczos_kernel(delta_y - (j as f64), size as f64);
+
+            for c in 0..(input.info().channels as usize) {
+                p_out[c] += p_in[c] * lanczos;
+            }
+        }
+    }
+
+    p_out
 }
