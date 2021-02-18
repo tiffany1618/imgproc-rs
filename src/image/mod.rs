@@ -201,8 +201,7 @@ impl<T: Number> Image<T> {
         let x_clamp = x.clamp(0, self.info.width - 1);
         let y_clamp = y.clamp(0, self.info.height - 1);
 
-        let index = self.index(x_clamp, y_clamp);
-        &self[index]
+        &self[(y_clamp * self.info.width + x_clamp) as usize]
     }
 
     /// Returns a mutable slice representing the pixel located at `(x, y)`
@@ -228,7 +227,7 @@ impl<T: Number> Image<T> {
         let x_clamp = x.clamp(0, self.info.width - 1);
         let y_clamp = y.clamp(0, self.info.height - 1);
 
-        let index = self.index(x_clamp, y_clamp);
+        let index = (y_clamp * self.info.width + x_clamp) as usize;
         &mut self[index]
     }
 

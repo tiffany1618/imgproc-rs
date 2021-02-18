@@ -179,7 +179,11 @@ pub fn cubic_weighting_fn(x: f64) -> f64 {
 
 /// Returns 0 if `x` is less than 0; `x` if not
 pub fn clamp_zero(x: f64) -> f64 {
-    x.clamp(0.0, x)
+    if x <= 0.0 {
+        return 0.0;
+    }
+
+    x
 }
 
 /// Normalized sinc function
