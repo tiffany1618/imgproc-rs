@@ -5,7 +5,7 @@ pub mod constants;
 use crate::{error, math};
 use crate::enums::White;
 use crate::error::ImgProcResult;
-use crate::image::{BaseImage, Image, Number, ImageInfo};
+use crate::image::{BaseImage, Image, Number};
 
 use std::collections::{BTreeMap, HashMap};
 use std::f64::consts::{E, PI};

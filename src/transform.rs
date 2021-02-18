@@ -453,7 +453,7 @@ fn interpolate_bicubic(input: &Image<f64>, x_factor: f64, y_factor: f64, x: u32,
     let mut p_out = vec![0.0; input.info().channels as usize];
     for m in -1..3 {
         for n in -1..3 {
-            let p_in = input.get_pixel_clamped((x_in + (i as f64)) as u32, (y_in + (j as f64)) as u32);
+            let p_in = input.get_pixel_clamped((x_in + (m as f64)) as u32, (y_in + (n as f64)) as u32);
             let r = math::cubic_weighting_fn((m as f64) - delta_x)
                 * math::cubic_weighting_fn(delta_y - (n as f64));
 

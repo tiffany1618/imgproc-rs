@@ -177,35 +177,9 @@ pub fn cubic_weighting_fn(x: f64) -> f64 {
         - 4.0 * clamp_zero(x - 1.0).powf(3.0))
 }
 
-/// Creates a lower bound of zero
+/// Returns 0 if `x` is less than 0; `x` if not
 pub fn clamp_zero(x: f64) -> f64 {
-    if x <= 0.0 {
-        return 0.0;
-    }
-
-    x
-}
-
-/// Clamps `x` in the range from `min` to `max`, inclusive
-pub fn clamp<T: Number>(x: T, min: T, max: T) -> T {
-    if x <= min {
-        return min;
-    }
-
-    if x >= max {
-        return max;
-    }
-
-    x
-}
-
-/// If `x` is greater than `max`, returns `max`; otherwise returns `x`
-pub fn clamp_max<T: Number>(x: T, max: T) -> T {
-    if x >= max {
-        return max;
-    }
-
-    return x;
+    x.clamp(0.0, x)
 }
 
 /// Normalized sinc function

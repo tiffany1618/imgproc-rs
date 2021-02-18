@@ -247,38 +247,52 @@ pub fn median_filter_par(input: &Image<f64>, radius: u32) -> ImgProcResult<Image
     Ok(Image::from_vec_of_vec(width, height, channels, alpha, data))
 }
 
-pub fn median_filter_weiss<T: Number>(input: &Image<T>, radius: u32) -> ImgProcResult<Image<T>> {
-    let size = 2 * radius + 1;
-    let (width, height, channels, alpha) = input.info().whca();
-
-    let mut output = Image::blank(input.info());
-    let mut histograms = vec![vec![BTreeMap::new(); height as usize]; channels as usize];
-
-    // Initialize histograms
-    for x in -(radius as i32)..(radius as i32 + 1) {
-        for y in -(radius as i32)..((height + radius) as i32) {
-            let p_in = input.get_pixel_clamped(x as u32, y as u32);
-
-            for c in 0..(channels as usize) {
-                let val = histograms[c][y as usize].entry(p_in[c]).or_insert(1);
-                *val += 1;
-            }
-        }
-    }
-
-    // Compute first column of median values
-    for y in 0..height {
-        let mut p_out = Vec::with_capacity(channels as usize);
-
-        for c in 0..(channels as usize) {
-
-        }
-
-        output.set_pixel(0, y, &p_out);
-    }
-
-    Ok(output)
-}
+// pub fn median_filter_weiss<T: Number>(input: &Image<T>, radius: u32) -> ImgProcResult<Image<T>> {
+//     let size = 2 * radius + 1;
+//     let center = ((size * size) / 2) as usize;
+//     let (width, height, channels, alpha) = input.info().whca();
+//
+//     let mut output = Image::blank(input.info());
+//     let mut histograms = vec![vec![BTreeMap::new(); height as usize]; channels as usize];
+//
+//     // Initialize histograms
+//     for x in -(radius as i32)..(radius as i32 + 1) {
+//         for y in -(radius as i32)..((height + radius) as i32) {
+//             let p_in = input.get_pixel_clamped(x as u32, y as u32);
+//
+//             for c in 0..(channels as usize) {
+//                 let val = histograms[c][y as usize].entry(p_in[c]).or_insert(1);
+//                 *val += 1;
+//             }
+//         }
+//     }
+//
+//     // Compute first column of median values
+//     for y in 0..height {
+//         let mut p_out = Vec::with_capacity(channels as usize);
+//
+//         for c in 0..(channels as usize) {
+//             let mut sum = 0;
+//
+//             for x in 0..size {
+//                 for (key, val) in &histograms[c][(x + y) as usize] {
+//                     sum += val;
+//                     if sum >= center {
+//                         p_out[c] = key;
+//                         break;
+//                     }
+//                 }
+//             }
+//
+//         }
+//
+//         output.set_pixel(0, y, &p_out);
+//     }
+//
+//     // Compute remaining median values
+//
+//     Ok(output)
+// }
 
 /// Applies an alpha-trimmed mean filter, where each output pixel is the alpha-trimmed mean of the
 /// pixels in a `(2 * radius + 1) x (2 * radius + 1)` kernel in the input image

@@ -10,8 +10,6 @@ mod pixel;
 mod from_impl;
 mod pixel_iter;
 
-use crate::math;
-
 /// A struct representing an image
 #[derive(Debug, Clone, PartialEq)]
 pub struct Image<T: Number> {
@@ -200,10 +198,11 @@ impl<T: Number> Image<T> {
     /// Returns a slice representing the pixel located at `(x, y)`, clamping `x` and `y` to the
     /// appropriate ranges
     pub fn get_pixel_clamped(&self, x: u32, y: u32) -> &[T] {
-        let x_clamp = math::clamp_max(x, self.info.width - 1);
-        let y_clamp = math::clamp_max(y, self.info.height - 1);
+        let x_clamp = x.clamp(0, self.info.width - 1);
+        let y_clamp = y.clamp(0, self.info.height - 1);
 
-        &self[y_clamp * self.info.width + x_clamp]
+        let index = self.index(x_clamp, y_clamp);
+        &self[index]
     }
 
     /// Returns a mutable slice representing the pixel located at `(x, y)`
@@ -226,10 +225,11 @@ impl<T: Number> Image<T> {
     /// Returns a mutable slice representing the pixel located at `(x, y)`, clamping `x` and `y`
     /// to the appropriate ranges
     pub fn get_pixel_mut_clamped(&mut self, x: u32, y: u32) -> &mut [T] {
-        let x_clamp = math::clamp_max(x, self.info.width - 1);
-        let y_clamp = math::clamp_max(y, self.info.height - 1);
+        let x_clamp = x.clamp(0, self.info.width - 1);
+        let y_clamp = y.clamp(0, self.info.height - 1);
 
-        &mut self[y_clamp * self.info.width + x_clamp]
+        let index = self.index(x_clamp, y_clamp);
+        &mut self[index]
     }
 
     /// Returns a `SubImage<T>` representing the part of the image of width `width` and height
