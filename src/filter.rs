@@ -8,6 +8,8 @@ use crate::error::{ImgProcError, ImgProcResult};
 
 use rayon::prelude::*;
 
+use std::collections::BTreeMap;
+
 /////////////////////
 // Linear filtering
 /////////////////////
@@ -135,7 +137,7 @@ pub fn linear_filter_par(input: &Image<f64>, kernel: &[f64]) -> ImgProcResult<Im
 // Blurring
 //////////////
 
-/// Applies a box filter of odd size `size`
+/// Applies a box filter using a `size x size` kernel
 pub fn box_filter(input: &Image<f64>, size: u32) -> ImgProcResult<Image<f64>> {
     error::check_odd(size, "size")?;
 
@@ -145,7 +147,7 @@ pub fn box_filter(input: &Image<f64>, size: u32) -> ImgProcResult<Image<f64>> {
     Ok(separable_filter(input, &kernel, &kernel)?)
 }
 
-/// (Parallel) Applies a box filter of odd size `size`
+/// (Parallel) Applies a box filter using a `size x size` kernel
 pub fn box_filter_par(input: &Image<f64>, size: u32) -> ImgProcResult<Image<f64>> {
     error::check_odd(size, "size")?;
 
@@ -155,7 +157,7 @@ pub fn box_filter_par(input: &Image<f64>, size: u32) -> ImgProcResult<Image<f64>
     Ok(separable_filter_par(input, &kernel, &kernel)?)
 }
 
-/// Applies a normalized box filter of odd size `size`
+/// Applies a normalized box filter using a `size x size` kernel
 pub fn box_filter_normalized(input: &Image<f64>, size: u32) -> ImgProcResult<Image<f64>> {
     error::check_odd(size, "size")?;
 
@@ -165,7 +167,7 @@ pub fn box_filter_normalized(input: &Image<f64>, size: u32) -> ImgProcResult<Ima
     Ok(separable_filter(input, &kernel, &kernel)?)
 }
 
-/// (Parallel) Applies a normalized box filter of odd size `size`
+/// (Parallel) Applies a normalized box filter using a `size x size` kernel
 pub fn box_filter_normalized_par(input: &Image<f64>, size: u32) -> ImgProcResult<Image<f64>> {
     error::check_odd(size, "size")?;
 
@@ -175,7 +177,7 @@ pub fn box_filter_normalized_par(input: &Image<f64>, size: u32) -> ImgProcResult
     Ok(separable_filter_par(input, &kernel, &kernel)?)
 }
 
-/// Applies a weighted average filter of odd size `size` with a center weight of `weight`
+/// Applies a weighted average filter using a `size x size` kernel with a center weight of `weight`
 pub fn weighted_avg_filter(input: &Image<f64>, size: u32, weight: u32) -> ImgProcResult<Image<f64>> {
     error::check_odd(size, "size")?;
 
@@ -187,7 +189,7 @@ pub fn weighted_avg_filter(input: &Image<f64>, size: u32, weight: u32) -> ImgPro
     Ok(unseparable_filter(input, &kernel)?)
 }
 
-/// (Parallel) Applies a weighted average filter of odd size `size` with a center weight of `weight`
+/// (Parallel) Applies a weighted average filter using a `size x size` kernel with a center weight of `weight`
 pub fn weighted_avg_filter_par(input: &Image<f64>, size: u32, weight: u32) -> ImgProcResult<Image<f64>> {
     error::check_odd(size, "size")?;
 
@@ -199,22 +201,22 @@ pub fn weighted_avg_filter_par(input: &Image<f64>, size: u32, weight: u32) -> Im
     Ok(unseparable_filter_par(input, &kernel)?)
 }
 
-/// Applies a Gaussian blur of odd size `size`. Currently only supports sizes of 3 and 5
+/// Applies a Gaussian blur using a `size x size` kernel
 pub fn gaussian_blur(input: &Image<f64>, size: u32, std_dev: f64) -> ImgProcResult<Image<f64>> {
     let kernel = util::generate_gaussian_kernel(size, std_dev)?;
     Ok(linear_filter(input, &kernel)?)
 }
 
-/// (Parallel) Applies a Gaussian blur of odd size `size`. Currently only supports sizes of 3 and 5
+/// (Parallel) Applies a Gaussian blur using a `size x size` kernel
 pub fn gaussian_blur_par(input: &Image<f64>, size: u32, std_dev: f64) -> ImgProcResult<Image<f64>> {
     let kernel = util::generate_gaussian_kernel(size, std_dev)?;
     Ok(linear_filter_par(input, &kernel)?)
 }
 
-/// Applies a median filter
-pub fn median_filter(input: &Image<f64>, size: u32) -> ImgProcResult<Image<f64>> {
-    error::check_odd(size, "size")?;
-
+/// Applies a median filter, where each output pixel is the median of the pixels in a
+/// `(2 * radius + 1) x (2 * radius + 1)` kernel in the input image
+pub fn median_filter(input: &Image<f64>, radius: u32) -> ImgProcResult<Image<f64>> {
+    let size = 2 * radius + 1;
     let (width, height) = input.info().wh();
     let mut output = Image::blank(input.info());
 
@@ -228,10 +230,10 @@ pub fn median_filter(input: &Image<f64>, size: u32) -> ImgProcResult<Image<f64>>
     Ok(output)
 }
 
-/// (Parallel) Applies a median filter
-pub fn median_filter_par(input: &Image<f64>, size: u32) -> ImgProcResult<Image<f64>> {
-    error::check_odd(size, "size")?;
-
+/// (Parallel) Applies a median filter, where each output pixel is the median of the pixels in a
+/// `(2 * radius + 1) x (2 * radius + 1)` kernel in the input image
+pub fn median_filter_par(input: &Image<f64>, radius: u32) -> ImgProcResult<Image<f64>> {
+    let size = 2 * radius + 1;
     let (width, height, channels, alpha) = input.info().whca();
 
     let data: Vec<Vec<f64>> = (0..input.info().size())
@@ -245,9 +247,44 @@ pub fn median_filter_par(input: &Image<f64>, size: u32) -> ImgProcResult<Image<f
     Ok(Image::from_vec_of_vec(width, height, channels, alpha, data))
 }
 
-/// Applies an alpha-trimmed mean filter
-pub fn alpha_trimmed_mean_filter(input: &Image<f64>, size: u32, alpha: u32) -> ImgProcResult<Image<f64>> {
-    error::check_odd(size, "size")?;
+pub fn median_filter_weiss<T: Number>(input: &Image<T>, radius: u32) -> ImgProcResult<Image<T>> {
+    let size = 2 * radius + 1;
+    let (width, height, channels, alpha) = input.info().whca();
+
+    let mut output = Image::blank(input.info());
+    let mut histograms = vec![vec![BTreeMap::new(); height as usize]; channels as usize];
+
+    // Initialize histograms
+    for x in -(radius as i32)..(radius as i32 + 1) {
+        for y in -(radius as i32)..((height + radius) as i32) {
+            let p_in = input.get_pixel_clamped(x as u32, y as u32);
+
+            for c in 0..(channels as usize) {
+                let val = histograms[c][y as usize].entry(p_in[c]).or_insert(1);
+                *val += 1;
+            }
+        }
+    }
+
+    // Compute first column of median values
+    for y in 0..height {
+        let mut p_out = Vec::with_capacity(channels as usize);
+
+        for c in 0..(channels as usize) {
+
+        }
+
+        output.set_pixel(0, y, &p_out);
+    }
+
+    Ok(output)
+}
+
+/// Applies an alpha-trimmed mean filter, where each output pixel is the alpha-trimmed mean of the
+/// pixels in a `(2 * radius + 1) x (2 * radius + 1)` kernel in the input image
+pub fn alpha_trimmed_mean_filter(input: &Image<f64>, radius: u32, alpha: u32) -> ImgProcResult<Image<f64>> {
+    let size = 2 * radius + 1;
+
     error::check_even(alpha, "alpha")?;
     if alpha >= (size * size) {
         return Err(ImgProcError::InvalidArgError(format!("invalid alpha: size is {}, but alpha is {}", size, alpha)));
@@ -266,9 +303,11 @@ pub fn alpha_trimmed_mean_filter(input: &Image<f64>, size: u32, alpha: u32) -> I
     Ok(output)
 }
 
-/// (Parallel) Applies an alpha-trimmed mean filter
-pub fn alpha_trimmed_mean_filter_par(input: &Image<f64>, size: u32, alpha: u32) -> ImgProcResult<Image<f64>> {
-    error::check_odd(size, "size")?;
+/// (Parallel) Applies an alpha-trimmed mean filter, where each output pixel is the alpha-trimmed mean of the
+/// pixels in a `(2 * radius + 1) x (2 * radius + 1)` kernel in the input image
+pub fn alpha_trimmed_mean_filter_par(input: &Image<f64>, radius: u32, alpha: u32) -> ImgProcResult<Image<f64>> {
+    let size = 2 * radius + 1;
+
     error::check_even(alpha, "alpha")?;
     if alpha >= (size * size) {
         return Err(ImgProcError::InvalidArgError(format!("invalid alpha: size is {}, but alpha is {}", size, alpha)));
@@ -593,3 +632,7 @@ fn bilateral_direct_pixel(input: &Image<f64>, range: f64, spatial_mat: &[f64], s
 
     p_out
 }
+
+// fn bilateral_local_histogram_pixel(input: &Image<f64>, range: f64, spatial_mat: &[f64], size: u32, x: u32, y: u32) -> Vec<f64> {
+//
+// }

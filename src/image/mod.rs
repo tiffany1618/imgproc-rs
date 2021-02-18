@@ -10,6 +10,8 @@ mod pixel;
 mod from_impl;
 mod pixel_iter;
 
+use crate::math;
+
 /// A struct representing an image
 #[derive(Debug, Clone, PartialEq)]
 pub struct Image<T: Number> {
@@ -70,7 +72,7 @@ pub trait BaseImage<T: Number> {
     /// Returns the image information
     fn info(&self) -> ImageInfo;
 
-    /// Returns a PixelSlice representing the pixel located at `(x, y)`
+    /// Returns a slice representing the pixel located at `(x, y)`
     fn get_pixel(&self, x: u32, y: u32) -> &[T];
 }
 
@@ -195,7 +197,20 @@ impl<T: Number> Image<T> {
         &mut self.data[..]
     }
 
-    /// Returns a PixelSliceMut representing the pixel located at `(x, y`
+    /// Returns a slice representing the pixel located at `(x, y)`, clamping `x` and `y` to the
+    /// appropriate ranges
+    pub fn get_pixel_clamped(&self, x: u32, y: u32) -> &[T] {
+        let x_clamp = math::clamp_max(x, self.info.width - 1);
+        let y_clamp = math::clamp_max(y, self.info.height - 1);
+
+        &self[y_clamp * self.info.width + x_clamp]
+    }
+
+    /// Returns a mutable slice representing the pixel located at `(x, y)`
+    ///
+    /// # Panics
+    ///
+    /// Panics if `x` or `y` is out of bounds
     pub fn get_pixel_mut(&mut self, x: u32, y: u32) -> &mut [T] {
         if x >= self.info.width {
             panic!("index out of bounds: the width is {}, but the x index is {}", self.info.width, x)
@@ -206,6 +221,15 @@ impl<T: Number> Image<T> {
 
         let start = self.index(x, y);
         &mut self.data[start..(start + self.info.channels as usize)]
+    }
+
+    /// Returns a mutable slice representing the pixel located at `(x, y)`, clamping `x` and `y`
+    /// to the appropriate ranges
+    pub fn get_pixel_mut_clamped(&mut self, x: u32, y: u32) -> &mut [T] {
+        let x_clamp = math::clamp_max(x, self.info.width - 1);
+        let y_clamp = math::clamp_max(y, self.info.height - 1);
+
+        &mut self[y_clamp * self.info.width + x_clamp]
     }
 
     /// Returns a `SubImage<T>` representing the part of the image of width `width` and height
@@ -276,6 +300,10 @@ impl<T: Number> Image<T> {
     }
 
     /// Replaces the pixel located at `(x, y)` with `pixel`
+    ///
+    /// # Panics
+    ///
+    /// Panics if the length of `pixel` is not equal to the number of channels in the image
     pub fn set_pixel(&mut self, x: u32, y: u32, pixel: &[T]) {
         if pixel.len() != self.info.channels as usize {
             panic!("invalid pixel length: the number of channels is {}, \

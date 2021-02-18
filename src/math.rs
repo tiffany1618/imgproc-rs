@@ -199,6 +199,15 @@ pub fn clamp<T: Number>(x: T, min: T, max: T) -> T {
     x
 }
 
+/// If `x` is greater than `max`, returns `max`; otherwise returns `x`
+pub fn clamp_max<T: Number>(x: T, max: T) -> T {
+    if x >= max {
+        return max;
+    }
+
+    return x;
+}
+
 /// Normalized sinc function
 pub fn sinc_norm(x: f64) -> f64 {
     if x == 0.0 {

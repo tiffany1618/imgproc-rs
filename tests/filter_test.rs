@@ -109,7 +109,7 @@ fn unsharp_masking_par() {
     write(&filtered.into(), "images/tests/filter/unsharp_masking.png").unwrap();
 }
 
-#[test]
+// #[test]
 fn prewitt_par() {
     let img: Image<f64> = setup().unwrap().into();
 
@@ -120,7 +120,7 @@ fn prewitt_par() {
     write(&filtered.into(), "images/tests/filter/prewitt.png").unwrap();
 }
 
-#[test]
+// #[test]
 fn sobel_par() {
     let img: Image<f64> = setup().unwrap().into();
 
@@ -131,7 +131,7 @@ fn sobel_par() {
     write(&filtered.into(), "images/tests/filter/sobel.png").unwrap();
 }
 
-#[test]
+// #[test]
 fn sobel_weighted_par() {
     let img: Image<f64> = setup().unwrap().into();
 

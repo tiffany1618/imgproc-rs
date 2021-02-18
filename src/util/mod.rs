@@ -5,7 +5,7 @@ pub mod constants;
 use crate::{error, math};
 use crate::enums::White;
 use crate::error::ImgProcResult;
-use crate::image::{BaseImage, Image, Number};
+use crate::image::{BaseImage, Image, Number, ImageInfo};
 
 use std::collections::{BTreeMap, HashMap};
 use std::f64::consts::{E, PI};
@@ -219,6 +219,7 @@ pub fn rectangular_intensity_sum(summed_area_table: &Image<f64>, x_0: u32, y_0: 
     sum
 }
 
+/// Converts 1D vector index to 2D matrix coordinates
 pub fn get_2d_coords(i: u32, width: u32) -> (u32, u32) {
     let x = i % width;
     let y = (i - x) / width;
