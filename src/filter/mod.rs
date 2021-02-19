@@ -1,5 +1,9 @@
 //! A module for image filtering operations
 
+pub use self::median::*;
+
+mod median;
+
 use crate::{util, colorspace, error, math};
 use crate::image::{Image, BaseImage, Number};
 use crate::util::constants::{K_SOBEL_1D_VERT, K_SOBEL_1D_HORZ, K_UNSHARP_MASKING, K_SHARPEN, K_PREWITT_1D_VERT, K_PREWITT_1D_HORZ};
@@ -7,8 +11,6 @@ use crate::enums::{Thresh, Bilateral, White};
 use crate::error::{ImgProcError, ImgProcResult};
 
 use rayon::prelude::*;
-
-use std::collections::BTreeMap;
 
 /////////////////////
 // Linear filtering
@@ -212,87 +214,6 @@ pub fn gaussian_blur_par(input: &Image<f64>, size: u32, std_dev: f64) -> ImgProc
     let kernel = util::generate_gaussian_kernel(size, std_dev)?;
     Ok(linear_filter_par(input, &kernel)?)
 }
-
-/// Applies a median filter, where each output pixel is the median of the pixels in a
-/// `(2 * radius + 1) x (2 * radius + 1)` kernel in the input image
-pub fn median_filter(input: &Image<f64>, radius: u32) -> ImgProcResult<Image<f64>> {
-    let size = 2 * radius + 1;
-    let (width, height) = input.info().wh();
-    let mut output = Image::blank(input.info());
-
-    for y in 0..height {
-        for x in 0..width {
-            let p_out = median_pixel(input, size, x, y);
-            output.set_pixel(x, y, &p_out);
-        }
-    }
-
-    Ok(output)
-}
-
-/// (Parallel) Applies a median filter, where each output pixel is the median of the pixels in a
-/// `(2 * radius + 1) x (2 * radius + 1)` kernel in the input image
-pub fn median_filter_par(input: &Image<f64>, radius: u32) -> ImgProcResult<Image<f64>> {
-    let size = 2 * radius + 1;
-    let (width, height, channels, alpha) = input.info().whca();
-
-    let data: Vec<Vec<f64>> = (0..input.info().size())
-        .into_par_iter()
-        .map(|i| {
-            let (x, y) = util::get_2d_coords(i, width);
-            median_pixel(input, size, x, y)
-        })
-        .collect();
-
-    Ok(Image::from_vec_of_vec(width, height, channels, alpha, data))
-}
-
-// pub fn median_filter_weiss<T: Number>(input: &Image<T>, radius: u32) -> ImgProcResult<Image<T>> {
-//     let size = 2 * radius + 1;
-//     let center = ((size * size) / 2) as usize;
-//     let (width, height, channels, alpha) = input.info().whca();
-//
-//     let mut output = Image::blank(input.info());
-//     let mut histograms = vec![vec![BTreeMap::new(); height as usize]; channels as usize];
-//
-//     // Initialize histograms
-//     for x in -(radius as i32)..(radius as i32 + 1) {
-//         for y in -(radius as i32)..((height + radius) as i32) {
-//             let p_in = input.get_pixel_clamped(x as u32, y as u32);
-//
-//             for c in 0..(channels as usize) {
-//                 let val = histograms[c][y as usize].entry(p_in[c]).or_insert(1);
-//                 *val += 1;
-//             }
-//         }
-//     }
-//
-//     // Compute first column of median values
-//     for y in 0..height {
-//         let mut p_out = Vec::with_capacity(channels as usize);
-//
-//         for c in 0..(channels as usize) {
-//             let mut sum = 0;
-//
-//             for x in 0..size {
-//                 for (key, val) in &histograms[c][(x + y) as usize] {
-//                     sum += val;
-//                     if sum >= center {
-//                         p_out[c] = key;
-//                         break;
-//                     }
-//                 }
-//             }
-//
-//         }
-//
-//         output.set_pixel(0, y, &p_out);
-//     }
-//
-//     // Compute remaining median values
-//
-//     Ok(output)
-// }
 
 /// Applies an alpha-trimmed mean filter, where each output pixel is the alpha-trimmed mean of the
 /// pixels in a `(2 * radius + 1) x (2 * radius + 1)` kernel in the input image
@@ -574,25 +495,6 @@ pub fn residual<T: Number>(original: &Image<T>, filtered: &Image<T>) -> ImgProcR
     }
 
     Ok(Image::from_slice(width, height, channels, alpha, &data))
-}
-
-fn median_pixel(input: &Image<f64>, size: u32, x: u32, y: u32) -> Vec<f64> {
-    let center = ((size * size) / 2) as usize;
-    let pixels = input.get_neighborhood_2d(x, y, size);
-    let mut p_out = Vec::with_capacity(input.info().channels as usize);
-
-    for c in 0..(input.info().channels as usize) {
-        let mut p_in = Vec::with_capacity(input.info().channels as usize);
-
-        for i in 0..((size * size) as usize) {
-            p_in.push(pixels[i][c]);
-        }
-
-        p_in.sort_unstable_by(|a, b| a.partial_cmp(b).unwrap());
-        p_out.push(p_in[center]);
-    }
-
-    p_out
 }
 
 fn alpha_trimmed_mean_pixel(input: &Image<f64>, size: u32, alpha: u32, x: u32, y: u32) -> Vec<f64> {

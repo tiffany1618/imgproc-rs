@@ -452,8 +452,11 @@ fn interpolate_bicubic(input: &Image<f64>, x_factor: f64, y_factor: f64, x: u32,
 
     let mut p_out = vec![0.0; input.info().channels as usize];
     for m in -1..3 {
+        let x_clamp = (x_in + (m as f64)).clamp(0.0, input.info().width as f64 - 1.0) as u32;
+
         for n in -1..3 {
-            let p_in = input.get_pixel_clamped((x_in + (m as f64)) as u32, (y_in + (n as f64)) as u32);
+            let y_clamp = (y_in + (n as f64)).clamp(0.0, input.info().height as f64 - 1.0) as u32;
+            let p_in = input.get_pixel_unchecked(x_clamp, y_clamp);
             let r = math::cubic_weighting_fn((m as f64) - delta_x)
                 * math::cubic_weighting_fn(delta_y - (n as f64));
 
@@ -474,8 +477,11 @@ fn interpolate_lanczos(input: &Image<f64>, x_factor: f64, y_factor: f64, size: u
 
     let mut p_out = vec![0.0; input.info().channels as usize];
     for i in (1 - (size as i32))..(size as i32 + 1) {
+        let x_clamp = (x_in + (i as f64)).clamp(0.0, input.info().width as f64 - 1.0) as u32;
+
         for j in (1 - (size as i32))..(size as i32 + 1) {
-            let p_in = input.get_pixel_clamped((x_in + (i as f64)) as u32, (y_in + (j as f64)) as u32);
+            let y_clamp = (y_in + (j as f64)).clamp(0.0, input.info().height as f64 - 1.0) as u32;
+            let p_in = input.get_pixel_unchecked(x_clamp, y_clamp);
             let lanczos = math::lanczos_kernel(delta_x - (i as f64), size as f64)
                 * math::lanczos_kernel(delta_y - (j as f64), size as f64);
 

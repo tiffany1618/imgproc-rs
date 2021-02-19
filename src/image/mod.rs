@@ -195,13 +195,9 @@ impl<T: Number> Image<T> {
         &mut self.data[..]
     }
 
-    /// Returns a slice representing the pixel located at `(x, y)`, clamping `x` and `y` to the
-    /// appropriate ranges
-    pub fn get_pixel_clamped(&self, x: u32, y: u32) -> &[T] {
-        let x_clamp = x.clamp(0, self.info.width - 1);
-        let y_clamp = y.clamp(0, self.info.height - 1);
-
-        &self[(y_clamp * self.info.width + x_clamp) as usize]
+    /// Returns a slice representing the pixel located at `(x, y)` without checking index bounds
+    pub fn get_pixel_unchecked(&self, x: u32, y: u32) -> &[T] {
+        &self[(y * self.info.width + x) as usize]
     }
 
     /// Returns a mutable slice representing the pixel located at `(x, y)`
@@ -221,13 +217,10 @@ impl<T: Number> Image<T> {
         &mut self.data[start..(start + self.info.channels as usize)]
     }
 
-    /// Returns a mutable slice representing the pixel located at `(x, y)`, clamping `x` and `y`
-    /// to the appropriate ranges
-    pub fn get_pixel_mut_clamped(&mut self, x: u32, y: u32) -> &mut [T] {
-        let x_clamp = x.clamp(0, self.info.width - 1);
-        let y_clamp = y.clamp(0, self.info.height - 1);
-
-        let index = (y_clamp * self.info.width + x_clamp) as usize;
+    /// Returns a mutable slice representing the pixel located at `(x, y)` without checking index
+    /// bounds
+    pub fn get_pixel_mut_unchecked(&mut self, x: u32, y: u32) -> &mut [T] {
+        let index = (y * self.info.width + x) as usize;
         &mut self[index]
     }
 
