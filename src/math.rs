@@ -169,6 +169,11 @@ pub fn gaussian_fn(x: f64, sigma: f64) -> ImgProcResult<f64> {
     Ok((1.0 / (2.0 * PI * sigma_squared)) * E.powf(-(x * x) / (2.0 * sigma_squared)))
 }
 
+/// Calculates `gaussian_fn(log(x)) / sqrt(x)`
+pub fn gaussian_log_fn(x: f64, sigma: f64) -> ImgProcResult<f64> {
+    Ok(gaussian_fn(x.log10(), sigma)? / x.sqrt())
+}
+
 /// Cubic weighting function for bicubic interpolation
 pub fn cubic_weighting_fn(x: f64) -> f64 {
     (1.0 / 6.0) * (clamp_zero(x + 2.0).powf(3.0)

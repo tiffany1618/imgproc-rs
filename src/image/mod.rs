@@ -33,6 +33,7 @@ std::marker::Copy
 + std::cmp::PartialEq
 + std::cmp::PartialOrd
 + std::marker::Sync
++ std::marker::Send
 + std::ops::Add<Output=Self>
 + std::ops::Sub<Output=Self>
 + std::ops::Mul<Output=Self>
@@ -53,6 +54,7 @@ impl<T> Number for T
     + std::cmp::PartialEq
     + std::cmp::PartialOrd
     + std::marker::Sync
+    + std::marker::Send
     + std::ops::Add<Output=T>
     + std::ops::Sub<Output=T>
     + std::ops::Mul<Output=T>
