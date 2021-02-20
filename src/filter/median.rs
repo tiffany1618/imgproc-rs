@@ -57,14 +57,19 @@ fn median_pixel<T: Number>(input: &Image<T>, size: u32, x: u32, y: u32) -> Vec<T
     p_out
 }
 
-///////////////////////////////////////////
-// Weiss Partial Histogram implementation
-///////////////////////////////////////////
+////////////////////////
+// Weiss Median Filter
+////////////////////////
 
-// http://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.93.1608&rep=rep1&type=pdf
-
+/// Applies a median filter, using Weiss' partial histogram method with a tier radix of 2
+/// For a detailed description, see:
+/// http://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.93.1608&rep=rep1&type=pdf
 pub fn median_filter_weiss(input: &Image<u8>, radius: u32) -> ImgProcResult<Image<u8>> {
-    let n_cols = (4.0 * (radius as f64).powf(2.0 / 3.0)).round() as usize;
+    let mut n_cols = (4.0 * (radius as f64).powf(2.0 / 3.0)).floor() as usize;
+    if n_cols % 2 == 0 {
+        n_cols += 1;
+    }
+
     let mut output = Image::blank(input.info());
 
     for x in (0..output.info().width).step_by(n_cols) {
@@ -79,19 +84,20 @@ struct PartialHistograms {
     data: Vec<[i32; 256]>,
     n_cols: usize,
     n_half: usize,
+    radius: usize,
     size: usize,
 }
 
 impl PartialHistograms {
-    pub fn new(radius: usize) -> Self {
+    pub fn new(radius: usize, n_cols: usize) -> Self {
         let size = (2 * radius + 1) as usize;
-        let n_cols = (4.0 * (radius as f64).powf(2.0 / 3.0)).round() as usize;
         let n_half = n_cols / 2;
 
         PartialHistograms {
             data: vec![[0; 256]; n_cols],
             n_cols,
             n_half,
+            radius,
             size,
         }
     }
@@ -107,16 +113,16 @@ impl PartialHistograms {
 
             for i in n..self.n_half {
                 self.data[n][p_in[i][channel_index] as usize] += inc;
-                self.data[n_upper][p_in[i+self.n_half-1][channel_index] as usize] -= inc;
-            }
+                self.data[n][p_in[i+self.size][channel_index] as usize] -= inc;
 
-            for i in (self.size + n)..(self.size + self.n_half) {
-                self.data[n][p_in[i][channel_index] as usize] -= inc;
-                self.data[n_upper][p_in[i+self.n_half-1][channel_index] as usize] += inc;
+                let i_upper = self.n_cols + 2 * self.radius - i - 1;
+                let i_lower = i_upper - self.size;
+                self.data[n_upper][p_in[i_lower][channel_index] as usize] -= inc;
+                self.data[n_upper][p_in[i_upper][channel_index] as usize] += inc;
             }
         }
 
-        for i in self.n_half..(self.size + self.n_half) {
+        for i in self.n_half..(self.n_half + self.size) {
             self.data[self.n_half][p_in[i][channel_index] as usize] += inc;
         }
     }
@@ -146,12 +152,12 @@ fn process_cols(input: &Image<u8>, output: &mut Image<u8>, radius: u32, n_cols: 
     let size = 2 * radius + 1;
     let center = ((size * size) / 2 + 1) as i32;
     let (width, height, channels) = input.info().whc();
-    let mut histograms = vec![PartialHistograms::new(radius as usize); channels as usize];
+    let mut histograms = vec![PartialHistograms::new(radius as usize, n_cols); channels as usize];
 
     // Initialize histograms
     for j in -(radius as i32)..(radius as i32 + 1) {
         let mut p_in = Vec::new();
-        for i in (x as i32 - radius as i32)..((n_cols as u32 + radius) as i32) {
+        for i in (x as i32 - radius as i32)..((x + n_cols as u32 + radius) as i32) {
             p_in.push(input.get_pixel_unchecked(i.clamp(0, width as i32 - 1) as u32,
                                                 j.clamp(0, height as i32 - 1) as u32));
         }
@@ -160,19 +166,20 @@ fn process_cols(input: &Image<u8>, output: &mut Image<u8>, radius: u32, n_cols: 
     }
 
     // Compute first median values
-    process_row(output, &histograms, center, n_cols, 0, 0);
+    process_row(output, &histograms, center, n_cols, x, 0);
 
     // Compute remaining median values
     for j in 1..height {
         // Update histograms
         let mut p_in = Vec::new();
         let mut p_out = Vec::new();
-        let j_in = (j + 2 * radius).clamp(0, input.info().height - 1);
+        let j_in = (j + radius).clamp(0, input.info().height - 1);
+        let j_out = (j as i32 - radius as i32 - 1).clamp(0, input.info().height as i32 - 1) as u32;
 
-        for i in (x as i32 - radius as i32)..((n_cols as u32 + radius) as i32) {
+        for i in (x as i32 - radius as i32)..((x + n_cols as u32 + radius) as i32) {
             let i_clamp = i.clamp(0, width as i32 - 1) as u32;
             p_in.push(input.get_pixel_unchecked(i_clamp, j_in));
-            p_out.push(input.get_pixel_unchecked(i_clamp, j - 1))
+            p_out.push(input.get_pixel_unchecked(i_clamp, j_out));
         }
 
         add_row(&mut histograms, &p_in, channels as usize);
@@ -205,70 +212,7 @@ fn process_row(output: &mut Image<u8>, histograms: &Vec<PartialHistograms>, cent
             }
         }
 
-        output.set_pixel(x + i as u32, y, &p_out);
+        let x_clamp = (x + i as u32).clamp(0, output.info().width - 1);
+        output.set_pixel(x_clamp, y, &p_out);
     }
 }
-
-// fn process_row2(output: &mut Image<u8>, histograms: &HistArray, radius: u32, center: u8, x: u32, y: u32) {
-//     let channels = output.info().channels as usize;
-//     let mut sums = vec![0; channels];
-//
-//     // Initialize central histogram and find first median value
-//     let mut p_prev = Vec::with_capacity(channels);
-//     'outer_1: for c in 0..channels {
-//         for key in 0u8..=255 {
-//             for i in 0..(2 * radius + 1) {
-//                 if sums[c] + histograms[c][i as usize][key as usize] >= center {
-//                     p_prev.push(key);
-//                     continue 'outer_1;
-//                 }
-//
-//                 sums[c] += histograms[c][i as usize][key as usize];
-//             }
-//         }
-//     }
-//     output.set_pixel(x, 0, &p_prev);
-//
-//     for y in 1..output.info().height {
-//         let y_rem = (y as i32 - 1).clamp(0, output.info().height as i32 - 1) as usize;
-//         let y_add = (y + 2 * radius) as usize;
-//
-//         let mut p_out = Vec::with_capacity(channels);
-//         'outer_2: for c in 0..channels {
-//             for key in 0u8..p_prev[c] {
-//                 // Remove old pixel values
-//                 sums[c] -= histograms[c][y_rem][key as usize];
-//
-//                 // Add new pixel values
-//                 sums[c] += histograms[c][y_add][key as usize];
-//             }
-//
-//             if sums[c] < center {
-//                 for key in p_prev[c]..=255 {
-//                     for i in y..(y + 2 * radius + 1) {
-//                         if sums[c] + histograms[c][i as usize][key as usize] >= center {
-//                             p_out.push(key);
-//                             continue 'outer_2;
-//                         }
-//
-//                         sums[c] += histograms[c][i as usize][key as usize];
-//                     }
-//                 }
-//             } else {
-//                 for key in (0..p_prev[c]).rev() {
-//                     for i in y..(y + 2 * radius + 1) {
-//                         sums[c] -= histograms[c][i as usize][key as usize];
-//
-//                         if sums[c] < center {
-//                             p_out.push(key);
-//                             continue 'outer_2;
-//                         }
-//                     }
-//                 }
-//             }
-//         }
-//
-//         output.set_pixel(x, y, &p_out);
-//         p_prev = p_out;
-//     }
-// }
