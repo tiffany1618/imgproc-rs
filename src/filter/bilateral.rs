@@ -54,7 +54,7 @@ pub fn bilateral_filter_par(input: &Image<u8>, range: f64, spatial: f64, algorit
                 .into_par_iter()
                 .map(|i| {
                     let (x, y) = util::get_2d_coords(i, width);
-                    bilateral_direct_log_pixel(&lab, range, &spatial_mat, size, x, y)
+                    bilateral_direct_pixel(&lab, range, &spatial_mat, size, x, y)
                 })
                 .collect();
 
