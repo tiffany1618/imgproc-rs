@@ -1,7 +1,6 @@
 //! A module for image colorspace conversion operations
 
-use crate::util;
-use crate::util::math;
+use crate::{util, math};
 use crate::util::constants::{GAMMA, SRGB_TO_XYZ_MAT, XYZ_TO_SRGB_MAT};
 use crate::image::Image;
 use crate::enums::White;
@@ -84,7 +83,7 @@ pub fn xyz_to_srgb_lin(input: &Image<f64>) -> Image<f64> {
 // Input: CIEXYZ range [0, 1]
 // Output: CIELAB with L* channel range [0, 1]
 pub fn xyz_to_lab(input: &Image<f64>, ref_white: &White) -> Image<f64> {
-    let (x_n, y_n, z_n) = util::generate_xyz_tristimulus_vals(ref_white).unwrap();
+    let (x_n, y_n, z_n) = util::generate_xyz_tristimulus_vals(ref_white);
 
     input.map_pixels_if_alpha(|channels| {
         let x = util::xyz_to_lab_fn(channels[0] * 100.0 / x_n);
@@ -101,7 +100,7 @@ pub fn xyz_to_lab(input: &Image<f64>, ref_white: &White) -> Image<f64> {
 // Input: CIELAB with L* channel range [0, 1]
 // Output: CIEXYZ range [0, 1]
 pub fn lab_to_xyz(input: &Image<f64>, ref_white: &White) -> Image<f64> {
-    let (x_n, y_n, z_n) = util::generate_xyz_tristimulus_vals(ref_white).unwrap();
+    let (x_n, y_n, z_n) = util::generate_xyz_tristimulus_vals(ref_white);
 
     input.map_pixels_if_alpha(|channels| {
         let n = (channels[0] + 16.0) / 116.0;

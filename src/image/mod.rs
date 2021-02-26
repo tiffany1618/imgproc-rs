@@ -1,17 +1,20 @@
 //! A module for the core image structs and traits
 
+pub use self::sub_image::*;
+pub use self::pixel::*;
+pub use self::from_impl::*;
+pub use self::pixel_iter::*;
+
+mod sub_image;
+mod pixel;
+mod from_impl;
+mod pixel_iter;
+
 /// A struct representing an image
 #[derive(Debug, Clone, PartialEq)]
 pub struct Image<T: Number> {
     info: ImageInfo,
     data: Vec<T>,
-}
-
-/// A struct representing a part of an image
-#[derive(Debug, Clone)]
-pub struct SubImage<'a, T: Number> {
-    info: ImageInfo,
-    data: Vec<&'a [T]>,
 }
 
 /// A struct containing image information
@@ -28,14 +31,19 @@ pub trait Number:
 std::marker::Copy
 + std::fmt::Display
 + std::cmp::PartialEq
++ std::cmp::PartialOrd
++ std::marker::Sync
++ std::marker::Send
 + std::ops::Add<Output=Self>
 + std::ops::Sub<Output=Self>
 + std::ops::Mul<Output=Self>
 + std::ops::Div<Output=Self>
++ std::ops::Rem<Output=Self>
 + std::ops::AddAssign
 + std::ops::SubAssign
 + std::ops::MulAssign
 + std::ops::DivAssign
++ std::ops::RemAssign
 + From<u8>
     where Self: std::marker::Sized {}
 
@@ -44,14 +52,19 @@ impl<T> Number for T
     std::marker::Copy
     + std::fmt::Display
     + std::cmp::PartialEq
+    + std::cmp::PartialOrd
+    + std::marker::Sync
+    + std::marker::Send
     + std::ops::Add<Output=T>
     + std::ops::Sub<Output=T>
     + std::ops::Mul<Output=T>
     + std::ops::Div<Output=T>
+    + std::ops::Rem<Output=T>
     + std::ops::AddAssign
     + std::ops::SubAssign
     + std::ops::MulAssign
     + std::ops::DivAssign
+    + std::ops::RemAssign
     + From<u8> {}
 
 /// A trait for a base image
@@ -59,43 +72,8 @@ pub trait BaseImage<T: Number> {
     /// Returns the image information
     fn info(&self) -> ImageInfo;
 
-    /// Returns a PixelSlice representing the pixel located at `(x, y)`
+    /// Returns a slice representing the pixel located at `(x, y)`
     fn get_pixel(&self, x: u32, y: u32) -> &[T];
-}
-
-/// A trait for image pixels
-pub trait Pixel<T: Number> {
-    /// Returns the last channel of the pixel
-    fn alpha(&self) -> T;
-
-    /// Returns the last channel of the pixel
-    fn channels_without_alpha(&self) -> &[T];
-
-    /// Applies function `f` to each channel
-    fn map_all<S: Number, F>(&self, f: F) -> Vec<S>
-        where F: Fn(T) -> S;
-
-    /// Applies function `f` to each channel except the last channel, and applies
-    /// function `g` to the alpha channel
-    fn map_alpha<S: Number, F, G>(&self, f: F, g: G) -> Vec<S>
-        where F: Fn(T) -> S,
-              G: Fn(T) -> S;
-
-    /// Applies function `f` to each channel
-    fn apply<F>(&mut self, f: F)
-        where F: Fn(T) -> T;
-
-    /// Applies function `f` to each channel except the last channel, and applies
-    /// function `g` to the alpha channel
-    fn apply_alpha<F, G>(&mut self, f: F, g: G)
-        where F: Fn(T) -> T,
-              G: Fn(T) -> T;
-
-    /// Returns true if all channel values are zero
-    fn is_black(&self) -> bool;
-
-    /// Returns true if all channel values except the last channel is zero
-    fn is_black_alpha(&self) -> bool;
 }
 
 impl ImageInfo {
@@ -146,11 +124,45 @@ impl std::fmt::Display for ImageInfo {
 }
 
 impl<T: Number> Image<T> {
-    /// Creates a new `Image<T>`
-    pub fn new(width: u32, height: u32, channels: u8, alpha: bool, data: &[T]) -> Self {
+    /// Creates a new `Image<T>` from a slice
+    pub fn from_slice(width: u32, height: u32, channels: u8, alpha: bool, data: &[T]) -> Self {
         Image {
             info: ImageInfo{ width, height, channels, alpha },
             data: data.to_vec(),
+        }
+    }
+
+    /// Creates a new `Image<T>` from a vector
+    pub fn from_vec(width: u32, height: u32, channels: u8, alpha: bool, data: Vec<T>) -> Self {
+        Image {
+            info: ImageInfo{ width, height, channels, alpha },
+            data,
+        }
+    }
+
+    /// Creates a new `Image<T>` from a vector of vectors
+    pub fn from_vec_of_vec(width: u32, height: u32, channels: u8, alpha: bool, data: Vec<Vec<T>>) -> Self {
+        let mut data_vec = Vec::with_capacity((width * height * channels as u32) as usize);
+        for vec in &data {
+            data_vec.extend_from_slice(vec)
+        }
+
+        Image {
+            info: ImageInfo{ width, height, channels, alpha },
+            data: data_vec,
+        }
+    }
+
+    /// Creates a new `Image<T>` from a vector of slices
+    pub fn from_vec_of_slice(width: u32, height: u32, channels: u8, alpha: bool, data: Vec<&[T]>) -> Self {
+        let mut data_vec = Vec::with_capacity((width * height * channels as u32) as usize);
+        for vec in data {
+            data_vec.extend_from_slice(vec)
+        }
+
+        Image {
+            info: ImageInfo{ width, height, channels, alpha },
+            data: data_vec,
         }
     }
 
@@ -185,7 +197,16 @@ impl<T: Number> Image<T> {
         &mut self.data[..]
     }
 
-    /// Returns a PixelSliceMut representing the pixel located at `(x, y`
+    /// Returns a slice representing the pixel located at `(x, y)` without checking index bounds
+    pub fn get_pixel_unchecked(&self, x: u32, y: u32) -> &[T] {
+        &self[(y * self.info.width + x) as usize]
+    }
+
+    /// Returns a mutable slice representing the pixel located at `(x, y)`
+    ///
+    /// # Panics
+    ///
+    /// Panics if `x` or `y` is out of bounds
     pub fn get_pixel_mut(&mut self, x: u32, y: u32) -> &mut [T] {
         if x >= self.info.width {
             panic!("index out of bounds: the width is {}, but the x index is {}", self.info.width, x)
@@ -196,6 +217,13 @@ impl<T: Number> Image<T> {
 
         let start = self.index(x, y);
         &mut self.data[start..(start + self.info.channels as usize)]
+    }
+
+    /// Returns a mutable slice representing the pixel located at `(x, y)` without checking index
+    /// bounds
+    pub fn get_pixel_mut_unchecked(&mut self, x: u32, y: u32) -> &mut [T] {
+        let index = (y * self.info.width + x) as usize;
+        &mut self[index]
     }
 
     /// Returns a `SubImage<T>` representing the part of the image of width `width` and height
@@ -266,6 +294,10 @@ impl<T: Number> Image<T> {
     }
 
     /// Replaces the pixel located at `(x, y)` with `pixel`
+    ///
+    /// # Panics
+    ///
+    /// Panics if the length of `pixel` is not equal to the number of channels in the image
     pub fn set_pixel(&mut self, x: u32, y: u32, pixel: &[T]) {
         if pixel.len() != self.info.channels as usize {
             panic!("invalid pixel length: the number of channels is {}, \
@@ -471,120 +503,5 @@ impl<T: Number> std::ops::IndexMut<usize> for Image<T> {
 
         let start = i * (self.info.channels as usize);
         &mut self.data[start..(start + self.info.channels as usize)]
-    }
-}
-
-impl<'a, T: Number> SubImage<'a, T> {
-    /// Creates a new `SubImage<T>`
-    pub fn new(width: u32, height: u32, channels: u8, alpha: bool, data: Vec<&'a [T]>) -> Self {
-        SubImage {
-            info: ImageInfo { width, height, channels, alpha },
-            data,
-        }
-    }
-
-    /// Returns all data as a slice of slices
-    pub fn data(&self) -> &[&[T]] {
-        &self.data[..]
-    }
-
-    /// Converts all data to a vector
-    pub fn to_vec(&self) -> Vec<T> {
-        let mut data = Vec::new();
-
-        for i in 0..(self.info.size() as usize) {
-            data.extend_from_slice(&self[i]);
-        }
-
-        data
-    }
-}
-
-impl<T: Number> BaseImage<T> for SubImage<'_, T> {
-    fn info(&self) -> ImageInfo {
-        self.info
-    }
-
-    fn get_pixel(&self, x: u32, y: u32) -> &[T] {
-        &self[(y * self.info.width + x) as usize]
-    }
-}
-
-impl<T: Number> std::ops::Index<usize> for SubImage<'_, T> {
-    type Output = [T];
-
-    fn index(&self, i: usize) -> &Self::Output {
-        self.data[i]
-    }
-}
-
-impl<T: Number> Pixel<T> for [T] {
-    fn alpha(&self) -> T {
-        self[self.len()-1]
-    }
-
-    fn channels_without_alpha(&self) -> &[T] {
-        &self[..(self.len()-1)]
-    }
-
-    fn map_all<S: Number, F>(&self, f: F) -> Vec<S>
-        where F: Fn(T) -> S {
-        let mut channels_out = Vec::new();
-
-        for channel in self.iter() {
-            channels_out.push(f(*channel));
-        }
-
-        channels_out
-    }
-
-    fn map_alpha<S: Number, F, G>(&self, f: F, g: G) -> Vec<S>
-        where F: Fn(T) -> S,
-              G: Fn(T) -> S {
-        let mut channels_out = Vec::new();
-
-        for channel in self.channels_without_alpha().iter() {
-            channels_out.push(f(*channel));
-        }
-
-        channels_out.push(g(self.alpha()));
-        channels_out
-    }
-
-    fn apply<F>(&mut self, f: F)
-        where F: Fn(T) -> T {
-        for i in 0..self.len() {
-            self[i] = f(self[i]);
-        }
-    }
-
-    fn apply_alpha<F, G>(&mut self, f: F, g: G)
-        where F: Fn(T) -> T,
-              G: Fn(T) -> T {
-        for i in 0..(self.len() - 1) {
-            self[i] = f(self[i]);
-        }
-
-        self[self.len()-1] = g(self.alpha());
-    }
-
-    fn is_black(&self) -> bool {
-        for channel in self.iter() {
-            if *channel != 0.into() {
-                return false;
-            }
-        }
-
-        true
-    }
-
-    fn is_black_alpha(&self) -> bool {
-        for channel in self.channels_without_alpha().iter() {
-            if *channel != 0.into() {
-                return false;
-            }
-        }
-
-        true
     }
 }

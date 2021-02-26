@@ -1,24 +1,24 @@
 //! A module for image utility functions
 
-use std::collections::{BTreeMap, HashMap};
-
-use crate::enums::White;
-use crate::error::{ImgProcResult, ImgProcError};
-use crate::image::{BaseImage, Image, Number};
-use std::f64::consts::{PI, E};
-
-pub mod math;
 pub mod constants;
+
+use crate::{error, math};
+use crate::enums::White;
+use crate::error::ImgProcResult;
+use crate::image::{BaseImage, Image, Number};
+
+use std::collections::{BTreeMap, HashMap};
+use std::f64::consts::{E, PI};
 
 ////////////////////////////
 // Image helper functions
 ////////////////////////////
 
 /// Returns a tuple representing the XYZ tristimulus values for a given reference white value
-pub fn generate_xyz_tristimulus_vals(ref_white: &White) -> ImgProcResult<(f64, f64, f64)> {
+pub fn generate_xyz_tristimulus_vals(ref_white: &White) -> (f64, f64, f64) {
     return match ref_white {
-        White::D50 => Ok((96.4212, 100.0, 82.5188)),
-        White::D65 => Ok((95.0489, 100.0, 108.8840)),
+        White::D50 => (96.4212, 100.0, 82.5188),
+        White::D65 => (95.0489, 100.0, 108.8840),
     }
 }
 
@@ -82,9 +82,7 @@ pub fn create_lookup_table<T: Number, F>(table: &mut [T; 256], f: F)
 
 /// Generates a Gaussian kernel
 pub fn generate_gaussian_kernel(size: u32, std_dev: f64) -> ImgProcResult<Vec<f64>> {
-    if size % 2 == 0 {
-        return Err(ImgProcError::InvalidArgError("size is not odd".to_string()));
-    }
+    error::check_odd(size, "size")?;
 
     let mut filter = vec![0.0; (size * size) as usize];
     let k = (size - 1) / 2;
@@ -104,6 +102,54 @@ pub fn generate_gaussian_kernel(size: u32, std_dev: f64) -> ImgProcResult<Vec<f6
     }
 
     Ok(filter)
+}
+
+/// Generates a matrix of distances relative to the center of the matrix
+pub fn generate_spatial_mat(size: u32, spatial: f64) -> ImgProcResult<Vec<f64>> {
+    let center = size / 2;
+    let mut mat = vec![0.0; (size * size) as usize];
+
+    for y in 0..(center + 1) {
+        for x in 0..(center + 1) {
+            if mat[(y * size + x) as usize] == 0.0 && !(x == center && y == center) {
+                let dist = math::distance(center, center, x, y);
+                let g = math::gaussian_fn(dist, spatial)?;
+                mat[(y * size + x) as usize] = g;
+
+                if x == y {
+                    let delta = center - y;
+                    let coord = center + delta;
+
+                    mat[(coord * size + x) as usize] = g;
+                    mat[(x * size + coord) as usize] = g;
+                    mat[(coord * size + coord) as usize] = g;
+                } else if x == center {
+                    let delta = center - y;
+
+                    mat[(x * size + x - delta) as usize] = g;
+                    mat[(x * size + x + delta) as usize] = g;
+                    mat[((x + delta) * size + x) as usize] = g;
+                } else {
+                    let delta_x = center - x;
+                    let delta_y = center - y;
+                    let pos_x = center + delta_x;
+                    let pos_y = center + delta_y;
+                    let neg_x = center - delta_x;
+                    let neg_y = center - delta_y;
+
+                    mat[(neg_x * size + neg_y) as usize] = g;
+                    mat[(neg_y * size + pos_x) as usize] = g;
+                    mat[(pos_x * size + neg_y) as usize] = g;
+                    mat[(pos_y * size + neg_x) as usize] = g;
+                    mat[(neg_x * size + pos_y) as usize] = g;
+                    mat[(pos_y * size + pos_x) as usize] = g;
+                    mat[(pos_x * size + pos_y) as usize] = g;
+                }
+            }
+        }
+    }
+
+    Ok(mat)
 }
 
 /// Generates a summed-area table in the format of another `Image` of the same type and dimensions
@@ -173,11 +219,10 @@ pub fn rectangular_intensity_sum(summed_area_table: &Image<f64>, x_0: u32, y_0: 
     sum
 }
 
-//////////
-// Misc.
-//////////
+/// Converts 1D vector index to 2D matrix coordinates
+pub fn get_2d_coords(i: u32, width: u32) -> (u32, u32) {
+    let x = i % width;
+    let y = (i - x) / width;
 
-/// Returns `true` if an image is a grayscale image
-pub fn is_grayscale(channels: u8, alpha: bool) -> bool {
-    (alpha && channels == 2) || (!alpha && channels == 1)
+    (x, y)
 }

@@ -43,7 +43,7 @@ pub fn read(filename: &str) -> ImgIoResult<Image<u8>> {
     let (width, height) = img.dimensions();
     let (channels, alpha) = from_color_type(img.color())?;
 
-    Ok(Image::new(width, height, channels, alpha, img.as_bytes()))
+    Ok(Image::from_slice(width, height, channels, alpha, img.as_bytes()))
 }
 
 /// Writes an RGB(A)8 or Gray(A)8 `Image<u8>` into an image file. A wrapper around `image::io::Reader::save()`

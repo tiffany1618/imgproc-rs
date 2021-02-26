@@ -41,11 +41,11 @@ pub enum Scale {
     /// Bilinear interpolation
     Bilinear,
 
-    // /// Bicubic interpolation
-    // Bicubic,
-    //
-    // /// Sinc resampling
-    // Sinc,
+    /// Bicubic interpolation
+    Bicubic,
+
+    /// Lanczos resampling with kernel size of 3
+    Lanczos,
 }
 
 /// An enum for image reflection axes
@@ -64,9 +64,9 @@ pub enum Bilateral {
     /// Direct bilateral filter algorithm
     Direct,
 
-    // /// Bilateral grid algorithm
-    // Grid,
-    //
-    // /// Local histogram algorithm
-    // LocalHistogram,
+//     /// Bilateral grid algorithm
+//     Grid,
+//
+//     /// Local histogram algorithm
+//     LocalHistogram,
 }
