@@ -54,7 +54,7 @@ fn gaussian_blur_par() {
     write(&filtered.into(), "images/tests/filter/gaussian_blur.png").unwrap();
 }
 
-#[test]
+// #[test]
 fn median_filter() {
     let img = setup().unwrap();
 
@@ -65,7 +65,7 @@ fn median_filter() {
     write(&filtered.into(), "images/tests/filter/median.png").unwrap();
 }
 
-#[test]
+// #[test]
 fn alpha_trimmed_mean_filter() {
     let img = setup().unwrap();
 
