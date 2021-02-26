@@ -54,23 +54,23 @@ fn gaussian_blur_par() {
     write(&filtered.into(), "images/tests/filter/gaussian_blur.png").unwrap();
 }
 
-// #[test]
-fn median_filter_par() {
-    let img: Image<f64> = setup().unwrap().into();
+#[test]
+fn median_filter() {
+    let img = setup().unwrap();
 
     let now = SystemTime::now();
-    let filtered = filter::median_filter_par(&img, 5).unwrap();
+    let filtered = filter::median_filter(&img, 5).unwrap();
     println!("median filter: {}", now.elapsed().unwrap().as_millis());
 
     write(&filtered.into(), "images/tests/filter/median.png").unwrap();
 }
 
-// #[test]
-fn alpha_trimmed_mean_filter_par() {
-    let img: Image<f64> = setup().unwrap().into();
+#[test]
+fn alpha_trimmed_mean_filter() {
+    let img = setup().unwrap();
 
     let now = SystemTime::now();
-    let filtered = filter::alpha_trimmed_mean_filter_par(&img, 5, 2).unwrap();
+    let filtered = filter::alpha_trimmed_mean_filter(&img, 5, 2).unwrap();
     println!("alpha trimmed mean filter: {}", now.elapsed().unwrap().as_millis());
 
     write(&filtered.into(), "images/tests/filter/alpha.png").unwrap();

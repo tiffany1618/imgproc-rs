@@ -2,7 +2,6 @@ use crate::error;
 use crate::error::{ImgProcResult, ImgProcError};
 use crate::image::{Image, BaseImage};
 
-use rayon::prelude::*;
 use std::cmp::Reverse;
 
 /// Applies a median filter, where each output pixel is the median of the pixels in a

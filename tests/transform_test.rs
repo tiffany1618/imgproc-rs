@@ -155,15 +155,15 @@ fn shear() {
     let output_pp = transform::shear(&img, 0.5, 0.0).unwrap();
     println!("shear px: {}", now.elapsed().unwrap().as_millis());
 
-    let mut now = SystemTime::now();
+    now = SystemTime::now();
     let output_np = transform::shear(&img, -0.5, 0.0).unwrap();
     println!("shear nx: {}", now.elapsed().unwrap().as_millis());
 
-    let mut now = SystemTime::now();
+    now = SystemTime::now();
     let output_pn = transform::shear(&img, 0.0, 0.5).unwrap();
     println!("shear py: {}", now.elapsed().unwrap().as_millis());
 
-    let mut now = SystemTime::now();
+    now = SystemTime::now();
     let output_nn = transform::shear(&img, 0.0, -0.5).unwrap();
     println!("shear ny: {}", now.elapsed().unwrap().as_millis());
 

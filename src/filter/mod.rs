@@ -10,7 +10,7 @@ use crate::{util, colorspace, error, math};
 use crate::image::{Image, BaseImage, Number};
 use crate::util::constants::{K_SOBEL_1D_VERT, K_SOBEL_1D_HORZ, K_UNSHARP_MASKING, K_SHARPEN, K_PREWITT_1D_VERT, K_PREWITT_1D_HORZ};
 use crate::enums::Thresh;
-use crate::error::{ImgProcError, ImgProcResult};
+use crate::error::ImgProcResult;
 
 use rayon::prelude::*;
 
