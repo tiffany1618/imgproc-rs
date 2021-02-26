@@ -3,6 +3,7 @@ use crate::error::{ImgProcResult, ImgProcError};
 use crate::image::{Image, BaseImage};
 
 use rayon::prelude::*;
+use std::cmp::Reverse;
 
 /// Applies a median filter, where each output pixel is the median of the pixels in a
 /// `(2 * radius + 1) x (2 * radius + 1)` kernel in the input image. Based on Ben Weiss' partial
@@ -25,7 +26,7 @@ pub fn median_filter(input: &Image<u8>, radius: u32) -> ImgProcResult<Image<u8>>
 
 /// Applies an alpha-trimmed mean filter, where each output pixel is the alpha-trimmed mean of the
 /// pixels in a `(2 * radius + 1) x (2 * radius + 1)` kernel in the input image
-pub fn alpha_trimmed_mean(input: &Image<u8>, radius: u32, alpha: u32) -> ImgProcResult<Image<u8>> {
+pub fn alpha_trimmed_mean_filter(input: &Image<u8>, radius: u32, alpha: u32) -> ImgProcResult<Image<u8>> {
     let size = 2 * radius + 1;
     error::check_even(alpha, "alpha")?;
     if alpha >= (size * size) {
@@ -56,7 +57,7 @@ struct PartialHistograms {
 }
 
 impl PartialHistograms {
-    pub fn new(radius: usize, n_cols: usize) -> Self {
+    fn new(radius: usize, n_cols: usize) -> Self {
         let size = (2 * radius + 1) as usize;
         let n_half = n_cols / 2;
 
@@ -69,7 +70,7 @@ impl PartialHistograms {
         }
     }
 
-    pub fn update(&mut self, p_in: &Vec<&[u8]>, channel_index: usize, add: bool) {
+    fn update(&mut self, p_in: &Vec<&[u8]>, channel_index: usize, add: bool) {
         let mut inc = 1;
         if !add {
             inc *= -1;
@@ -96,7 +97,7 @@ impl PartialHistograms {
         }
     }
 
-    pub fn get_count(&self, key: usize, index: usize) -> i32 {
+    fn get_count(&self, key: usize, index: usize) -> i32 {
         let mut count = self.data[self.n_half][key as usize];
         if index != self.n_half {
             count += self.data[index][key as usize];
@@ -118,7 +119,7 @@ struct MedianHist {
 }
 
 impl MedianHist {
-    pub fn new(radius: usize, n_cols: usize) -> Self {
+    fn new(radius: usize, n_cols: usize) -> Self {
         MedianHist {
             data: PartialHistograms::new(radius, n_cols),
             sums: vec![0; n_cols],
@@ -126,31 +127,31 @@ impl MedianHist {
         }
     }
 
-    pub fn data(&self) -> &PartialHistograms {
+    fn data(&self) -> &PartialHistograms {
         &self.data
     }
 
-    pub fn sums(&self) -> &[i32] {
+    fn sums(&self) -> &[i32] {
         &self.sums
     }
 
-    pub fn pivots(&self) -> &[u8] {
+    fn pivots(&self) -> &[u8] {
         &self.pivots
     }
 
-    pub fn init_pivots(&mut self) {
+    fn init_pivots(&mut self) {
         self.pivots = vec![0; self.data.n_cols];
     }
 
-    pub fn set_pivot(&mut self, pivot: u8, index: usize) {
+    fn set_pivot(&mut self, pivot: u8, index: usize) {
         self.pivots[index] = pivot;
     }
 
-    pub fn set_sum(&mut self, sum: i32, index: usize) {
+    fn set_sum(&mut self, sum: i32, index: usize) {
         self.sums[index] = sum;
     }
 
-    pub fn update(&mut self, p_in: &Vec<&[u8]>, channel_index: usize, add: bool) {
+    fn update(&mut self, p_in: &Vec<&[u8]>, channel_index: usize, add: bool) {
         self.data.update(p_in, channel_index, add);
 
         let mut inc = 1;
@@ -320,7 +321,7 @@ struct MeanHist {
 }
 
 impl MeanHist {
-    pub fn new(radius: usize, n_cols: usize, alpha: u32) -> Self {
+    fn new(radius: usize, n_cols: usize, alpha: u32) -> Self {
         let size = 2 * radius + 1;
         let len = ((size * size) - alpha as usize) as f32;
 
@@ -329,117 +330,111 @@ impl MeanHist {
             sums: Vec::with_capacity(n_cols),
             lower: Vec::with_capacity(n_cols),
             upper: Vec::with_capacity(n_cols),
-            trim: alpha as usize / 2,
+            trim: (alpha as usize) / 2,
             len,
         }
     }
 
-    pub fn data(&self) -> &PartialHistograms {
+    fn data(&self) -> &PartialHistograms {
         &self.data
     }
 
-    pub fn init(&mut self) {
+    fn init(&mut self) {
         self.sums = vec![0; self.data.n_cols];
         self.lower = vec![Vec::with_capacity(self.trim); self.data.n_cols];
         self.upper = vec![Vec::with_capacity(self.trim); self.data.n_cols];
     }
 
-    pub fn update(&mut self, p_in: &Vec<&[u8]>, channel_index: usize, add: bool) {
+    fn update(&mut self, p_in: &Vec<&[u8]>, channel_index: usize, add: bool) {
         if !self.sums.is_empty() {
-            for n in 0..self.data.n_cols {
-                let lower = self.lower[n];
-                let upper = self.upper[n];
+            if add {
+                for n in 0..self.data.n_cols {
+                    for i in n..(n + self.data.size) {
+                        let val = p_in[i][channel_index];
+                        let lower = self.lower(n);
+                        let upper = self.upper(n);
 
-                for i in n..(n + self.data.size) {
-                    let val = p_in[i][channel_index];
-
-                    if add {
                         if val < lower {
+                            self.lower[n].remove(self.trim -  1);
                             self.sums[n] += lower as i32;
 
-                            if !(self.data.get_count(lower as usize, n) > 1) {
-                                for key in (0..lower).rev() {
-                                    if self.data.get_count(key as usize, n) > 0 {
-                                        if val <= key {
-                                            self.lower[n] = key;
-                                            break;
-                                        } else {
-                                            self.lower[n] = val;
-                                            break;
-                                        }
-                                    }
-                                }
-                            }
+                            let pos = self.lower[n].binary_search(&val).unwrap_or_else(|e| e);
+                            self.lower[n].insert(pos, val);
                         } else if val > upper {
+                            self.upper[n].remove(self.trim - 1);
                             self.sums[n] += upper as i32;
 
-                            if !(self.data.get_count(upper as usize, n) > 1) {
-                                for key in (upper + 1)..=255 {
-                                    if self.data.get_count(key as usize, n) > 0 {
-                                        if val >= key {
-                                            self.upper[n] = key;
-                                            break;
-                                        } else {
-                                            self.upper[n] = val;
-                                            break;
-                                        }
-                                    }
-                                }
-                            }
+                            let pos = self.lower[n].binary_search_by_key(&Reverse(&val), Reverse).unwrap_or_else(|e| e);
+                            self.upper[n].insert(pos, val);
                         } else {
                             self.sums[n] += val as i32;
                         }
-                    } else {
-                        if val <= lower {
-                            if self.data.get_count(lower as usize, n) == 1 {
-                                for key in (lower + 1)..=255 {
-                                    if self.data.get_count(key as usize, n) > 0 {
-                                        self.lower[n] = key;
-                                        self.sums[n] -= key as i32;
-                                    }
-                                }
-                            } else {
-                                let num_low = self.data.get_count(lower as usize, n);
-                                let mut count = 0;
-                                for key in 0..lower {
-                                    count += self.data.get_count(key as usize, n);
-                                }
+                    }
+                }
+                self.data.update(p_in, channel_index, add);
+            } else {
+                self.data.update(p_in, channel_index, add);
+                for n in 0..self.data.n_cols {
+                    for i in n..(n + self.data.size) {
+                        let val = p_in[i][channel_index];
+                        let lower = self.lower(n);
+                        let upper = self.upper(n);
 
-                                if count + num_low - 1 < (self.alpha / 2) as i32 {
-                                    for key in (lower + 1)..=255 {
-                                        if self.data.get_count(key as usize, n) > 0 {
-                                            self.lower[n] = key;
-                                            self.sums[n] -= key as i32;
-                                        }
-                                    }
-                                } else {
-                                    self.sums[n] -= lower as i32;
+                        let mut lower_count = self.data.get_count(lower as usize, n);
+                        let mut upper_count = self.data.get_count(upper as usize, n);
+
+                        for j in i..(n + self.data.size) {
+                            if p_in[j][channel_index] == lower {
+                                lower_count += 1;
+                            } else if p_in[j][channel_index] == upper {
+                                upper_count += 1;
+                            }
+                        }
+
+                        for j in self.lower[n].iter().rev() {
+                            if *j == lower {
+                                lower_count -= 1;
+                            } else {
+                                break;
+                            }
+                        }
+
+                        for j in self.upper[n].iter().rev() {
+                            if *j == upper {
+                                upper_count -= 1;
+                            } else {
+                                break;
+                            }
+                        }
+
+                        if val == lower && lower_count == 0 {
+                            self.lower[n].remove(self.trim - 1);
+                            self.get_next_lower(n, lower_count, lower);
+                        } else if val < lower {
+                            let res = self.lower[n].binary_search(&val);
+
+                            match res {
+                                Ok(pos) => {
+                                    self.lower[n].remove(pos);
+                                    self.get_next_lower(n, lower_count, lower);
+                                },
+                                Err(_) => {
+                                    self.sums[n] -= val as i32;
                                 }
                             }
-                        } else if val >= upper {
-                            if self.data.get_count(upper as usize, n) == 1 {
-                                for key in (0..upper).rev() {
-                                    if self.data.get_count(key as usize, n) > 0 {
-                                        self.upper[n] = key;
-                                        self.sums[n] -= key as i32;
-                                    }
-                                }
-                            } else {
-                                let num_high = self.data.get_count(upper as usize, n);
-                                let mut count = 0;
-                                for key in ((upper + 1)..=255).rev() {
-                                    count += self.data.get_count(key as usize, n);
-                                }
+                        } else if val == upper && upper_count == 0 {
+                            self.upper[n].remove(self.trim - 1);
+                            self.get_next_upper(n, upper_count, upper);
+                        } else if val > upper {
+                            let res = self.lower[n].binary_search_by_key(&Reverse(&val), Reverse);
 
-                                if count + num_high - 1 < (self.alpha / 2) as i32 {
-                                    for key in (0..upper).rev() {
-                                        if self.data.get_count(key as usize, n) > 0 {
-                                            self.upper[n] = key;
-                                            self.sums[n] -= key as i32;
-                                        }
-                                    }
-                                } else {
-                                    self.sums[n] -= upper as i32;
+                            match res {
+                                Ok(pos) => {
+                                    self.upper[n].remove(pos);
+                                    self.get_next_upper(n, upper_count, upper);
+                                },
+                                Err(_) => {
+                                    self.sums[n] -= val as i32;
                                 }
                             }
                         } else {
@@ -448,25 +443,63 @@ impl MeanHist {
                     }
                 }
             }
+        } else {
+            self.data.update(p_in, channel_index, add);
         }
-
-        self.data.update(p_in, channel_index, add);
     }
 
-    pub fn set_sum(&mut self, sum: i32, index: usize) {
+    fn set_sum(&mut self, sum: i32, index: usize) {
         self.sums[index] = sum;
     }
 
-    pub fn set_upper(&mut self, upper: u8, index: usize) {
-        self.upper[index][0] = upper;
+    fn set_upper(&mut self, vals: Vec<u8>, index: usize) {
+        self.upper[index] = vals;
     }
 
-    pub fn set_lower(&mut self, lower: u8, index: usize) {
-        self.lower[index][trim-1] = lower;
+    fn set_lower(&mut self, vals: Vec<u8>, index: usize) {
+        self.lower[index] = vals;
     }
 
-    pub fn get_mean(&self, index: usize) -> u8 {
+    fn upper(&self, index: usize) -> u8 {
+        self.upper[index][self.trim-1]
+    }
+
+    fn lower(&self, index: usize) -> u8 {
+        self.lower[index][self.trim-1]
+    }
+
+    fn get_mean(&self, index: usize) -> u8 {
         ((self.sums[index] as f32) / self.len).round() as u8
+    }
+
+    fn get_next_lower(&mut self, n: usize, lower_count: i32, lower: u8) {
+        if lower_count > 0 {
+            self.lower[n].push(lower);
+            self.sums[n] -= lower as i32;
+        } else {
+            for key in (lower + 1)..=255 {
+                if self.data.get_count(key as usize, n) > 0 {
+                    self.lower[n].push(key);
+                    self.sums[n] -= key as i32;
+                    break;
+                }
+            }
+        }
+    }
+
+    fn get_next_upper(&mut self, n: usize, upper_count: i32, upper: u8) {
+        if upper_count > 0 {
+            self.upper[n].push(upper);
+            self.sums[n] -= upper as i32;
+        } else {
+            for key in (0..upper).rev() {
+                if self.data.get_count(key as usize, n) > 0 {
+                    self.upper[n].push(key);
+                    self.sums[n] -= key as i32;
+                    break;
+                }
+            }
+        }
     }
 }
 
@@ -501,8 +534,6 @@ fn process_cols_mean(input: &Image<u8>, output: &mut Image<u8>, radius: u32, alp
 fn init_cols_mean(input: &Image<u8>, output: &mut Image<u8>, histograms: &mut Vec<MeanHist>, radius: u32, alpha: u32, n_cols: usize, x: u32) {
     let (width, height, channels) = input.info().whc();
     let size = 2 * radius + 1;
-    let lower_count = (alpha / 2) as i32;
-    let upper_count = (size * size) as i32 - lower_count;
 
     // Initialize histograms
     for j in -(radius as i32)..(radius as i32 + 1) {
@@ -521,36 +552,38 @@ fn init_cols_mean(input: &Image<u8>, output: &mut Image<u8>, histograms: &mut Ve
     }
 
     // Compute first mean values
+    let trim = (alpha as usize) / 2;
+    let upper_trim = (size * size) as usize - trim;
     for i in 0..n_cols {
         let mut p_out = Vec::with_capacity(channels as usize);
         for c in 0..(channels as usize) {
             let mut count = 0;
             let mut sum = 0;
-            let mut lower = false;
-            let mut upper = false;
+            let mut upper = Vec::with_capacity(trim);
+            let mut lower = Vec::with_capacity(trim);
 
             for key in 0u8..=255 {
-                let add = histograms[c].data().get_count(key as usize, i);
+                let mut add = histograms[c].data().get_count(key as usize, i);
                 count += add;
+                sum += add * key as i32;
 
-                if count >= lower_count && !lower {
-                    histograms[c].set_lower(key, i);
-                    lower = true;
+                while lower.len() < trim && add > 0 {
+                    lower.push(key);
+                    sum -= key as i32;
+                    add -= 1;
+                }
 
-                    if count - add > 0 {
-                        sum += (count - add) * key as i32;
-                    }
-                } else if count >= upper_count && !upper {
-                    histograms[c].set_upper(key, i);
-                    upper = true;
-
-                    sum += (add - count + upper_count - 1) * key as i32;
-                } else {
-                    sum += add * key as i32;
+                while (count as usize) > upper_trim && upper.len() < trim && add > 0 {
+                    upper.insert(0, key);
+                    sum -= key as i32;
+                    add -= 1;
                 }
             }
 
             histograms[c].set_sum(sum, i);
+            histograms[c].set_upper(upper, i);
+            histograms[c].set_lower(lower, i);
+
             p_out.push(histograms[c].get_mean(i));
         }
 
@@ -566,7 +599,6 @@ fn process_row_mean(output: &mut Image<u8>, histograms: &mut Vec<MeanHist>, n_co
         let mut p_out = Vec::with_capacity(channels);
         for c in 0..channels {
             p_out.push(histograms[c].get_mean(i));
-            // println!("{}", histograms[c].get_mean(i));
         }
 
         let x_clamp = (x + i as u32).clamp(0, output.info().width - 1);

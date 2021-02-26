@@ -217,54 +217,6 @@ pub fn gaussian_blur_par(input: &Image<f64>, size: u32, std_dev: f64) -> ImgProc
     Ok(linear_filter_par(input, &kernel)?)
 }
 
-/// Applies an alpha-trimmed mean filter, where each output pixel is the alpha-trimmed mean of the
-/// pixels in a `(2 * radius + 1) x (2 * radius + 1)` kernel in the input image
-pub fn alpha_trimmed_mean_filter(input: &Image<f64>, radius: u32, alpha: u32) -> ImgProcResult<Image<f64>> {
-    let size = 2 * radius + 1;
-
-    error::check_even(alpha, "alpha")?;
-    if alpha >= (size * size) {
-        return Err(ImgProcError::InvalidArgError(format!("invalid alpha: size is {}, but alpha is {}", size, alpha)));
-    }
-
-    let (width, height) = input.info().wh();
-    let mut output = Image::blank(input.info());
-
-    for y in 0..height {
-        for x in 0..width {
-            let p_out = alpha_trimmed_mean_pixel(input, size, alpha, x, y);
-            output.set_pixel(x, y, &p_out);
-        }
-    }
-
-    Ok(output)
-}
-
-/// (Parallel) Applies an alpha-trimmed mean filter, where each output pixel is the alpha-trimmed mean of the
-/// pixels in a `(2 * radius + 1) x (2 * radius + 1)` kernel in the input image
-pub fn alpha_trimmed_mean_filter_par(input: &Image<f64>, radius: u32, alpha: u32) -> ImgProcResult<Image<f64>> {
-    let size = 2 * radius + 1;
-
-    error::check_even(alpha, "alpha")?;
-    if alpha >= (size * size) {
-        return Err(ImgProcError::InvalidArgError(format!("invalid alpha: size is {}, but alpha is {}", size, alpha)));
-    }
-
-    let (width, height, channels, img_alpha) = input.info().whca();
-
-    let data: Vec<Vec<f64>> = (0..input.info().size())
-        .into_par_iter()
-        .map(|i| {
-            let (x, y) = util::get_2d_coords(i, width);
-            alpha_trimmed_mean_pixel(input, size, alpha, x, y)
-        })
-        .collect();
-
-    Ok(Image::from_vec_of_vec(width, height, channels, img_alpha, data))
-}
-
-// pub fn bilateral_arrayfire
-
 ////////////////
 // Sharpening
 ////////////////
@@ -434,33 +386,4 @@ pub fn residual<T: Number>(original: &Image<T>, filtered: &Image<T>) -> ImgProcR
     }
 
     Ok(Image::from_slice(width, height, channels, alpha, &data))
-}
-
-fn alpha_trimmed_mean_pixel(input: &Image<f64>, size: u32, alpha: u32, x: u32, y: u32) -> Vec<f64> {
-    let length = (size * size) as usize;
-    let pixels = input.get_neighborhood_2d(x, y, size);
-    let mut p_out = Vec::new();
-
-    for c in 0..(input.info().channels as usize) {
-        let mut p_in = Vec::new();
-        let mut sum = 0.0;
-
-        for i in 0..length {
-            p_in.push(pixels[i][c]);
-            sum += pixels[i][c];
-        }
-
-        p_in.sort_unstable_by(|a, b| a.partial_cmp(b).unwrap());
-
-        for _ in 0..((alpha / 2) as usize) {
-            sum -= p_in[0];
-            sum -= p_in[p_in.len() - 1];
-            p_in.remove(0);
-            p_in.remove(p_in.len() - 1);
-        }
-
-        p_out.push(sum / (p_in.len() as f64));
-    }
-
-    p_out
 }
