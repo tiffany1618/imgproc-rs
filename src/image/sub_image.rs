@@ -1,4 +1,5 @@
 use crate::image::{Number, ImageInfo, BaseImage};
+use crate::error::check_xy;
 
 /// A struct representing a part of an image
 #[derive(Debug, Clone)]
@@ -39,6 +40,8 @@ impl<T: Number> BaseImage<T> for SubImage<'_, T> {
     }
 
     fn get_pixel(&self, x: u32, y: u32) -> &[T] {
+        check_xy(x, y, self.info.width, self.info.height);
+
         &self[(y * self.info.width + x) as usize]
     }
 }
