@@ -1,6 +1,6 @@
 [package]
 name = "imgproc-rs"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2018"
 license = "MIT"
 description = "Image processing library for Rust"
@@ -20,4 +20,3 @@ categories = ["multimedia::images"]
 image = "0.23.12"
 rulinalg = "0.4.2"
 rayon = "1.5.0"
-arrayfire = "3.8.0"

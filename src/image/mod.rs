@@ -3,10 +3,9 @@
 //! # Examples
 //! ```rust
 //! # use imgproc_rs::error::ImgIoResult;
-//! # use imgproc_rs::image::BaseImage;
-//! #
+//!
 //! # fn main() {
-//! use imgproc_rs::image::{Image, ImageInfo};
+//! use imgproc_rs::image::{Image, BaseImage, ImageInfo};
 //!
 //! let vec = vec![1, 2, 3, 4, 5, 6,
 //!                7, 8, 9, 10, 11, 12];
@@ -32,11 +31,13 @@
 //! // Get width, height, channels, and alpha of image
 //! let (width, height, channels, alpha) = img_slice.info().whca();
 //!
-//! // Set and get an image pixel using a 1D index
+//! // Set and get an image pixel using a 1D index (reads the image data row by row from left to
+//! // right, starting in the upper left corner of the image)
 //! img_blank.set_pixel_indexed(0, &[1, 1, 1]);
 //! let pixel_1d = &img_blank[0];
 //!
-//! // Set and get an image pixel using a 2D index
+//! // Set and get an image pixel using 2D coordinates (coordinates start at zero in the upper
+//! // left corner of the image and increase downwards and to the right)
 //! img_blank.set_pixel(1, 1, &[1, 1, 1]);
 //! let pixel_2d = img_vec.get_pixel(1, 1);
 //!
@@ -58,12 +59,13 @@ pub use self::sub_image::*;
 pub use self::pixel::*;
 pub use self::from_impl::*;
 pub use self::pixel_iter::*;
-use crate::error;
 
 mod sub_image;
 mod pixel;
 mod from_impl;
 mod pixel_iter;
+
+use crate::error;
 
 /// A struct representing an image
 #[derive(Debug, Clone, PartialEq)]

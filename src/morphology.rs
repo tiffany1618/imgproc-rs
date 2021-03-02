@@ -131,6 +131,7 @@ pub fn close(input: &Image<u8>, radius: u32) -> ImgProcResult<Image<u8>> {
 }
 
 /// Returns the difference between dilation and erosion of the image
+#[allow(unused_parens)]
 pub fn gradient(input: &Image<u8>, radius: u32) -> ImgProcResult<Image<u8>> {
     error::check_grayscale(input.info().channels, input.info().alpha)?;
 
