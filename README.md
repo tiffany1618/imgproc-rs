@@ -6,6 +6,10 @@
 
 A Rust image processing library.
 
+## Features
+* Multithreading support for some functions (indicated by the `_par` suffix in the function name) via 
+  [rayon](https://github.com/rayon-rs/rayon)
+
 ## Supported Image Formats
 
 `imgproc-rs` uses the i/o functions provided in the [`image`](https://github.com/image-rs/image) crate. A list of 
