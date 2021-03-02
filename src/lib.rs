@@ -10,3 +10,4 @@ pub mod tone;
 pub mod filter;
 pub mod transform;
 pub mod convert;
+pub mod morphology;

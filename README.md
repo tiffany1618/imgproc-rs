@@ -6,6 +6,10 @@
 
 A Rust image processing library.
 
+## Features
+* Multithreading support for some functions (indicated by the `_par` suffix in the function name) via 
+  [rayon](https://github.com/rayon-rs/rayon)
+
 ## Supported Image Formats
 
 `imgproc-rs` uses the i/o functions provided in the [`image`](https://github.com/image-rs/image) crate. A list of 
@@ -26,5 +30,88 @@ fn main() {
     
     // Write the image to a path as a PNG
     io::write(&img, "path/to/save_image.png").unwrap();
+}
+```
+
+### Creating Images
+
+Images can be created from existing vectors, slices, vectors of vectors, and vectors of slices. A few examples are shown
+below.
+
+```rust
+use imgproc_rs::image::{Image, ImageInfo};
+
+fn main() {
+    let vec = vec![1, 2, 3, 4, 5, 6,
+                   7, 8, 9, 10, 11, 12];
+
+    // Create an image from a slice
+    let img_slice = Image::from_slice(2, 2, 3, false, &vec);
+
+    // Create an image from a vector
+    let img_vec = Image::from_vec(2, 2, 3, false, vec);
+
+    // Create a blank (black) image
+    let img_blank: Image<u8> = Image::blank(ImageInfo::new(2, 2, 3, false));
+
+    // Create an empty image
+    let img_empty: Image<u8> = Image::empty(ImageInfo::new(2, 2, 3, false));
+}
+```
+
+### Getting Image Information
+```rust
+use imgproc_rs::io;
+use imgproc_rs::image::{Image, ImageInfo};
+
+fn main() {
+    let img = io::read("path/to/some_image.png").unwrap();
+
+    // Get width and height of image
+    let (width, height) = img.info().wh();
+
+    // Get width, height, and channels of image
+    let (width, height, channels) = img.info().whc();
+
+    // Get width, height, channels, and alpha of image
+    let (width, height, channels, alpha) = img.info().whca();
+
+    /* Print image information
+     * Example output:
+     *
+     * width: 2
+     * height: 2
+     * channels: 3
+     * alpha: false
+     *
+     */
+    println!("{}", img.info());
+}
+```
+
+### Getting/Setting Image Pixels
+
+Image pixels can be accessed using either 1D or 2D indexing. 1D indexing reads the image data row by row from left to 
+right, starting in the upper left corner of the image. 2D coordinates start at zero in the upper left corner of the
+image and increase downwards and to the right.
+
+```rust
+use imgproc_rs::io;
+use imgproc_rs::image::{Image, BaseImage};
+
+fn main() {
+    let img = io::read("path/to/some_image.png").unwrap();
+    
+    // Set an image pixel using a 1D index
+    img.set_pixel_indexed(0, &[1, 1, 1]);
+    
+    // Get an image pixel using a 1D index
+    let pixel_1d = &img[0];
+    
+    // Set an image pixel using 2D coordinates
+    img.set_pixel(1, 1, &[1, 1, 1]);
+    
+    // Get an image pixel using 2D coordinates
+    let pixel_2d = img.get_pixel(1, 1);
 }
 ```

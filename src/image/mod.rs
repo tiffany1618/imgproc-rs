@@ -1,4 +1,59 @@
 //! A module for the core image structs and traits
+//!
+//! # Examples
+//! ```rust
+//! # use imgproc_rs::error::ImgIoResult;
+//!
+//! # fn main() {
+//! use imgproc_rs::image::{Image, BaseImage, ImageInfo};
+//!
+//! let vec = vec![1, 2, 3, 4, 5, 6,
+//!                7, 8, 9, 10, 11, 12];
+//!
+//! // Create an image from a slice
+//! let img_slice = Image::from_slice(2, 2, 3, false, &vec);
+//!
+//! // Create an image from a vector
+//! let img_vec = Image::from_vec(2, 2, 3, false, vec);
+//!
+//! // Create a blank (black) image
+//! let mut img_blank: Image<u8> = Image::blank(ImageInfo::new(2, 2, 3, false));
+//!
+//! // Create an empty image
+//! let mut img_empty: Image<u8> = Image::empty(ImageInfo::new(2, 2, 3, false));
+//!
+//! // Get width and height of image
+//! let (width, height) = img_slice.info().wh();
+//!
+//! // Get width, height, and channels of image
+//! let (width, height, channels) = img_slice.info().whc();
+//!
+//! // Get width, height, channels, and alpha of image
+//! let (width, height, channels, alpha) = img_slice.info().whca();
+//!
+//! // Set and get an image pixel using a 1D index (reads the image data row by row from left to
+//! // right, starting in the upper left corner of the image)
+//! img_blank.set_pixel_indexed(0, &[1, 1, 1]);
+//! let pixel_1d = &img_blank[0];
+//!
+//! // Set and get an image pixel using 2D coordinates (coordinates start at zero in the upper
+//! // left corner of the image and increase downwards and to the right)
+//! img_blank.set_pixel(1, 1, &[1, 1, 1]);
+//! let pixel_2d = img_vec.get_pixel(1, 1);
+//!
+//! /* Print image information
+//!  * Example output:
+//!  *
+//!  * width: 2
+//!  * height: 2
+//!  * channels: 3
+//!  * alpha: false
+//!  *
+//!  */
+//! println!("{}", img_slice.info());
+//!
+//! # }
+//! ```
 
 pub use self::sub_image::*;
 pub use self::pixel::*;
@@ -9,6 +64,8 @@ mod sub_image;
 mod pixel;
 mod from_impl;
 mod pixel_iter;
+
+use crate::error;
 
 /// A struct representing an image
 #[derive(Debug, Clone, PartialEq)]
@@ -73,6 +130,10 @@ pub trait BaseImage<T: Number> {
     fn info(&self) -> ImageInfo;
 
     /// Returns a slice representing the pixel located at `(x, y)`
+    ///
+    /// # Panics
+    ///
+    /// Panics if `x` or `y` is out of bounds
     fn get_pixel(&self, x: u32, y: u32) -> &[T];
 }
 
@@ -208,12 +269,7 @@ impl<T: Number> Image<T> {
     ///
     /// Panics if `x` or `y` is out of bounds
     pub fn get_pixel_mut(&mut self, x: u32, y: u32) -> &mut [T] {
-        if x >= self.info.width {
-            panic!("index out of bounds: the width is {}, but the x index is {}", self.info.width, x)
-        }
-        if y >= self.info.height {
-            panic!("index out of bounds: the height is {}, but the y index is {}", self.info.height, y)
-        }
+        error::check_xy(x, y, self.info.width, self.info.height);
 
         let start = self.index(x, y);
         &mut self.data[start..(start + self.info.channels as usize)]
@@ -228,7 +284,13 @@ impl<T: Number> Image<T> {
 
     /// Returns a `SubImage<T>` representing the part of the image of width `width` and height
     /// `height`, with upper left hand corner located at `(x, y)`
+    ///
+    /// # Panics
+    ///
+    /// Panics if `x` or `y` is out of bounds
     pub fn get_subimage(&self, x: u32, y: u32, width: u32, height: u32) -> SubImage<T> {
+        error::check_xy(x, y, self.info.width, self.info.height);
+
         let mut data = Vec::new();
 
         for i in x..(x + width) {
@@ -243,7 +305,13 @@ impl<T: Number> Image<T> {
     /// Returns a `SubImage<T>` representing the row or column of pixels of length `size` centered at
     /// `(x, y)`. If `is_vert` is `true`, returns the column; otherwise, returns the row.
     /// Uses clamp padding for edge pixels (edge pixels are repeated indefinitely)
+    ///
+    /// # Panics
+    ///
+    /// Panics if `x` or `y` is out of bounds
     pub fn get_neighborhood_1d(&self, x: u32, y: u32, size: u32, is_vert: bool) -> SubImage<T> {
+        error::check_xy(x, y, self.info.width, self.info.height);
+
         let mut data = Vec::new();
 
         if is_vert {
@@ -273,7 +341,13 @@ impl<T: Number> Image<T> {
 
     /// Returns a `SubImage<T>` representing the "square" of pixels of side length `size` centered
     /// at `(x, y)`. Uses clamp padding for edge pixels (edge pixels are repeated indefinitely)
+    ///
+    /// # Panics
+    ///
+    /// Panics if `x` or `y` is out of bounds
     pub fn get_neighborhood_2d(&self, x: u32, y: u32, size: u32) -> SubImage<T> {
+        error::check_xy(x, y, self.info.width, self.info.height);
+
         let start_x = (x as i32) - (size as i32) / 2;
         let start_y = (y as i32) - (size as i32) / 2;
 
@@ -297,12 +371,11 @@ impl<T: Number> Image<T> {
     ///
     /// # Panics
     ///
-    /// Panics if the length of `pixel` is not equal to the number of channels in the image
+    /// Panics if the length of `pixel` is not equal to the number of channels in the image or `x`
+    /// or `y` is out of bounds
     pub fn set_pixel(&mut self, x: u32, y: u32, pixel: &[T]) {
-        if pixel.len() != self.info.channels as usize {
-            panic!("invalid pixel length: the number of channels is {}, \
-                but the pixel length is {}", self.info.channels, pixel.len())
-        }
+        error::check_channels(self.info.channels, pixel.len());
+        error::check_xy(x, y, self.info.width, self.info.height);
 
         let start = self.index(x, y);
         for i in 0..(self.info.channels as usize) {
@@ -311,7 +384,13 @@ impl<T: Number> Image<T> {
     }
 
     /// Replaces the pixel at index `index` with `pixel`
+    ///
+    /// # Panics
+    ///
+    /// Panics if the length of `pixel` is not equal to the number of channels in the image
     pub fn set_pixel_indexed(&mut self, index: usize, pixel: &[T]) {
+        error::check_channels(self.info.channels, pixel.len());
+
         let start = index * self.info.channels as usize;
         for i in 0..(self.info.channels as usize) {
             self.data[start + i] = pixel[i];
@@ -471,12 +550,7 @@ impl<T: Number> BaseImage<T> for Image<T> {
     }
 
     fn get_pixel(&self, x: u32, y: u32) -> &[T] {
-        if x >= self.info.width {
-            panic!("index out of bounds: the width is {}, but the x index is {}", self.info.width, x)
-        }
-        if y >= self.info.height {
-            panic!("index out of bounds: the height is {}, but the y index is {}", self.info.height, y)
-        }
+        error::check_xy(x, y, self.info.width, self.info.height);
 
         &self[(y * self.info.width + x) as usize]
     }
@@ -486,10 +560,6 @@ impl<T: Number> std::ops::Index<usize> for Image<T> {
     type Output = [T];
 
     fn index(&self, i: usize) -> &Self::Output {
-        if i >= self.info.size() as usize {
-            panic!("index out of bounds: the len is {}, but the index is {}", self.info.size(), i)
-        }
-
         let start = i * (self.info.channels as usize);
         &self.data[start..(start + self.info.channels as usize)]
     }
@@ -497,10 +567,6 @@ impl<T: Number> std::ops::Index<usize> for Image<T> {
 
 impl<T: Number> std::ops::IndexMut<usize> for Image<T> {
     fn index_mut(&mut self, i: usize) -> &mut Self::Output {
-        if i >= self.info.size() as usize {
-            panic!("index out of bounds: the len is {}, but the index is {}", self.info.size(), i)
-        }
-
         let start = i * (self.info.channels as usize);
         &mut self.data[start..(start + self.info.channels as usize)]
     }

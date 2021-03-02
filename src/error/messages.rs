@@ -1,6 +1,22 @@
 use crate::error::{ImgProcResult, ImgProcError};
 use crate::image::Number;
 
+pub(crate) fn check_channels(channels: u8, len: usize) {
+    if channels != len as u8 {
+        panic!("invalid pixel length: the number of channels is {}, \
+                but the pixel length is {}", channels, len);
+    }
+}
+
+pub(crate) fn check_xy(x: u32, y: u32, width: u32, height: u32) {
+    if x >= width {
+        panic!("index out of bounds: the width is {}, but the x index is {}", width, x)
+    }
+    if y >= height {
+        panic!("index out of bounds: the height is {}, but the y index is {}", height, y)
+    }
+}
+
 pub(crate) fn check_odd<T: Number>(val: T, name: &str) -> ImgProcResult<()> {
     if val % 2.into() == 0.into() {
         return Err(ImgProcError::InvalidArgError(format!("{} must be odd", name)));
