@@ -23,14 +23,10 @@ pub fn brightness(input: &Image<u8>, bias: i32, method: Tone) -> ImgProcResult<I
 
             Ok(input.map_channels_if_alpha(|channel| lookup_table[channel as usize], |a| a))
         },
-        Tone::Xyz => {
+        Tone::Lab => {
             let mut lab = colorspace::srgb_to_lab(input, &White::D50);
             lab.edit_channel(|num| num + (bias as f64) * 255.0 / 100.0, 0);
             Ok(colorspace::lab_to_srgb(&lab, &White::D50))
-
-            // let mut xyz = colorspace::srgb_to_xyz(input);
-            // xyz.edit_channel(|num| num + (bias as f64 / 255.0), 1);
-            // Ok(colorspace::xyz_to_srgb(&xyz))
         },
     }
 }
@@ -50,14 +46,10 @@ pub fn contrast(input: &Image<u8>, gain: f64, method: Tone) -> ImgProcResult<Ima
 
             Ok(input.map_channels_if_alpha(|channel| lookup_table[channel as usize], |a| a))
         },
-        Tone::Xyz => {
+        Tone::Lab => {
             let mut lab = colorspace::srgb_to_lab(input, &White::D50);
             lab.edit_channel(|num| num * gain, 0);
             Ok(colorspace::lab_to_srgb(&lab, &White::D50))
-
-            // let mut xyz = colorspace::srgb_to_xyz(input);
-            // xyz.edit_channel(|num| num * gain, 1);
-            // Ok(colorspace::xyz_to_srgb(&xyz))
         },
     }
 }

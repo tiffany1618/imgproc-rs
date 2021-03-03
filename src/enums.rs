@@ -6,7 +6,7 @@ pub enum Tone {
     Rgb,
 
     /// Tone operation should be carried out using XYZ channels
-    Xyz,
+    Lab,
 }
 
 /// An enum for reference white values

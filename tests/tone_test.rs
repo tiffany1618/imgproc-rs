@@ -17,14 +17,14 @@ fn brightness_test() {
     let img = setup(PATH).unwrap();
 
     let now = SystemTime::now();
-    // let proc = tone::brightness(&img, 20, Tone::Rgb).unwrap();
+    let proc = tone::brightness(&img, 20, Tone::Rgb).unwrap();
     println!("rgb: {}", now.elapsed().unwrap().as_millis());
 
     let now = SystemTime::now();
-    let proc2 = tone::brightness(&img, 20, Tone::Xyz).unwrap();
+    let proc2 = tone::brightness(&img, 20, Tone::Lab).unwrap();
     println!("xyz: {}", now.elapsed().unwrap().as_millis());
 
-    // write(&proc, "images/tests/tone/bright_rgb.png").unwrap();
+    write(&proc, "images/tests/tone/bright_rgb.png").unwrap();
     write(&proc2, "images/tests/tone/bright_xyz.png").unwrap();
 }
 
@@ -33,14 +33,14 @@ fn contrast_test() {
     let img = setup(PATH).unwrap();
 
     let now = SystemTime::now();
-    // let proc = tone::contrast(&img, 1.5, Tone::Rgb).unwrap();
+    let proc = tone::contrast(&img, 1.5, Tone::Rgb).unwrap();
     println!("rgb: {}", now.elapsed().unwrap().as_millis());
 
     let now = SystemTime::now();
-    let proc2 = tone::contrast(&img, 1.5, Tone::Xyz).unwrap();
+    let proc2 = tone::contrast(&img, 1.5, Tone::Lab).unwrap();
     println!("xyz: {}", now.elapsed().unwrap().as_millis());
 
-    // write(&proc, "images/tests/tone/contrast_rgb.png").unwrap();
+    write(&proc, "images/tests/tone/contrast_rgb.png").unwrap();
     write(&proc2, "images/tests/tone/contrast_xyz.png").unwrap();
 }
 
