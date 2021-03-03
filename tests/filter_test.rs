@@ -24,17 +24,6 @@ fn box_filter() {
 }
 
 // #[test]
-fn box_filter_normalized() {
-    let img: Image<f64> = setup(PATH).unwrap().into();
-
-    let now = SystemTime::now();
-    let filtered = filter::box_filter_normalized(&img, 5).unwrap();
-    println!("box filter: {}", now.elapsed().unwrap().as_millis());
-
-    write(&filtered.into(), "images/tests/filter/box_filter_norm.png").unwrap();
-}
-
-// #[test]
 fn weighted_avg_filter() {
     let img: Image<f64> = setup(PATH).unwrap().into();
 
@@ -80,7 +69,7 @@ fn alpha_trimmed_mean_filter() {
 
 // #[test]
 fn bilateral_filter() {
-    let img = setup(PATH).unwrap();
+    let img = setup("images/scaled.png").unwrap();
 
     let now = SystemTime::now();
     let direct = filter::bilateral_filter(&img, 10.0, 4.0, Bilateral::Direct).unwrap();

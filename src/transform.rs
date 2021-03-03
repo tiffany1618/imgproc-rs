@@ -1,6 +1,8 @@
 //! A module for image transformation operations
 
-use crate::{math, error, util};
+use crate::{math, error};
+#[cfg(feature = "rayon")]
+use crate::util;
 use crate::image::{Number, Image, ImageInfo, BaseImage};
 use crate::error::{ImgProcResult, ImgProcError};
 use crate::enums::{Scale, Refl};

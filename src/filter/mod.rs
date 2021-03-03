@@ -124,18 +124,8 @@ pub fn linear_filter(input: &Image<f64>, kernel: &[f64]) -> ImgProcResult<Image<
 // Blurring
 //////////////
 
-/// Applies a box filter using a `size x size` kernel
-pub fn box_filter(input: &Image<f64>, size: u32) -> ImgProcResult<Image<f64>> {
-    error::check_odd(size, "size")?;
-
-    let len = (size * size) as usize;
-    let kernel = vec![1.0; len];
-
-    Ok(separable_filter(input, &kernel, &kernel)?)
-}
-
 /// Applies a normalized box filter using a `size x size` kernel
-pub fn box_filter_normalized(input: &Image<f64>, size: u32) -> ImgProcResult<Image<f64>> {
+pub fn box_filter(input: &Image<f64>, size: u32) -> ImgProcResult<Image<f64>> {
     error::check_odd(size, "size")?;
 
     let len = (size * size) as usize;

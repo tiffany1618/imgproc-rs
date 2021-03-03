@@ -18,15 +18,19 @@ pub fn brightness(input: &Image<u8>, bias: i32, method: Tone) -> ImgProcResult<I
         Tone::Rgb => {
             let mut lookup_table: [u8; 256] = [0; 256];
             util::create_lookup_table(&mut lookup_table, |i| {
-            (i as i32 + bias) as u8
+                (i as i32 + bias).clamp(0, 255) as u8
             });
 
             Ok(input.map_channels_if_alpha(|channel| lookup_table[channel as usize], |a| a))
         },
         Tone::Xyz => {
-            let mut xyz = colorspace::srgb_to_xyz(input);
-            xyz.edit_channel(|num| num + (bias as f64 / 255.0), 1);
-            Ok(colorspace::xyz_to_srgb(&xyz))
+            let mut lab = colorspace::srgb_to_lab(input, &White::D50);
+            lab.edit_channel(|num| num + (bias as f64) * 255.0 / 100.0, 0);
+            Ok(colorspace::lab_to_srgb(&lab, &White::D50))
+
+            // let mut xyz = colorspace::srgb_to_xyz(input);
+            // xyz.edit_channel(|num| num + (bias as f64 / 255.0), 1);
+            // Ok(colorspace::xyz_to_srgb(&xyz))
         },
     }
 }
@@ -41,15 +45,19 @@ pub fn contrast(input: &Image<u8>, gain: f64, method: Tone) -> ImgProcResult<Ima
         Tone::Rgb => {
             let mut lookup_table: [u8; 256] = [0; 256];
             util::create_lookup_table(&mut lookup_table, |i| {
-                (i as f64 * gain).round() as u8
+                (i as f64 * gain).round().clamp(0.0, 255.0) as u8
             });
 
             Ok(input.map_channels_if_alpha(|channel| lookup_table[channel as usize], |a| a))
         },
         Tone::Xyz => {
-            let mut xyz = colorspace::srgb_to_xyz(input);
-            xyz.edit_channel(|num| num * gain, 1);
-            Ok(colorspace::xyz_to_srgb(&xyz))
+            let mut lab = colorspace::srgb_to_lab(input, &White::D50);
+            lab.edit_channel(|num| num * gain, 0);
+            Ok(colorspace::lab_to_srgb(&lab, &White::D50))
+
+            // let mut xyz = colorspace::srgb_to_xyz(input);
+            // xyz.edit_channel(|num| num * gain, 1);
+            // Ok(colorspace::xyz_to_srgb(&xyz))
         },
     }
 }

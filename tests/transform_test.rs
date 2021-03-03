@@ -48,7 +48,7 @@ fn overlay() {
     write(&output.into(), "images/tests/transform/overlay.png").unwrap();
 }
 
-#[test]
+// #[test]
 fn scale_twice() {
     let img: Image<f64> = setup(PATH).unwrap().into();
 

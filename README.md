@@ -15,6 +15,12 @@ A Rust image processing library.
 `imgproc-rs` uses the i/o functions provided in the [`image`](https://github.com/image-rs/image) crate. A list of 
 supported image formats can be found [here](https://docs.rs/image/0.23.12/image/codecs/index.html#supported-formats). 
 
+## Notes
+Running with the `release` profile greatly increases performance:
+```
+cargo run --release
+```
+
 ## Examples
 
 ### Reading and Writing Images
