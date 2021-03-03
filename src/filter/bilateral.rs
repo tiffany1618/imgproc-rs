@@ -3,9 +3,11 @@ use crate::enums::{Bilateral, White};
 use crate::image::{Image, BaseImage};
 use crate::error::ImgProcResult;
 
+#[cfg(feature = "rayon")]
 use rayon::prelude::*;
 
 /// Applies a bilateral filter using CIE LAB
+#[cfg(not(feature = "rayon"))]
 pub fn bilateral_filter(input: &Image<u8>, range: f64, spatial: f64, algorithm: Bilateral)
     -> ImgProcResult<Image<u8>> {
     error::check_non_neg(range, "range")?;
@@ -32,8 +34,9 @@ pub fn bilateral_filter(input: &Image<u8>, range: f64, spatial: f64, algorithm: 
     Ok(colorspace::lab_to_srgb(&output, &White::D65))
 }
 
-/// (Parallel) Applies a bilateral filter using CIE LAB
-pub fn bilateral_filter_par(input: &Image<u8>, range: f64, spatial: f64, algorithm: Bilateral)
+/// Applies a bilateral filter using CIE LAB
+#[cfg(feature = "rayon")]
+pub fn bilateral_filter(input: &Image<u8>, range: f64, spatial: f64, algorithm: Bilateral)
                             -> ImgProcResult<Image<u8>> {
     error::check_non_neg(range, "range")?;
     error::check_non_neg(spatial, "spatial")?;

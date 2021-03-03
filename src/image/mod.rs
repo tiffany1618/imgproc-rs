@@ -58,12 +58,10 @@
 pub use self::sub_image::*;
 pub use self::pixel::*;
 pub use self::from_impl::*;
-pub use self::pixel_iter::*;
 
 mod sub_image;
 mod pixel;
 mod from_impl;
-mod pixel_iter;
 
 use crate::error;
 

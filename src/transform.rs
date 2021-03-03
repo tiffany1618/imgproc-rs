@@ -5,10 +5,12 @@ use crate::image::{Number, Image, ImageInfo, BaseImage};
 use crate::error::{ImgProcResult, ImgProcError};
 use crate::enums::{Scale, Refl};
 
+#[cfg(feature = "rayon")]
 use rayon::prelude::*;
 
 /// Crops an image to a rectangle with upper left corner located at `(x, y)` with width `width`
 /// and height `height`
+#[cfg(not(feature = "rayon"))]
 pub fn crop<T: Number>(input: &Image<T>, x: u32, y: u32, width: u32, height: u32) -> ImgProcResult<Image<T>> {
     if (x + width) >= input.info().width {
         return Err(ImgProcError::InvalidArgError(format!("invalid width: input width is {} \
@@ -30,9 +32,10 @@ pub fn crop<T: Number>(input: &Image<T>, x: u32, y: u32, width: u32, height: u32
     Ok(output)
 }
 
-/// (Parallel) Crops an image to a rectangle with upper left corner located at `(x, y)` with width `width`
+/// Crops an image to a rectangle with upper left corner located at `(x, y)` with width `width`
 /// and height `height`
-pub fn crop_par<T: Number>(input: &Image<T>, x: u32, y: u32, width: u32, height: u32) -> ImgProcResult<Image<T>> {
+#[cfg(feature = "rayon")]
+pub fn crop<T: Number>(input: &Image<T>, x: u32, y: u32, width: u32, height: u32) -> ImgProcResult<Image<T>> {
     if (x + width) >= input.info().width {
         return Err(ImgProcError::InvalidArgError(format!("invalid width: input width is {} \
             but x + width is {}", input.info().width, (x + width))));
@@ -106,6 +109,7 @@ pub fn overlay<T: Number>(back: &Image<T>, front: &Image<T>, x: u32, y: u32) -> 
 
 /// Scales an image horizontally by `x_factor` and vertically by `y_factor` using the specified
 /// `method`
+#[cfg(not(feature = "rayon"))]
 pub fn scale(input: &Image<f64>, x_factor: f64, y_factor: f64, method: Scale) -> ImgProcResult<Image<f64>> {
     error::check_non_neg(x_factor, "x_factor")?;
     error::check_non_neg(y_factor, "y_factor")?;
@@ -132,10 +136,10 @@ pub fn scale(input: &Image<f64>, x_factor: f64, y_factor: f64, method: Scale) ->
 
     Ok(output)
 }
-
-/// (Parallel) Scales an image horizontally by `x_factor` and vertically by `y_factor` using the specified
+/// Scales an image horizontally by `x_factor` and vertically by `y_factor` using the specified
 /// `method`
-pub fn scale_par(input: &Image<f64>, x_factor: f64, y_factor: f64, method: Scale) -> ImgProcResult<Image<f64>> {
+#[cfg(feature = "rayon")]
+pub fn scale(input: &Image<f64>, x_factor: f64, y_factor: f64, method: Scale) -> ImgProcResult<Image<f64>> {
     error::check_non_neg(x_factor, "x_factor")?;
     error::check_non_neg(y_factor, "y_factor")?;
 
@@ -145,21 +149,22 @@ pub fn scale_par(input: &Image<f64>, x_factor: f64, y_factor: f64, method: Scale
 
     return match method {
         Scale::NearestNeighbor => {
-            Ok(scale_nearest_neighbor_par(input, &info, x_factor, y_factor))
+            Ok(scale_nearest_neighbor(input, &info, x_factor, y_factor))
         },
         Scale::Bilinear => {
-            Ok(scale_bilinear_par(input, &info, x_factor, y_factor))
+            Ok(scale_bilinear(input, &info, x_factor, y_factor))
         },
         Scale::Bicubic => {
-            Ok(scale_bicubic_par(input, &info, x_factor, y_factor))
+            Ok(scale_bicubic(input, &info, x_factor, y_factor))
         },
         Scale::Lanczos => {
-            Ok(scale_lanczos_resampling_par(input, &info, x_factor, y_factor, 3))
+            Ok(scale_lanczos_resampling(input, &info, x_factor, y_factor, 3))
         }
     }
 }
 
 /// Scales an image using Lanczos resampling with kernel of variable size `size`
+#[cfg(not(feature = "rayon"))]
 pub fn scale_lanczos(input: &Image<f64>, x_factor: f64, y_factor: f64, size: u32) -> ImgProcResult<Image<f64>> {
     error::check_non_neg(x_factor, "x_factor")?;
     error::check_non_neg(y_factor, "y_factor")?;
@@ -174,8 +179,9 @@ pub fn scale_lanczos(input: &Image<f64>, x_factor: f64, y_factor: f64, size: u32
     Ok(output)
 }
 
-/// (Parallel) Scales an image using Lanczos resampling with kernel of variable size `size`
-pub fn scale_lanczos_par(input: &Image<f64>, x_factor: f64, y_factor: f64, size: u32) -> ImgProcResult<Image<f64>> {
+/// Scales an image using Lanczos resampling with kernel of variable size `size`
+#[cfg(feature = "rayon")]
+pub fn scale_lanczos(input: &Image<f64>, x_factor: f64, y_factor: f64, size: u32) -> ImgProcResult<Image<f64>> {
     error::check_non_neg(x_factor, "x_factor")?;
     error::check_non_neg(y_factor, "y_factor")?;
     error::check_non_neg(size, "size")?;
@@ -184,7 +190,7 @@ pub fn scale_lanczos_par(input: &Image<f64>, x_factor: f64, y_factor: f64, size:
     let height = (input.info().height as f64 * y_factor).round() as u32;
     let info = ImageInfo::new(width, height, input.info().channels, input.info().alpha);
 
-    Ok(scale_lanczos_resampling_par(input, &info, x_factor, y_factor, size))
+    Ok(scale_lanczos_resampling(input, &info, x_factor, y_factor, size))
 }
 
 /// Translates an image to the position with upper left corner located at `(x, y)`. Fills in the
@@ -314,6 +320,7 @@ pub fn shear(input: &Image<f64>, shear_x: f64, shear_y: f64) -> ImgProcResult<Im
 // Scaling Algorithms
 ///////////////////////
 
+#[cfg(not(feature = "rayon"))]
 fn scale_nearest_neighbor(input: &Image<f64>, output: &mut Image<f64>, x_factor: f64, y_factor: f64) {
     for y in 0..output.info().height {
         for x in 0..output.info().width {
@@ -323,7 +330,8 @@ fn scale_nearest_neighbor(input: &Image<f64>, output: &mut Image<f64>, x_factor:
     }
 }
 
-fn scale_nearest_neighbor_par(input: &Image<f64>, info: &ImageInfo, x_factor: f64, y_factor: f64) -> Image<f64> {
+#[cfg(feature = "rayon")]
+fn scale_nearest_neighbor(input: &Image<f64>, info: &ImageInfo, x_factor: f64, y_factor: f64) -> Image<f64> {
     let size = info.size();
     let (width, height, channels) = info.whc();
 
@@ -338,6 +346,7 @@ fn scale_nearest_neighbor_par(input: &Image<f64>, info: &ImageInfo, x_factor: f6
     Image::from_vec_of_slice(width, height, channels, info.alpha, data)
 }
 
+#[cfg(not(feature = "rayon"))]
 fn scale_bilinear(input: &Image<f64>, output: &mut Image<f64>, x_factor: f64, y_factor: f64) {
     for y in 0..output.info().height {
         for x in 0..output.info().width {
@@ -347,7 +356,8 @@ fn scale_bilinear(input: &Image<f64>, output: &mut Image<f64>, x_factor: f64, y_
     }
 }
 
-fn scale_bilinear_par(input: &Image<f64>, info: &ImageInfo, x_factor: f64, y_factor: f64) -> Image<f64> {
+#[cfg(feature = "rayon")]
+fn scale_bilinear(input: &Image<f64>, info: &ImageInfo, x_factor: f64, y_factor: f64) -> Image<f64> {
     let size = info.size();
     let (width, height, channels) = info.whc();
 
@@ -362,6 +372,7 @@ fn scale_bilinear_par(input: &Image<f64>, info: &ImageInfo, x_factor: f64, y_fac
     Image::from_vec_of_vec(width, height, channels, info.alpha, data)
 }
 
+#[cfg(not(feature = "rayon"))]
 fn scale_bicubic(input: &Image<f64>, output: &mut Image<f64>, x_factor: f64, y_factor: f64) {
     for y in 0..output.info().height {
         for x in 0..output.info().width {
@@ -371,7 +382,8 @@ fn scale_bicubic(input: &Image<f64>, output: &mut Image<f64>, x_factor: f64, y_f
     }
 }
 
-fn scale_bicubic_par(input: &Image<f64>, info: &ImageInfo, x_factor: f64, y_factor: f64) -> Image<f64> {
+#[cfg(feature = "rayon")]
+fn scale_bicubic(input: &Image<f64>, info: &ImageInfo, x_factor: f64, y_factor: f64) -> Image<f64> {
     let size = info.size();
     let (width, height, channels) = info.whc();
 
@@ -386,6 +398,7 @@ fn scale_bicubic_par(input: &Image<f64>, info: &ImageInfo, x_factor: f64, y_fact
     Image::from_vec_of_vec(width, height, channels, info.alpha, data)
 }
 
+#[cfg(not(feature = "rayon"))]
 fn scale_lanczos_resampling(input: &Image<f64>, output: &mut Image<f64>, x_factor: f64, y_factor: f64, size: u32) {
     for y in 0..output.info().height {
         for x in 0..output.info().width {
@@ -395,7 +408,8 @@ fn scale_lanczos_resampling(input: &Image<f64>, output: &mut Image<f64>, x_facto
     }
 }
 
-fn scale_lanczos_resampling_par(input: &Image<f64>, info: &ImageInfo, x_factor: f64, y_factor: f64, size: u32) -> Image<f64> {
+#[cfg(feature = "rayon")]
+fn scale_lanczos_resampling(input: &Image<f64>, info: &ImageInfo, x_factor: f64, y_factor: f64, size: u32) -> Image<f64> {
     let img_size = info.size();
     let (width, height, channels) = info.whc();
 

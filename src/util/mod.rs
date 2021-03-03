@@ -85,17 +85,17 @@ pub fn generate_gaussian_kernel(size: u32, std_dev: f64) -> ImgProcResult<Vec<f6
     error::check_odd(size, "size")?;
 
     let mut filter = vec![0.0; (size * size) as usize];
-    let k = (size - 1) / 2;
+    let k = ((size - 1) / 2) as i32;
 
-    for i in 0..size {
-        for j in 0..size {
+    for i in 0..(size as i32) {
+        for j in 0..(size as i32) {
             if i <= j {
                 let num = (1.0 / (2.0 * PI * std_dev * std_dev)) *
                     (E.powf(-(((i - k) * (i - k) + (j - k) * (j - k)) as f64) / (2.0 * std_dev * std_dev)));
-                filter[(i * size + j) as usize] = num;
+                filter[(i * size as i32 + j) as usize] = num;
 
                 if i != j {
-                    filter[(j * size + i) as usize] = num;
+                    filter[(j * size as i32 + i) as usize] = num;
                 }
             }
         }
