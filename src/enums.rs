@@ -5,8 +5,8 @@ pub enum Tone {
     /// Tone operation should be carried out using an RGB channels
     Rgb,
 
-    /// Tone operation should be carried out using XYZ channels
-    Xyz,
+    /// Tone operation should be carried out using CIELAB channels
+    Lab,
 }
 
 /// An enum for reference white values

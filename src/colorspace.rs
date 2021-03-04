@@ -81,7 +81,7 @@ pub fn xyz_to_srgb_lin(input: &Image<f64>) -> Image<f64> {
 
 /// Converts an image from CIE XYZ to CIELAB
 // Input: CIEXYZ range [0, 1]
-// Output: CIELAB with L* channel range [0, 1]
+// Output: CIELAB with L* channel range [0, 100] and a*, b* channels range [-128,127]
 pub fn xyz_to_lab(input: &Image<f64>, ref_white: &White) -> Image<f64> {
     let (x_n, y_n, z_n) = util::generate_xyz_tristimulus_vals(ref_white);
 
@@ -97,7 +97,7 @@ pub fn xyz_to_lab(input: &Image<f64>, ref_white: &White) -> Image<f64> {
 }
 
 /// Converts an image from CIELAB to CIE XYZ
-// Input: CIELAB with L* channel range [0, 1]
+// Input: CIELAB with L* channel range [0, 100] and a*, b* channels range [-128,127]
 // Output: CIEXYZ range [0, 1]
 pub fn lab_to_xyz(input: &Image<f64>, ref_white: &White) -> Image<f64> {
     let (x_n, y_n, z_n) = util::generate_xyz_tristimulus_vals(ref_white);
@@ -195,14 +195,14 @@ pub fn xyz_to_srgb(input: &Image<f64>) -> Image<u8> {
 
 /// Converts an image from sRGB to CIELAB
 // Input: sRGB range [0, 255] unlinearized
-// Output: CIELAB
+// Output: CIELAB with L* channel range [0, 100] and a*, b* channels range [-128,127]
 pub fn srgb_to_lab(input: &Image<u8>, ref_white: &White) -> Image<f64> {
     let xyz = srgb_to_xyz(input);
     xyz_to_lab(&xyz, ref_white)
 }
 
 /// Converts an image from CIELAB to sRGB
-// Input: CIELAB
+// Input: CIELAB with L* channel range [0, 100] and a*, b* channels range [-128,127]
 // Output: sRGB range [0, 255] unlinearized
 pub fn lab_to_srgb(input: &Image<f64>, ref_white: &White) -> Image<u8> {
     let xyz = lab_to_xyz(input, ref_white);

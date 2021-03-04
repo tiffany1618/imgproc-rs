@@ -7,13 +7,19 @@
 A Rust image processing library.
 
 ## Features
-* Multithreading support for some functions (indicated by the `_par` suffix in the function name) via 
-  [rayon](https://github.com/rayon-rs/rayon)
+* Multithreading support for some functions via [rayon](https://github.com/rayon-rs/rayon) (see 
+  [Enabling Multithreading](#enabling-multithreading) for more information)
 
 ## Supported Image Formats
 
 `imgproc-rs` uses the i/o functions provided in the [`image`](https://github.com/image-rs/image) crate. A list of 
 supported image formats can be found [here](https://docs.rs/image/0.23.12/image/codecs/index.html#supported-formats). 
+
+## Notes
+Running with the `release` profile greatly increases performance:
+```
+cargo run --release
+```
 
 ## Examples
 
@@ -115,3 +121,31 @@ fn main() {
     let pixel_2d = img.get_pixel(1, 1);
 }
 ```
+
+## Enabling Multithreading
+
+To enable multithreading, include the `parallel` feature in your `Cargo.toml`:
+
+```toml
+[dependencies.imgproc-rs]
+version = "0.2.1"
+default-features = false
+features = ["parallel"]
+```
+
+Alternatively, pass the features flag to `cargo run`:
+
+```
+cargo run --features parallel
+```
+
+### Image processing functions that support multithreading:
+* `transform` module
+  * `crop`
+  * `scale`
+  * `scale_lanczos`
+* All functions in the `filter` module, except:
+  * `threshold`
+  * `residual`
+  * `median_filter`
+  * `alpha_trimmed_mean_filter`

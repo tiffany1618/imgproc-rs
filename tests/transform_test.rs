@@ -10,13 +10,15 @@ use imgproc_rs::io::write;
 use std::time::SystemTime;
 use imgproc_rs::enums::{Scale, Refl};
 
+const PATH: &str = "images/beach.jpg";
+
 // #[test]
-fn crop_par() {
-    let img = setup().unwrap();
+fn crop() {
+    let img = setup(PATH).unwrap();
     let (width, height) = img.info().wh();
 
     let now = SystemTime::now();
-    let output = transform::crop_par(&img, 0, 0, width/2, height/2).unwrap();
+    let output = transform::crop(&img, 0, 0, width/2, height/2).unwrap();
     println!("crop: {}", now.elapsed().unwrap().as_millis());
 
     write(&output, "images/tests/transform/crop.png").unwrap();
@@ -24,7 +26,7 @@ fn crop_par() {
 
 // #[test]
 fn superimpose() {
-    let img: Image<f64> = setup().unwrap().into();
+    let img: Image<f64> = setup(PATH).unwrap().into();
     let (width, height) = img.info().wh();
 
     let now = SystemTime::now();
@@ -36,7 +38,7 @@ fn superimpose() {
 
 // #[test]
 fn overlay() {
-    let img = setup().unwrap();
+    let img = setup(PATH).unwrap();
     let (width, height) = img.info().wh();
 
     let now = SystemTime::now();
@@ -47,8 +49,8 @@ fn overlay() {
 }
 
 // #[test]
-fn scale_twice_par() {
-    let img: Image<f64> = setup().unwrap().into();
+fn scale_twice() {
+    let img: Image<f64> = setup(PATH).unwrap().into();
 
     let mut now = SystemTime::now();
     let nearest = transform::scale(&img, 2.0, 2.0, Scale::NearestNeighbor).unwrap();
@@ -63,7 +65,7 @@ fn scale_twice_par() {
     println!("bicubic: {}", now.elapsed().unwrap().as_millis());
 
     now = SystemTime::now();
-    let lanczos = transform::scale_par(&img, 2.0, 2.0, Scale::Lanczos).unwrap();
+    let lanczos = transform::scale(&img, 2.0, 2.0, Scale::Lanczos).unwrap();
     println!("lanczos: {}", now.elapsed().unwrap().as_millis());
 
     write(&nearest.into(), "images/tests/transform/scale_nearest_twice.png").unwrap();
@@ -73,23 +75,23 @@ fn scale_twice_par() {
 }
 
 // #[test]
-fn scale_half_par() {
-    let img: Image<f64> = setup().unwrap().into();
+fn scale_half() {
+    let img: Image<f64> = setup(PATH).unwrap().into();
 
     let mut now = SystemTime::now();
-    let nearest = transform::scale_par(&img, 0.5, 0.5, Scale::NearestNeighbor).unwrap();
+    let nearest = transform::scale(&img, 0.5, 0.5, Scale::NearestNeighbor).unwrap();
     println!("nearest: {}", now.elapsed().unwrap().as_millis());
 
     now = SystemTime::now();
-    let bilinear = transform::scale_par(&img, 0.5, 0.5, Scale::Bilinear).unwrap();
+    let bilinear = transform::scale(&img, 0.5, 0.5, Scale::Bilinear).unwrap();
     println!("bilinear: {}", now.elapsed().unwrap().as_millis());
 
     now = SystemTime::now();
-    let bicubic = transform::scale_par(&img, 0.5, 0.5, Scale::Bicubic).unwrap();
+    let bicubic = transform::scale(&img, 0.5, 0.5, Scale::Bicubic).unwrap();
     println!("bicubic: {}", now.elapsed().unwrap().as_millis());
 
     now = SystemTime::now();
-    let lanczos = transform::scale_par(&img, 0.5, 0.5, Scale::Lanczos).unwrap();
+    let lanczos = transform::scale(&img, 0.5, 0.5, Scale::Lanczos).unwrap();
     println!("lanczos: {}", now.elapsed().unwrap().as_millis());
 
     write(&nearest.into(), "images/tests/transform/scale_nearest_half.png").unwrap();
@@ -100,7 +102,7 @@ fn scale_half_par() {
 
 // #[test]
 fn translate() {
-    let img = setup().unwrap();
+    let img = setup(PATH).unwrap();
     let (width, height) = img.info().wh();
 
     let now = SystemTime::now();
@@ -112,7 +114,7 @@ fn translate() {
 
 // #[test]
 fn rotate() {
-    let img: Image<f64> = setup().unwrap().into();
+    let img: Image<f64> = setup(PATH).unwrap().into();
 
     let mut now = SystemTime::now();
     let output_90 = transform::rotate(&img, 90.0).unwrap();
@@ -133,7 +135,7 @@ fn rotate() {
 
 // #[test]
 fn reflect() {
-    let img = setup().unwrap();
+    let img = setup(PATH).unwrap();
 
     let mut now = SystemTime::now();
     let output_horz = transform::reflect(&img, Refl::Horizontal).unwrap();
@@ -149,7 +151,7 @@ fn reflect() {
 
 // #[test]
 fn shear() {
-    let img: Image<f64> = setup().unwrap().into();
+    let img: Image<f64> = setup(PATH).unwrap().into();
 
     let mut now = SystemTime::now();
     let output_pp = transform::shear(&img, 0.5, 0.0).unwrap();

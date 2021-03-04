@@ -3,52 +3,43 @@
 mod common;
 
 use common::setup;
-use imgproc_rs::filter;
+use imgproc_rs::{filter, colorspace};
 use imgproc_rs::image::Image;
 use imgproc_rs::io::write;
 
 use std::time::SystemTime;
-use imgproc_rs::enums::Bilateral;
+use imgproc_rs::enums::{Bilateral, Thresh};
+
+const PATH: &str = "images/yosemite.jpg";
 
 // #[test]
-fn box_filter_par() {
-    let img: Image<f64> = setup().unwrap().into();
+fn box_filter() {
+    let img: Image<f64> = setup(PATH).unwrap().into();
 
     let now = SystemTime::now();
-    let filtered = filter::box_filter_par(&img, 5).unwrap();
+    let filtered = filter::box_filter(&img, 5).unwrap();
     println!("box filter: {}", now.elapsed().unwrap().as_millis());
 
     write(&filtered.into(), "images/tests/filter/box_filter.png").unwrap();
 }
 
 // #[test]
-fn box_filter_normalized_par() {
-    let img: Image<f64> = setup().unwrap().into();
+fn weighted_avg_filter() {
+    let img: Image<f64> = setup(PATH).unwrap().into();
 
     let now = SystemTime::now();
-    let filtered = filter::box_filter_normalized_par(&img, 5).unwrap();
-    println!("box filter: {}", now.elapsed().unwrap().as_millis());
-
-    write(&filtered.into(), "images/tests/filter/box_filter_norm.png").unwrap();
-}
-
-// #[test]
-fn weighted_avg_filter_par() {
-    let img: Image<f64> = setup().unwrap().into();
-
-    let now = SystemTime::now();
-    let filtered = filter::weighted_avg_filter_par(&img, 5, 5).unwrap();
+    let filtered = filter::weighted_avg_filter(&img, 5, 5).unwrap();
     println!("weighted avg filter: {}", now.elapsed().unwrap().as_millis());
 
     write(&filtered.into(), "images/tests/filter/weighted_avg.png").unwrap();
 }
 
 // #[test]
-fn gaussian_blur_par() {
-    let img: Image<f64> = setup().unwrap().into();
+fn gaussian_blur() {
+    let img: Image<f64> = setup(PATH).unwrap().into();
 
     let now = SystemTime::now();
-    let filtered = filter::gaussian_blur_par(&img, 5, 1.0).unwrap();
+    let filtered = filter::gaussian_blur(&img, 3, 1.0).unwrap();
     println!("gaussian blur filter: {}", now.elapsed().unwrap().as_millis());
 
     write(&filtered.into(), "images/tests/filter/gaussian_blur.png").unwrap();
@@ -56,7 +47,7 @@ fn gaussian_blur_par() {
 
 // #[test]
 fn median_filter() {
-    let img = setup().unwrap();
+    let img = setup(PATH).unwrap();
 
     let now = SystemTime::now();
     let filtered = filter::median_filter(&img, 5).unwrap();
@@ -67,7 +58,7 @@ fn median_filter() {
 
 // #[test]
 fn alpha_trimmed_mean_filter() {
-    let img = setup().unwrap();
+    let img = setup(PATH).unwrap();
 
     let now = SystemTime::now();
     let filtered = filter::alpha_trimmed_mean_filter(&img, 5, 2).unwrap();
@@ -77,67 +68,98 @@ fn alpha_trimmed_mean_filter() {
 }
 
 // #[test]
-fn bilateral_filter_par() {
-    let img = setup().unwrap();
+fn bilateral_filter() {
+    let img = setup("images/scaled.png").unwrap();
 
     let now = SystemTime::now();
-    let direct = filter::bilateral_filter_par(&img, 10.0, 4.0, Bilateral::Direct).unwrap();
+    let direct = filter::bilateral_filter(&img, 10.0, 4.0, Bilateral::Direct).unwrap();
     println!("bilateral direct: {}", now.elapsed().unwrap().as_millis());
 
     write(&direct.into(), "images/tests/filter/bilateral_direct.png").unwrap();
 }
 
 // #[test]
-fn sharpen_par() {
-    let img: Image<f64> = setup().unwrap().into();
+fn sharpen() {
+    let img: Image<f64> = setup(PATH).unwrap().into();
 
     let now = SystemTime::now();
-    let filtered = filter::sharpen_par(&img).unwrap();
+    let filtered = filter::sharpen(&img).unwrap();
     println!("sharpen: {}", now.elapsed().unwrap().as_millis());
 
     write(&filtered.into(), "images/tests/filter/sharpen.png").unwrap();
 }
 
 // #[test]
-fn unsharp_masking_par() {
-    let img: Image<f64> = setup().unwrap().into();
+fn unsharp_masking() {
+    let img: Image<f64> = setup(PATH).unwrap().into();
 
     let now = SystemTime::now();
-    let filtered = filter::unsharp_masking_par(&img).unwrap();
+    let filtered = filter::unsharp_masking(&img).unwrap();
     println!("unsharp masking: {}", now.elapsed().unwrap().as_millis());
 
     write(&filtered.into(), "images/tests/filter/unsharp_masking.png").unwrap();
 }
 
 // #[test]
-fn prewitt_par() {
-    let img: Image<f64> = setup().unwrap().into();
+fn prewitt() {
+    let img: Image<f64> = setup("images/poppy.jpg").unwrap().into();
 
     let now = SystemTime::now();
-    let filtered = filter::prewitt_par(&img).unwrap();
+    let filtered = filter::prewitt(&img).unwrap();
     println!("prewitt: {}", now.elapsed().unwrap().as_millis());
 
     write(&filtered.into(), "images/tests/filter/prewitt.png").unwrap();
 }
 
 // #[test]
-fn sobel_par() {
-    let img: Image<f64> = setup().unwrap().into();
+fn sobel() {
+    let img: Image<f64> = setup("images/poppy.jpg").unwrap().into();
 
     let now = SystemTime::now();
-    let filtered = filter::sobel_par(&img).unwrap();
+    let filtered = filter::sobel(&img).unwrap();
     println!("sobel: {}", now.elapsed().unwrap().as_millis());
 
     write(&filtered.into(), "images/tests/filter/sobel.png").unwrap();
 }
 
 // #[test]
-fn sobel_weighted_par() {
-    let img: Image<f64> = setup().unwrap().into();
+fn sobel_weighted() {
+    let img: Image<f64> = setup("images/poppy.jpg").unwrap().into();
 
     let now = SystemTime::now();
-    let filtered = filter::sobel_weighted_par(&img, 5).unwrap();
+    let filtered = filter::sobel_weighted(&img, 5).unwrap();
     println!("sobel weighted: {}", now.elapsed().unwrap().as_millis());
 
     write(&filtered.into(), "images/tests/filter/sobel_weighted.png").unwrap();
+}
+
+// #[test]
+fn threshold_test() {
+    let img: Image<f64> = colorspace::rgb_to_grayscale(&setup(PATH).unwrap()).into();
+
+    let mut now = SystemTime::now();
+    let bin = filter::threshold(&img, 100.0, 255.0, Thresh::Binary).unwrap();
+    println!("bin: {}", now.elapsed().unwrap().as_millis());
+
+    now = SystemTime::now();
+    let bin_inv = filter::threshold(&img, 100.0, 255.0, Thresh::BinaryInv).unwrap();
+    println!("bin inv: {}", now.elapsed().unwrap().as_millis());
+
+    now = SystemTime::now();
+    let trunc = filter::threshold(&img, 100.0, 255.0, Thresh::Trunc).unwrap();
+    println!("trunc: {}", now.elapsed().unwrap().as_millis());
+
+    now = SystemTime::now();
+    let zero = filter::threshold(&img, 100.0, 255.0, Thresh::ToZero).unwrap();
+    println!("zero: {}", now.elapsed().unwrap().as_millis());
+
+    now = SystemTime::now();
+    let zero_inv = filter::threshold(&img, 100.0, 255.0, Thresh::ToZeroInv).unwrap();
+    println!("zero inv: {}", now.elapsed().unwrap().as_millis());
+
+    write(&bin.into(), "images/tests/filter/thresh_binary.png").unwrap();
+    write(&bin_inv.into(), "images/tests/filter/thresh_binary_inv.png").unwrap();
+    write(&trunc.into(), "images/tests/filter/thresh_trunc.png").unwrap();
+    write(&zero.into(), "images/tests/filter/thresh_to_zero.png").unwrap();
+    write(&zero_inv.into(), "images/tests/filter/thresh_to_zero_inv.png").unwrap();
 }
