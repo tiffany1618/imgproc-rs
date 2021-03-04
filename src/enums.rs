@@ -5,7 +5,7 @@ pub enum Tone {
     /// Tone operation should be carried out using an RGB channels
     Rgb,
 
-    /// Tone operation should be carried out using XYZ channels
+    /// Tone operation should be carried out using CIELAB channels
     Lab,
 }
 

@@ -48,8 +48,6 @@ pub fn dilate(input: &Image<u8>, radius: u32) -> ImgProcResult<Image<u8>> {
     error::check_grayscale(input.info().channels, input.info().alpha)?;
 
     let (width, height) =  input.info().wh();
-    let size = 2 * radius + 1;
-    let max_sum = (size * size * 255) as f64 / 2.0;
     let table = util::summed_area_table(&input.clone().into());
     let mut output = Image::blank(input.info());
 
@@ -73,7 +71,7 @@ pub fn dilate(input: &Image<u8>, radius: u32) -> ImgProcResult<Image<u8>> {
                 y_bot += radius;
             }
 
-            if util::rectangular_intensity_sum(&table, x_top, y_top, x_bot, y_bot)[0] >= max_sum {
+            if util::rectangular_intensity_sum(&table, x_top, y_top, x_bot, y_bot)[0] >= 255.0 {
                 output.set_pixel(x, y, &[255]);
             }
         }
