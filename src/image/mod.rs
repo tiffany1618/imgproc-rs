@@ -58,10 +58,12 @@
 pub use self::sub_image::*;
 pub use self::pixel::*;
 pub use self::from_impl::*;
+pub use self::pixel_iter::*;
 
 mod sub_image;
 mod pixel;
 mod from_impl;
+mod pixel_iter;
 
 use crate::error;
 
@@ -398,7 +400,7 @@ impl<T: Number> Image<T> {
     /// Applies function `f` to each pixel
     pub fn map_pixels<S: Number, F>(&self, f: F) -> Image<S>
         where F: Fn(&[T]) -> Vec<S> {
-        let mut  data= Vec::new();
+        let mut data= Vec::new();
 
         for i in 0..(self.info.size() as usize) {
             data.append(&mut f(&self[i]));

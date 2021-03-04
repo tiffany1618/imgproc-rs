@@ -3,12 +3,12 @@
 mod common;
 
 use common::setup;
-use imgproc_rs::filter;
+use imgproc_rs::{filter, colorspace};
 use imgproc_rs::image::Image;
 use imgproc_rs::io::write;
 
 use std::time::SystemTime;
-use imgproc_rs::enums::Bilateral;
+use imgproc_rs::enums::{Bilateral, Thresh};
 
 const PATH: &str = "images/yosemite.jpg";
 
@@ -100,7 +100,7 @@ fn unsharp_masking() {
     write(&filtered.into(), "images/tests/filter/unsharp_masking.png").unwrap();
 }
 
-#[test]
+// #[test]
 fn prewitt() {
     let img: Image<f64> = setup("images/poppy.jpg").unwrap().into();
 
@@ -111,7 +111,7 @@ fn prewitt() {
     write(&filtered.into(), "images/tests/filter/prewitt.png").unwrap();
 }
 
-#[test]
+// #[test]
 fn sobel() {
     let img: Image<f64> = setup("images/poppy.jpg").unwrap().into();
 
@@ -122,7 +122,7 @@ fn sobel() {
     write(&filtered.into(), "images/tests/filter/sobel.png").unwrap();
 }
 
-#[test]
+// #[test]
 fn sobel_weighted() {
     let img: Image<f64> = setup("images/poppy.jpg").unwrap().into();
 
@@ -131,4 +131,35 @@ fn sobel_weighted() {
     println!("sobel weighted: {}", now.elapsed().unwrap().as_millis());
 
     write(&filtered.into(), "images/tests/filter/sobel_weighted.png").unwrap();
+}
+
+// #[test]
+fn threshold_test() {
+    let img: Image<f64> = colorspace::rgb_to_grayscale(&setup(PATH).unwrap()).into();
+
+    let mut now = SystemTime::now();
+    let bin = filter::threshold(&img, 100.0, 255.0, Thresh::Binary).unwrap();
+    println!("bin: {}", now.elapsed().unwrap().as_millis());
+
+    now = SystemTime::now();
+    let bin_inv = filter::threshold(&img, 100.0, 255.0, Thresh::BinaryInv).unwrap();
+    println!("bin inv: {}", now.elapsed().unwrap().as_millis());
+
+    now = SystemTime::now();
+    let trunc = filter::threshold(&img, 100.0, 255.0, Thresh::Trunc).unwrap();
+    println!("trunc: {}", now.elapsed().unwrap().as_millis());
+
+    now = SystemTime::now();
+    let zero = filter::threshold(&img, 100.0, 255.0, Thresh::ToZero).unwrap();
+    println!("zero: {}", now.elapsed().unwrap().as_millis());
+
+    now = SystemTime::now();
+    let zero_inv = filter::threshold(&img, 100.0, 255.0, Thresh::ToZeroInv).unwrap();
+    println!("zero inv: {}", now.elapsed().unwrap().as_millis());
+
+    write(&bin.into(), "images/tests/filter/thresh_binary.png").unwrap();
+    write(&bin_inv.into(), "images/tests/filter/thresh_binary_inv.png").unwrap();
+    write(&trunc.into(), "images/tests/filter/thresh_trunc.png").unwrap();
+    write(&zero.into(), "images/tests/filter/thresh_to_zero.png").unwrap();
+    write(&zero_inv.into(), "images/tests/filter/thresh_to_zero_inv.png").unwrap();
 }
