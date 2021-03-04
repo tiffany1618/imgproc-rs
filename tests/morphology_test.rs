@@ -4,11 +4,9 @@ mod common;
 
 use common::setup;
 use imgproc_rs::{morphology, colorspace};
-use imgproc_rs::image::Image;
 use imgproc_rs::io::write;
 
 use std::time::SystemTime;
-use imgproc_rs::enums::Bilateral;
 
 const PATH: &str = "images/j.png";
 

@@ -4,7 +4,7 @@ mod common;
 
 use common::setup;
 use imgproc_rs::{colorspace, convert};
-use imgproc_rs::image::{BaseImage, Image};
+use imgproc_rs::image::Image;
 use imgproc_rs::io::write;
 
 use std::time::SystemTime;

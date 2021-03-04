@@ -39,7 +39,7 @@ fn gaussian_blur() {
     let img: Image<f64> = setup(PATH).unwrap().into();
 
     let now = SystemTime::now();
-    let filtered = filter::gaussian_blur(&img, 5, 1.0).unwrap();
+    let filtered = filter::gaussian_blur(&img, 3, 1.0).unwrap();
     println!("gaussian blur filter: {}", now.elapsed().unwrap().as_millis());
 
     write(&filtered.into(), "images/tests/filter/gaussian_blur.png").unwrap();
@@ -100,9 +100,9 @@ fn unsharp_masking() {
     write(&filtered.into(), "images/tests/filter/unsharp_masking.png").unwrap();
 }
 
-// #[test]
+#[test]
 fn prewitt() {
-    let img: Image<f64> = setup(PATH).unwrap().into();
+    let img: Image<f64> = setup("images/poppy.jpg").unwrap().into();
 
     let now = SystemTime::now();
     let filtered = filter::prewitt(&img).unwrap();
@@ -111,9 +111,9 @@ fn prewitt() {
     write(&filtered.into(), "images/tests/filter/prewitt.png").unwrap();
 }
 
-// #[test]
+#[test]
 fn sobel() {
-    let img: Image<f64> = setup(PATH).unwrap().into();
+    let img: Image<f64> = setup("images/poppy.jpg").unwrap().into();
 
     let now = SystemTime::now();
     let filtered = filter::sobel(&img).unwrap();
@@ -122,9 +122,9 @@ fn sobel() {
     write(&filtered.into(), "images/tests/filter/sobel.png").unwrap();
 }
 
-// #[test]
+#[test]
 fn sobel_weighted() {
-    let img: Image<f64> = setup(PATH).unwrap().into();
+    let img: Image<f64> = setup("images/poppy.jpg").unwrap().into();
 
     let now = SystemTime::now();
     let filtered = filter::sobel_weighted(&img, 5).unwrap();

@@ -4,11 +4,10 @@ mod common;
 
 use common::setup;
 use imgproc_rs::tone;
-use imgproc_rs::image::Image;
 use imgproc_rs::io::write;
 
 use std::time::SystemTime;
-use imgproc_rs::enums::{Bilateral, Tone, White};
+use imgproc_rs::enums::{Tone, White};
 
 const PATH: &str = "images/beach.jpg";
 
