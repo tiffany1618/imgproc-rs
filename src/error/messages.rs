@@ -57,6 +57,14 @@ pub(crate) fn check_square(val: f64, name: &str) -> ImgProcResult<()> {
     Ok(())
 }
 
+pub(crate) fn check_in_range<T: Number>(val: T, min: T, max: T, name: &str) -> ImgProcResult<()> {
+    if val < min || val > max {
+        return Err(ImgProcError::InvalidArgError(format!("{} must be between {} and {} (inclusive)", name, min, max)));
+    }
+
+    Ok(())
+}
+
 pub(crate) fn check_grayscale(channels: u8, alpha: bool) -> ImgProcResult<()> {
     if (alpha && channels != 2) || (!alpha && channels != 1) {
         return Err(ImgProcError::InvalidArgError("input is not a grayscale image".to_string()));

@@ -32,8 +32,9 @@ pub fn rgb_to_grayscale_f64(input: &Image<f64>) -> Image<f64> {
 }
 
 /// Linearizes an sRGB image
-// Input: sRGB range [0, 255]
-// Output: sRGB range [0, 1] linearized
+///
+/// * Input: sRGB image with channels in range [0, 255]
+/// * Output: linearized sRGB image with channels in range [0, 1]
 pub fn linearize_srgb(input: &Image<u8>) -> Image<f64> {
     let mut lookup_table: [f64; 256] = [0.0; 256];
     util::create_lookup_table(&mut lookup_table, |i| {
@@ -49,8 +50,9 @@ pub fn linearize_srgb(input: &Image<u8>) -> Image<f64> {
 }
 
 /// "Unlinearizes" a previously linearized sRGB image
-// Input: sRGB range [0, 1] linearized
-// Output: sRGB range [0, 255]
+///
+/// * Input: linearized sRGB image with channels in range [0, 1]
+/// * Output: sRGB image with channels in range [0, 255]
 pub fn unlinearize_srgb(input: &Image<f64>) -> Image<u8> {
     input.map_channels_if_alpha(|num| {
         if num <= 0.0031308 {
@@ -62,8 +64,9 @@ pub fn unlinearize_srgb(input: &Image<f64>) -> Image<u8> {
 }
 
 /// Converts an image from linearized sRGB to CIE XYZ
-// Input: sRGB range [0, 1] linearized
-// Output: CIE XYZ range [0, 1]
+///
+/// * Input: linearized sRGB image with channels in range [0, 1]
+/// * Output: CIE XYZ image with channels in range [0, 1]
 pub fn srgb_lin_to_xyz(input: &Image<f64>) -> Image<f64> {
     input.map_pixels_if_alpha(|channels| {
         math::vector_mul(&SRGB_TO_XYZ_MAT, channels).unwrap()
@@ -71,8 +74,9 @@ pub fn srgb_lin_to_xyz(input: &Image<f64>) -> Image<f64> {
 }
 
 /// Converts an image from CIE XYZ to linearized sRGB
-// Input: CIE XYZ range [0, 1]
-// Output: sRGB range [0, 1] linearized
+///
+/// * Input: CIE XYZ image with channels in range [0, 1]
+/// * Output: linearized sRGB image with channels in range [0, 1]
 pub fn xyz_to_srgb_lin(input: &Image<f64>) -> Image<f64> {
     input.map_pixels_if_alpha(|channels| {
         math::vector_mul(&XYZ_TO_SRGB_MAT, channels).unwrap()
@@ -80,8 +84,9 @@ pub fn xyz_to_srgb_lin(input: &Image<f64>) -> Image<f64> {
 }
 
 /// Converts an image from CIE XYZ to CIELAB
-// Input: CIEXYZ range [0, 1]
-// Output: CIELAB with L* channel range [0, 100] and a*, b* channels range [-128,127]
+///
+/// * Input: CIE XYZ image with channels in range [0, 1]
+/// * Output: CIELAB image with L* channel range [0, 100] and a*, b* channels range [-128, 127]
 pub fn xyz_to_lab(input: &Image<f64>, ref_white: &White) -> Image<f64> {
     let (x_n, y_n, z_n) = util::generate_xyz_tristimulus_vals(ref_white);
 
@@ -97,8 +102,9 @@ pub fn xyz_to_lab(input: &Image<f64>, ref_white: &White) -> Image<f64> {
 }
 
 /// Converts an image from CIELAB to CIE XYZ
-// Input: CIELAB with L* channel range [0, 100] and a*, b* channels range [-128,127]
-// Output: CIEXYZ range [0, 1]
+///
+/// * Input: CIELAB image with L* channel range [0, 100] and a*, b* channels range [-128, 127]
+/// * Output: CIE XYZ image with channels in range [0, 1]
 pub fn lab_to_xyz(input: &Image<f64>, ref_white: &White) -> Image<f64> {
     let (x_n, y_n, z_n) = util::generate_xyz_tristimulus_vals(ref_white);
 
@@ -112,8 +118,9 @@ pub fn lab_to_xyz(input: &Image<f64>, ref_white: &White) -> Image<f64> {
 }
 
 /// Converts an image from RGB to HSV
-// Input: RGB range [0, 255]
-// Output: HSV range [0, 1]
+///
+/// * Input: RGB image with channels in range [0, 255]
+/// * Output: HSV image with channels in range [0, 1]
 pub fn rgb_to_hsv(input: &Image<u8>) -> Image<f64> {
     input.map_pixels_if_alpha(|channels| {
         let max: u8 = cmp::max(cmp::max(channels[0], channels[1]), channels[2]);
@@ -150,8 +157,9 @@ pub fn rgb_to_hsv(input: &Image<u8>) -> Image<f64> {
 }
 
 /// Converts an image from HSV to RGB
-// Input: HSV range [0, 1]
-// Output: RGB range [0, 255]
+///
+/// * Input: HSV image with channels in range [0, 1]
+/// * Output: RGB image with channels in range [0, 255]
 pub fn hsv_to_rgb(input: &Image<f64>) -> Image<u8> {
     input.map_pixels_if_alpha(|channels| {
         if channels[1] == 0.0 {
@@ -178,32 +186,36 @@ pub fn hsv_to_rgb(input: &Image<f64>) -> Image<u8> {
 }
 
 /// Converts an image from sRGB to CIE XYZ
-// Input: sRGB range [0, 255] unlinearized
-// Output: CIEXYZ range [0, 1]
+///
+/// * Input: sRGB image with channels in range [0, 255]
+/// * Output: CIE XYZ image with channels in range [0, 1]
 pub fn srgb_to_xyz(input: &Image<u8>) -> Image<f64> {
     let linearized = linearize_srgb(input);
     srgb_lin_to_xyz(&linearized)
 }
 
 /// Converts an image from CIE XYZ to sRGB
-// Input: CIEXYZ range [0, 1]
-// Output: sRGB range [0, 255] unlinearized
+///
+/// * Input: CIE XYZ image with channels in range [0, 1]
+/// * Output: sRGB image with channels in range [0, 255]
 pub fn xyz_to_srgb(input: &Image<f64>) -> Image<u8> {
     let srgb = xyz_to_srgb_lin(input);
     unlinearize_srgb(&srgb)
 }
 
 /// Converts an image from sRGB to CIELAB
-// Input: sRGB range [0, 255] unlinearized
-// Output: CIELAB with L* channel range [0, 100] and a*, b* channels range [-128,127]
+///
+/// * Input: sRGB image with channels in range [0, 255]
+/// * Output: CIELAB image with L* channel range [0, 100] and a*, b* channels range [-128, 127]
 pub fn srgb_to_lab(input: &Image<u8>, ref_white: &White) -> Image<f64> {
     let xyz = srgb_to_xyz(input);
     xyz_to_lab(&xyz, ref_white)
 }
 
 /// Converts an image from CIELAB to sRGB
-// Input: CIELAB with L* channel range [0, 100] and a*, b* channels range [-128,127]
-// Output: sRGB range [0, 255] unlinearized
+///
+/// * Input: CIELAB image with L* channel range [0, 100] and a*, b* channels range [-128,127]
+/// * Output: sRGB image with channels in range [0, 255]
 pub fn lab_to_srgb(input: &Image<f64>, ref_white: &White) -> Image<u8> {
     let xyz = lab_to_xyz(input, ref_white);
     xyz_to_srgb(&xyz)
