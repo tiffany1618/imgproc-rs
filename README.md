@@ -128,7 +128,7 @@ To enable multithreading, include the `parallel` feature in your `Cargo.toml`:
 
 ```toml
 [dependencies.imgproc-rs]
-version = "0.2.1"
+version = "0.2.2"
 default-features = false
 features = ["parallel"]
 ```

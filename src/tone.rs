@@ -19,7 +19,7 @@ pub fn brightness(input: &Image<u8>, bias: i32, method: Tone) -> ImgProcResult<I
     match method {
         Tone::Rgb => {
             let mut lookup_table: [u8; 256] = [0; 256];
-            util::create_lookup_table(&mut lookup_table, |i| {
+            util::generate_lookup_table(&mut lookup_table, |i| {
                 (i as i32 + bias).clamp(0, 255) as u8
             });
 
@@ -45,7 +45,7 @@ pub fn contrast(input: &Image<u8>, gain: f64, method: Tone) -> ImgProcResult<Ima
     match method {
         Tone::Rgb => {
             let mut lookup_table: [u8; 256] = [0; 256];
-            util::create_lookup_table(&mut lookup_table, |i| {
+            util::generate_lookup_table(&mut lookup_table, |i| {
                 (i as f64 * gain).round().clamp(0.0, 255.0) as u8
             });
 

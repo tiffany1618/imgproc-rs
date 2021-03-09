@@ -1,11 +1,11 @@
 //! A module for image colorspace conversion operations
 
-use crate::{util, math};
-use crate::util::constants::{GAMMA, SRGB_TO_XYZ_MAT, XYZ_TO_SRGB_MAT};
-use crate::image::Image;
-use crate::enums::White;
-
 use std::cmp;
+
+use crate::enums::White;
+use crate::image::Image;
+use crate::util;
+use crate::util::constants::{GAMMA, SRGB_TO_XYZ_MAT, XYZ_TO_SRGB_MAT};
 
 /// Converts an image from RGB to Grayscale
 pub fn rgb_to_grayscale(input: &Image<u8>) -> Image<u8> {
@@ -37,7 +37,7 @@ pub fn rgb_to_grayscale_f64(input: &Image<f64>) -> Image<f64> {
 /// * Output: linearized sRGB image with channels in range [0, 1]
 pub fn linearize_srgb(input: &Image<u8>) -> Image<f64> {
     let mut lookup_table: [f64; 256] = [0.0; 256];
-    util::create_lookup_table(&mut lookup_table, |i| {
+    util::generate_lookup_table(&mut lookup_table, |i| {
         let val = i as f64;
         if val <= 10.0 {
             val / 3294.0
@@ -69,7 +69,7 @@ pub fn unlinearize_srgb(input: &Image<f64>) -> Image<u8> {
 /// * Output: CIE XYZ image with channels in range [0, 1]
 pub fn srgb_lin_to_xyz(input: &Image<f64>) -> Image<f64> {
     input.map_pixels_if_alpha(|channels| {
-        math::vector_mul(&SRGB_TO_XYZ_MAT, channels).unwrap()
+        util::vector_mul(&SRGB_TO_XYZ_MAT, channels).unwrap()
     }, |a| a)
 }
 
@@ -79,7 +79,7 @@ pub fn srgb_lin_to_xyz(input: &Image<f64>) -> Image<f64> {
 /// * Output: linearized sRGB image with channels in range [0, 1]
 pub fn xyz_to_srgb_lin(input: &Image<f64>) -> Image<f64> {
     input.map_pixels_if_alpha(|channels| {
-        math::vector_mul(&XYZ_TO_SRGB_MAT, channels).unwrap()
+        util::vector_mul(&XYZ_TO_SRGB_MAT, channels).unwrap()
     }, |a| a)
 }
 
@@ -88,7 +88,7 @@ pub fn xyz_to_srgb_lin(input: &Image<f64>) -> Image<f64> {
 /// * Input: CIE XYZ image with channels in range [0, 1]
 /// * Output: CIELAB image with L* channel range [0, 100] and a*, b* channels range [-128, 127]
 pub fn xyz_to_lab(input: &Image<f64>, ref_white: &White) -> Image<f64> {
-    let (x_n, y_n, z_n) = util::generate_xyz_tristimulus_vals(ref_white);
+    let (x_n, y_n, z_n) = util::xyz_tristimulus_vals(ref_white);
 
     input.map_pixels_if_alpha(|channels| {
         let x = util::xyz_to_lab_fn(channels[0] * 100.0 / x_n);
@@ -106,7 +106,7 @@ pub fn xyz_to_lab(input: &Image<f64>, ref_white: &White) -> Image<f64> {
 /// * Input: CIELAB image with L* channel range [0, 100] and a*, b* channels range [-128, 127]
 /// * Output: CIE XYZ image with channels in range [0, 1]
 pub fn lab_to_xyz(input: &Image<f64>, ref_white: &White) -> Image<f64> {
-    let (x_n, y_n, z_n) = util::generate_xyz_tristimulus_vals(ref_white);
+    let (x_n, y_n, z_n) = util::xyz_tristimulus_vals(ref_white);
 
     input.map_pixels_if_alpha(|channels| {
         let n = (channels[0] + 16.0) / 116.0;

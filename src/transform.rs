@@ -1,14 +1,13 @@
 //! A module for image transformation operations
 
-use crate::{math, error};
-#[cfg(feature = "rayon")]
-use crate::util;
-use crate::image::{Number, Image, ImageInfo, BaseImage};
-use crate::error::{ImgProcResult, ImgProcError};
-use crate::enums::{Scale, Refl};
-
 #[cfg(feature = "rayon")]
 use rayon::prelude::*;
+
+use crate::enums::{Refl, Scale};
+use crate::error;
+use crate::error::{ImgProcError, ImgProcResult};
+use crate::image::{BaseImage, Image, ImageInfo, Number};
+use crate::util;
 
 /// Crops an image to a rectangle with upper left corner located at `(x, y)` with width `width`
 /// and height `height`
@@ -221,15 +220,15 @@ pub fn rotate(input: &Image<f64>, degrees: f64) -> ImgProcResult<Image<f64>> {
     let mat = [cos, -sin, sin, cos];
 
     // Compute dimensions of output image
-    let coords1 = math::vector_mul(&mat, &[-(x as f64), y as f64])?;
-    let coords2 = math::vector_mul(&mat, &[(w_in - x) as f64, y as f64])?;
-    let coords3 = math::vector_mul(&mat, &[-(x as f64), (y as f64) - (h_in as f64)])?;
-    let coords4 = math::vector_mul(&mat, &[(w_in - x) as f64, (y as f64) - (h_in as f64)])?;
+    let coords1 = util::vector_mul(&mat, &[-(x as f64), y as f64])?;
+    let coords2 = util::vector_mul(&mat, &[(w_in - x) as f64, y as f64])?;
+    let coords3 = util::vector_mul(&mat, &[-(x as f64), (y as f64) - (h_in as f64)])?;
+    let coords4 = util::vector_mul(&mat, &[(w_in - x) as f64, (y as f64) - (h_in as f64)])?;
 
-    let x_max = math::max_4(coords1[0], coords2[0], coords3[0], coords4[0]);
-    let x_min = math::min_4(coords1[0], coords2[0], coords3[0], coords4[0]);
-    let y_max = math::max_4(coords1[1], coords2[1], coords3[1], coords4[1]);
-    let y_min = math::min_4(coords1[1], coords2[1], coords3[1], coords4[1]);
+    let x_max = util::max_4(coords1[0], coords2[0], coords3[0], coords4[0]);
+    let x_min = util::min_4(coords1[0], coords2[0], coords3[0], coords4[0]);
+    let y_max = util::max_4(coords1[1], coords2[1], coords3[1], coords4[1]);
+    let y_min = util::min_4(coords1[1], coords2[1], coords3[1], coords4[1]);
 
     let w_out = (x_max - x_min) as u32;
     let h_out = (y_max - y_min) as u32;
@@ -242,7 +241,7 @@ pub fn rotate(input: &Image<f64>, degrees: f64) -> ImgProcResult<Image<f64>> {
             let x1 = (i as f64) - (x as f64);
             let y1 = (y as f64) - (j as f64);
 
-            let mut coords = math::vector_mul(&mat, &[x1, y1])?;
+            let mut coords = util::vector_mul(&mat, &[x1, y1])?;
 
             coords[0] += x_max - 1.0;
             coords[1] = y_max - coords[1] - 1.0;
@@ -302,7 +301,7 @@ pub fn shear(input: &Image<f64>, shear_x: f64, shear_y: f64) -> ImgProcResult<Im
 
     for y in 0..h_in {
         for x in 0..w_in {
-            let mut coords = math::vector_mul(&mat, &[x as f64, y as f64])?;
+            let mut coords = util::vector_mul(&mat, &[x as f64, y as f64])?;
 
             if shear_x > 0.0 {
                 coords[0] += offset_x;
@@ -473,8 +472,8 @@ fn interpolate_bicubic(input: &Image<f64>, x_factor: f64, y_factor: f64, x: u32,
         for n in -1..3 {
             let y_clamp = (y_in + (n as f64)).clamp(0.0, input.info().height as f64 - 1.0) as u32;
             let p_in = input.get_pixel_unchecked(x_clamp, y_clamp);
-            let r = math::cubic_weighting_fn((m as f64) - delta_x)
-                * math::cubic_weighting_fn(delta_y - (n as f64));
+            let r = util::cubic_weighting_fn((m as f64) - delta_x)
+                * util::cubic_weighting_fn(delta_y - (n as f64));
 
             for c in 0..(input.info().channels as usize) {
                 p_out[c] += p_in[c] * r;
@@ -498,8 +497,8 @@ fn interpolate_lanczos(input: &Image<f64>, x_factor: f64, y_factor: f64, size: u
         for j in (1 - (size as i32))..(size as i32 + 1) {
             let y_clamp = (y_in + (j as f64)).clamp(0.0, input.info().height as f64 - 1.0) as u32;
             let p_in = input.get_pixel_unchecked(x_clamp, y_clamp);
-            let lanczos = math::lanczos_kernel(delta_x - (i as f64), size as f64)
-                * math::lanczos_kernel(delta_y - (j as f64), size as f64);
+            let lanczos = util::lanczos_kernel(delta_x - (i as f64), size as f64)
+                * util::lanczos_kernel(delta_y - (j as f64), size as f64);
 
             for c in 0..(input.info().channels as usize) {
                 p_out[c] += p_in[c] * lanczos;

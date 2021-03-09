@@ -1,10 +1,10 @@
-use crate::{error, util, colorspace, math};
-use crate::enums::{Bilateral, White};
-use crate::image::{Image, BaseImage};
-use crate::error::ImgProcResult;
-
 #[cfg(feature = "rayon")]
 use rayon::prelude::*;
+
+use crate::{colorspace, error, util};
+use crate::enums::{Bilateral, White};
+use crate::error::ImgProcResult;
+use crate::image::{BaseImage, Image};
 
 /// Applies a bilateral filter using CIE LAB
 #[cfg(not(feature = "rayon"))]
@@ -73,7 +73,7 @@ fn bilateral_direct_pixel(input: &Image<f64>, range: f64, spatial_mat: &[f64], s
         let mut p_curr = 0.0;
 
         for i in 0..((size * size) as usize) {
-            let g_r = math::gaussian_fn((p_in[c] - p_n[i][c]).abs(), range).unwrap();
+            let g_r = util::gaussian_fn((p_in[c] - p_n[i][c]).abs(), range).unwrap();
             let weight = spatial_mat[i] * g_r;
 
             p_curr += weight * p_n[i][c];

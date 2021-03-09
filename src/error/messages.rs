@@ -1,5 +1,5 @@
 use crate::error::{ImgProcResult, ImgProcError};
-use crate::image::Number;
+use crate::image::{Number, Image, BaseImage};
 
 pub(crate) fn check_channels(channels: u8, len: usize) {
     if channels != len as u8 {
@@ -65,8 +65,8 @@ pub(crate) fn check_in_range<T: Number>(val: T, min: T, max: T, name: &str) -> I
     Ok(())
 }
 
-pub(crate) fn check_grayscale(channels: u8, alpha: bool) -> ImgProcResult<()> {
-    if (alpha && channels != 2) || (!alpha && channels != 1) {
+pub(crate) fn check_grayscale<T: Number>(input: &Image<T>) -> ImgProcResult<()> {
+    if (input.info().alpha && input.info().channels != 2) || (!input.info().alpha && input.info().channels != 1) {
         return Err(ImgProcError::InvalidArgError("input is not a grayscale image".to_string()));
     }
 
