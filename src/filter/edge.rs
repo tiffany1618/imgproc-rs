@@ -4,7 +4,7 @@
 
 use crate::{filter, error, util, convert};
 use crate::image::{Image, BaseImage};
-use crate::error::{ImgProcResult, check_grayscale};
+use crate::error::ImgProcResult;
 use crate::util::constants::{K_PREWITT_1D_VERT, K_PREWITT_1D_HORZ, K_SOBEL_1D_VERT, K_SOBEL_1D_HORZ, K_LAPLACIAN};
 
 /// Applies a separable derivative mask to a grayscale image
@@ -45,8 +45,9 @@ pub fn laplacian(input: &Image<f64>) -> ImgProcResult<Image<f64>> {
     Ok(filter::unseparable_filter(input, &K_LAPLACIAN)?)
 }
 
-/// Applies the Laplacian of Gaussian operator to a grayscale image. Output contains positive
-/// and negative values - use [`normalize_laplacian()`](fn.normalize_laplacian.html) for visualization
+/// Applies the Laplacian of Gaussian operator using a `size x size` kernel to a grayscale image.
+/// Output contains positive and negative values - use
+/// [`normalize_laplacian()`](fn.normalize_laplacian.html) for visualization
 pub fn laplacian_of_gaussian(input: &Image<f64>, size: u32, sigma: f64) -> ImgProcResult<Image<f64>> {
     let kernel = util::generate_log_kernel(size, sigma)?;
     Ok(filter::unseparable_filter(input, &kernel)?)
@@ -54,7 +55,7 @@ pub fn laplacian_of_gaussian(input: &Image<f64>, size: u32, sigma: f64) -> ImgPr
 
 /// Normalizes the result of a Laplacian or Laplacian of Gaussian operator to the range [0, 255]
 pub fn normalize_laplacian(input: &Image<f64>) -> ImgProcResult<Image<u8>> {
-    check_grayscale(input)?;
+    error::check_grayscale(input)?;
 
     let min = *input.data().iter().min_by(|x, y| x.partial_cmp(y).unwrap()).unwrap();
     let max = *input.data().iter().max_by(|x, y| x.partial_cmp(y).unwrap()).unwrap();

@@ -144,7 +144,7 @@ fn laplacian() {
     write(&filter::normalize_laplacian(&filtered).unwrap(), "images/tests/filter/laplacian.png").unwrap();
 }
 
-#[test]
+// #[test]
 fn laplacian_of_gaussian() {
     let img: Image<f64> = colorspace::rgb_to_grayscale(&setup("images/scaled.png").unwrap()).into();
 

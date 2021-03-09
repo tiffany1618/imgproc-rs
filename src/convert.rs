@@ -5,7 +5,9 @@ use crate::error::ImgProcResult;
 
 /// Scales channels from range 0.0 to `current_max` to range 0.0 to `scaled_max`
 pub fn scale_channels(input: &Image<f64>, current_min: f64, scaled_min: f64, current_max: f64, scaled_max: f64) -> ImgProcResult<Image<f64>> {
-    Ok(input.map_channels(|channel| ((channel + (scaled_min - current_min)) / (current_max - current_min) * (scaled_max - scaled_min))))
+    Ok(input.map_channels(|channel| {
+        (channel - current_min) / (current_max - current_min) * (scaled_max - scaled_min) + scaled_min
+    }))
 }
 
 /// Converts an `Image<f64>` with channels in range 0 to `scale` to an `Image<u8>` with channels
