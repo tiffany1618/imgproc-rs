@@ -5,12 +5,12 @@ use crate::image::{Image, BaseImage};
 /// Erodes a binary image (grayscale image with pixel values of 0 or 255) using a kernel of size
 /// `(2 * radius + 1) x (2 * radius + 1)`
 pub fn erode(input: &Image<u8>, radius: u32) -> ImgProcResult<Image<u8>> {
-    error::check_grayscale(input.info().channels, input.info().alpha)?;
+    error::check_grayscale(input)?;
 
     let (width, height) =  input.info().wh();
     let size = 2 * radius + 1;
     let max_sum = (size * size * 255) as f64;
-    let table = util::summed_area_table(&input.clone().into());
+    let table = util::generate_summed_area_table(&input.clone().into());
     let mut output = Image::blank(input.info());
 
     for y in 0..height {
@@ -45,10 +45,10 @@ pub fn erode(input: &Image<u8>, radius: u32) -> ImgProcResult<Image<u8>> {
 /// Dilates a binary image (grayscale image with pixel values of 0 or 255) using a kernel of size
 /// `(2 * radius + 1) x (2 * radius + 1)`
 pub fn dilate(input: &Image<u8>, radius: u32) -> ImgProcResult<Image<u8>> {
-    error::check_grayscale(input.info().channels, input.info().alpha)?;
+    error::check_grayscale(input)?;
 
     let (width, height) =  input.info().wh();
-    let table = util::summed_area_table(&input.clone().into());
+    let table = util::generate_summed_area_table(&input.clone().into());
     let mut output = Image::blank(input.info());
 
     for y in 0..height {
@@ -83,10 +83,10 @@ pub fn dilate(input: &Image<u8>, radius: u32) -> ImgProcResult<Image<u8>> {
 /// Sets output pixel to the majority-valued pixel in the input image under a kernel of size
 /// `(2 * radius + 1) x (2 * radius + 1)`
 pub fn majority(input: &Image<u8>, radius: u32) -> ImgProcResult<Image<u8>> {
-    error::check_grayscale(input.info().channels, input.info().alpha)?;
+    error::check_grayscale(input)?;
 
     let (width, height) =  input.info().wh();
-    let table = util::summed_area_table(&input.clone().into());
+    let table = util::generate_summed_area_table(&input.clone().into());
     let mut output = Image::blank(input.info());
 
     for y in 0..height {
@@ -131,12 +131,12 @@ pub fn close(input: &Image<u8>, radius: u32) -> ImgProcResult<Image<u8>> {
 /// Returns the difference between dilation and erosion of the image
 #[allow(unused_parens)]
 pub fn gradient(input: &Image<u8>, radius: u32) -> ImgProcResult<Image<u8>> {
-    error::check_grayscale(input.info().channels, input.info().alpha)?;
+    error::check_grayscale(input)?;
 
     let (width, height) =  input.info().wh();
     let size = 2 * radius + 1;
     let max_sum = (size * size * 255) as f64;
-    let table = util::summed_area_table(&input.clone().into());
+    let table = util::generate_summed_area_table(&input.clone().into());
     let mut output = Image::blank(input.info());
 
     for y in 0..height {

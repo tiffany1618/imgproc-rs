@@ -63,3 +63,6 @@ pub const K_PREWITT_1D_VERT: [f64; 3] = [1.0, 1.0, 1.0];
 
 /// 1D horizontal kernel for the Prewitt operator
 pub const K_PREWITT_1D_HORZ: [f64; 3] = [-1.0, 0.0, 1.0];
+
+/// Laplacian discrete approximation kernel
+pub const K_LAPLACIAN: [f64; 9] = [0.0, -1.0, 0.0, -1.0, 4.0, -1.0, 0.0, -1.0, 0.0];

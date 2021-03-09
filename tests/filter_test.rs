@@ -134,6 +134,28 @@ fn sobel_weighted() {
 }
 
 // #[test]
+fn laplacian() {
+    let img: Image<f64> = colorspace::rgb_to_grayscale(&setup("images/poppy.jpg").unwrap()).into();
+
+    let now = SystemTime::now();
+    let filtered = filter::laplacian(&img).unwrap();
+    println!("processing: {}", now.elapsed().unwrap().as_millis());
+
+    write(&filter::normalize_laplacian(&filtered).unwrap(), "images/tests/filter/laplacian.png").unwrap();
+}
+
+// #[test]
+fn laplacian_of_gaussian() {
+    let img: Image<f64> = colorspace::rgb_to_grayscale(&setup("images/scaled.png").unwrap()).into();
+
+    let now = SystemTime::now();
+    let filtered = filter::laplacian_of_gaussian(&img, 7, 1.0).unwrap();
+    println!("processing: {}", now.elapsed().unwrap().as_millis());
+
+    write(&filter::normalize_laplacian(&filtered).unwrap(), "images/tests/filter/laplacian_of_gaussian.png").unwrap();
+}
+
+// #[test]
 fn threshold_test() {
     let img: Image<f64> = colorspace::rgb_to_grayscale(&setup(PATH).unwrap()).into();
 

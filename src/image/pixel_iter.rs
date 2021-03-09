@@ -1,6 +1,30 @@
 use crate::image::{Image, BaseImage, Number};
 
-/// A struct representing a pixel iterator for an image
+/// A struct representing a pixel iterator for an image. `next()` returns a tuple containing the
+/// x-coordinate, y-coordinate, and a slice representing the pixel at that coordinate, in that
+/// order.
+///
+/// # Examples
+/// ```rust
+/// # fn main() {
+/// use imgproc_rs::image::{Image, BaseImage};
+///
+/// // Create an image
+/// let img = Image::from_vec(2, 2, 3, false, vec![1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]);
+///
+/// // Print pixels with corresponding coordinates using the pixel iterator
+/// for vals in img.into_iter() {
+///     print!("(x: {}, y: {}), pixel: (", vals.0, vals.1);
+///
+///     for i in 0..(img.info().channels as usize) {
+///         print!("{}, ", vals.2[i]);
+///     }
+///
+///     print!(")");
+///     println!();
+/// }
+/// # }
+/// ```
 #[derive(Debug, Clone)]
 pub struct PixelIter<'a, T: Number> {
     image: &'a Image<T>,

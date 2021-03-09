@@ -6,8 +6,8 @@ use std::cmp::Reverse;
 
 /// Applies a median filter, where each output pixel is the median of the pixels in a
 /// `(2 * radius + 1) x (2 * radius + 1)` kernel in the input image. Based on Ben Weiss' partial
-/// histogram method, using a tier radix of 2. For a detailed description, see:
-/// http://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.93.1608&rep=rep1&type=pdf
+/// histogram method, using a tier radix of 2. A detailed description can be found
+/// [here](http://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.93.1608&rep=rep1&type=pdf).
 pub fn median_filter(input: &Image<u8>, radius: u32) -> ImgProcResult<Image<u8>> {
     let mut n_cols = (4.0 * (radius as f64).powf(2.0 / 3.0)).floor() as usize;
     if n_cols % 2 == 0 {
@@ -23,8 +23,9 @@ pub fn median_filter(input: &Image<u8>, radius: u32) -> ImgProcResult<Image<u8>>
     Ok(output)
 }
 
-/// Applies an alpha-trimmed mean filter, where each output pixel is the alpha-trimmed mean of the
-/// pixels in a `(2 * radius + 1) x (2 * radius + 1)` kernel in the input image
+/// Applies an alpha-trimmed mean filter, where each output pixel is the mean of the
+/// pixels in a `(2 * radius + 1) x (2 * radius + 1)` kernel in the input image, with the lowest
+/// `alpha / 2` pixels and the highest `alpha / 2` pixels removed.
 pub fn alpha_trimmed_mean_filter(input: &Image<u8>, radius: u32, alpha: u32) -> ImgProcResult<Image<u8>> {
     let size = 2 * radius + 1;
     error::check_even(alpha, "alpha")?;
@@ -46,13 +47,36 @@ pub fn alpha_trimmed_mean_filter(input: &Image<u8>, radius: u32, alpha: u32) -> 
     Ok(output)
 }
 
+/*
+ * The PartialHistograms struct:
+ *
+ * This struct contains the partial histograms, which is a vector of an odd number of histograms
+ * determined by n_cols. The only "complete" histogram is the central histogram (located at
+ * data[n_half]), which is the histogram of the pixel values in the kernel surrounding the
+ * central pixel in the row that is being processed. Each histogram to the left and right of the
+ * central histogram is not another "complete" histogram, but rather is a histogram representing
+ * the difference between the histogram for the pixel at that location and the central histogram.
+ * As such, the values in these "partial" histograms can (and frequently will) be negative.
+ * The "complete" histogram for each non-central pixel is then just the sum of the corresponding
+ * partial histogram and the central histogram.
+ *
+ * Algorithm overview:
+ *
+ * The basic idea of this algorithm is to process a row of n_cols pixels at once using the
+ * partial histograms to efficiently compute the complete histograms for each pixel. To process the
+ * next row, the partial histograms are updated to remove the top row of pixel values from the
+ * previous kernel and add the bottom row of pixel values from the current kernel. Each set of
+ * n_cols columns in the image is processed in this fashion, using a single set of partial
+ * histograms that are updated as the current kernel slides down the image.
+ */
 #[derive(Debug, Clone)]
 struct PartialHistograms {
     data: Vec<[i32; 256]>, // The partial histograms
-    n_cols: usize,
-    n_half: usize,
-    radius: usize,
-    size: usize,
+    n_cols: usize, // The number of partial histograms, which is always odd. This also denotes the
+                   // number of columns we can process at once
+    n_half: usize, // Half the number of partial histograms, rounded down
+    radius: usize, // The radius of the kernel we are using
+    size: usize, // The number of pixels in a kernel
 }
 
 impl PartialHistograms {
@@ -69,6 +93,7 @@ impl PartialHistograms {
         }
     }
 
+    // Add or remove a row of pixels from the histograms, as indicated by the add parameter
     fn update(&mut self, p_in: &Vec<&[u8]>, channel_index: usize, add: bool) {
         let mut inc = 1;
         if !add {
@@ -96,6 +121,8 @@ impl PartialHistograms {
         }
     }
 
+    // Returns the number of pixels with a value of key in the kernel for the pixel at the given
+    // index
     fn get_count(&self, key: usize, index: usize) -> i32 {
         let mut count = self.data[self.n_half][key as usize];
         if index != self.n_half {
@@ -110,6 +137,20 @@ impl PartialHistograms {
 // Median filter functions
 ////////////////////////////
 
+/*
+ * The MedianHist struct:
+ *
+ * In addition to containing the partial histograms, this struct keeps track of each previous
+ * median of the kernel for each pixel. These medians are used as "pivots" to find the next
+ * median: to find the median of the kernel for a given pixel, instead of scanning its histogram
+ * starting from 0, we start from the median of the kernel of the previous pixel in that column.
+ * This value is typically much closer to the current median since the majority of the pixels
+ * in the previous and current kernels are the same, which makes scanning the histogram much
+ * quicker. The "sums", or the number of values in the current histogram that are less than the
+ * previous median, is used to determine if the current median is greater than or less than the
+ * previous median, thus determining if the current histogram should be scanned upwards or
+ * downwards from the previous median, respectively, to find the current median.
+ */
 #[derive(Debug, Clone)]
 struct MedianHist {
     data: PartialHistograms,
@@ -158,7 +199,7 @@ impl MedianHist {
             inc *= -1;
         }
 
-        // Update sums
+        // Update the number of values less than the previous median
         if !self.pivots.is_empty() {
             for n in 0..self.data.n_cols {
                 for i in n..(n + self.data.size) {
@@ -173,7 +214,9 @@ impl MedianHist {
 
 fn process_cols_med(input: &Image<u8>, output: &mut Image<u8>, radius: u32, n_cols: usize, x: u32) {
     let size = 2 * radius + 1;
-    let center = ((size * size) / 2 + 1) as i32;
+    let center = ((size * size) / 2 + 1) as i32; // Half the number of pixels in a kernel. If
+                                                      // all the pixels in the kernel were sorted,
+                                                      // the index of the median would be (center - 1).
     let (width, height, channels) = input.info().whc();
     let mut histograms = vec![MedianHist::new(radius as usize, n_cols); channels as usize];
 
@@ -252,10 +295,14 @@ fn process_row_med(output: &mut Image<u8>, histograms: &mut Vec<MedianHist>, cen
     for i in 0..n_cols {
         let mut p_out = Vec::with_capacity(channels);
         for c in 0..channels {
-            let pivot = histograms[c].pivots()[i];
-            let mut sum = histograms[c].sums()[i];
+            let pivot = histograms[c].pivots()[i]; // Get the previous median
+            let mut sum = histograms[c].sums()[i]; // Get the number of values less than
+                                                        // the previous median
 
-            if sum < center {
+            if sum == center { // The current median is equal to the previous median
+                p_out.push(pivot);
+            } else if sum < center { // The current median is greater than the previous median,
+                                     // so the histogram should be scanned upwards
                 for key in pivot..=255 {
                     let add = histograms[c].data().get_count(key as usize, i);
 
@@ -267,7 +314,8 @@ fn process_row_med(output: &mut Image<u8>, histograms: &mut Vec<MedianHist>, cen
 
                     sum += add;
                 }
-            } else {
+            } else { // The current median is less than the previous median, so the histogram
+                     // should be scanned downwards
                 for key in (0..pivot).rev() {
                     sum -= histograms[c].data().get_count(key as usize, i);
 
@@ -312,11 +360,14 @@ fn set_pivots_med(histograms: &mut Vec<MedianHist>, pivots: &Vec<u8>, index: usi
 #[derive(Debug, Clone)]
 struct MeanHist {
     data: PartialHistograms,
-    sums: Vec<i32>,
-    lower: Vec<Vec<u8>>,
-    upper: Vec<Vec<u8>>,
-    trim: usize,
-    len: f32,
+    sums: Vec<i32>, // The sum of all the participating pixel values in the kernel for each pixel
+    lower: Vec<Vec<u8>>, // Vectors of all the lowest discarded pixel values in the kernel
+                         // for each pixel
+    upper: Vec<Vec<u8>>, // Vectors of all the highest discarded pixel values in the kernel for
+                         // each pixel
+    trim: usize, // The number of pixel values discarded at the low and high ends of each kernel
+                 // (equal to half of alpha)
+    len: f32, // The number of participating pixel values in each kernel
 }
 
 impl MeanHist {
@@ -344,6 +395,7 @@ impl MeanHist {
         self.upper = vec![Vec::with_capacity(self.trim); self.data.n_cols];
     }
 
+    // By some miracle, this seems to work!
     fn update(&mut self, p_in: &Vec<&[u8]>, channel_index: usize, add: bool) {
         if !self.sums.is_empty() {
             if add {

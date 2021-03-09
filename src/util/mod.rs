@@ -1,46 +1,28 @@
 //! A module for image utility functions
 
-pub mod constants;
+pub use self::math::*;
 
-use crate::{error, math};
-use crate::enums::White;
-use crate::error::ImgProcResult;
-use crate::image::{BaseImage, Image, Number};
+mod math;
 
 use std::collections::{BTreeMap, HashMap};
 use std::f64::consts::{E, PI};
+
+use crate::enums::White;
+use crate::error;
+use crate::error::ImgProcResult;
+use crate::image::{BaseImage, Image, Number};
+
+pub mod constants;
 
 ////////////////////////////
 // Image helper functions
 ////////////////////////////
 
 /// Returns a tuple representing the XYZ tristimulus values for a given reference white value
-pub fn generate_xyz_tristimulus_vals(ref_white: &White) -> (f64, f64, f64) {
+pub fn xyz_tristimulus_vals(ref_white: &White) -> (f64, f64, f64) {
     return match ref_white {
         White::D50 => (96.4212, 100.0, 82.5188),
         White::D65 => (95.0489, 100.0, 108.8840),
-    }
-}
-
-/// A helper function for the colorspace conversion from CIE XYZ to CIELAB
-pub fn xyz_to_lab_fn(num: f64) -> f64 {
-    let d: f64 = 6.0 / 29.0;
-
-    if num > d.powf(3.0) {
-        num.powf(1.0 / 3.0)
-    } else {
-        (num / (3.0 * d * d)) + (4.0 / 29.0)
-    }
-}
-
-/// A helper function for the colorspace conversion from CIELAB to CIE XYZ
-pub fn lab_to_xyz_fn(num: f64) -> f64 {
-    let d: f64 = 6.0 / 29.0;
-
-    if num > d {
-        num.powf(3.0)
-    } else {
-        3.0 * d * d * (num - (4.0 / 29.0))
     }
 }
 
@@ -73,7 +55,7 @@ pub fn generate_histogram_percentiles(input: &Image<f64>, percentiles: &mut Hash
 }
 
 /// Populates `table` with the appropriate values based on function `f`
-pub fn create_lookup_table<T: Number, F>(table: &mut [T; 256], f: F)
+pub fn generate_lookup_table<T: Number, F>(table: &mut [T; 256], f: F)
     where F: Fn(u8) -> T {
     for i in 0..256 {
         table[i] = f(i as u8);
@@ -81,7 +63,7 @@ pub fn create_lookup_table<T: Number, F>(table: &mut [T; 256], f: F)
 }
 
 /// Generates a Gaussian kernel
-pub fn generate_gaussian_kernel(size: u32, std_dev: f64) -> ImgProcResult<Vec<f64>> {
+pub fn generate_gaussian_kernel(size: u32, sigma: f64) -> ImgProcResult<Vec<f64>> {
     error::check_odd(size, "size")?;
 
     let mut filter = vec![0.0; (size * size) as usize];
@@ -90,8 +72,32 @@ pub fn generate_gaussian_kernel(size: u32, std_dev: f64) -> ImgProcResult<Vec<f6
     for i in 0..(size as i32) {
         for j in 0..(size as i32) {
             if i <= j {
-                let num = (1.0 / (2.0 * PI * std_dev * std_dev)) *
-                    (E.powf(-(((i - k) * (i - k) + (j - k) * (j - k)) as f64) / (2.0 * std_dev * std_dev)));
+                let num = (1.0 / (2.0 * PI * sigma * sigma)) *
+                    (E.powf(-(((i - k) * (i - k) + (j - k) * (j - k)) as f64) / (2.0 * sigma * sigma)));
+                filter[(i * size as i32 + j) as usize] = num;
+
+                if i != j {
+                    filter[(j * size as i32 + i) as usize] = num;
+                }
+            }
+        }
+    }
+
+    Ok(filter)
+}
+
+/// Generates a Laplacian of Gaussian kernel
+pub fn generate_log_kernel(size: u32, sigma: f64) -> ImgProcResult<Vec<f64>> {
+    error::check_odd(size, "size")?;
+
+    let mut filter = vec![0.0; (size * size) as usize];
+    let k = ((size - 1) / 2) as i32;
+
+    for i in 0..(size as i32) {
+        for j in 0..(size as i32) {
+            if i <= j {
+                let exp = -(((i - k) * (i - k) + (j - k) * (j - k)) as f64) / (2.0 * sigma * sigma);
+                let num = (-1.0 / (PI * sigma.powf(4.0))) * (1.0 - exp) * (E.powf(exp));
                 filter[(i * size as i32 + j) as usize] = num;
 
                 if i != j {
@@ -154,7 +160,7 @@ pub fn generate_spatial_mat(size: u32, spatial: f64) -> ImgProcResult<Vec<f64>> 
 
 /// Generates a summed-area table in the format of another `Image` of the same type and dimensions
 /// as `input`
-pub fn summed_area_table(input: &Image<f64>) -> Image<f64> {
+pub fn generate_summed_area_table(input: &Image<f64>) -> Image<f64> {
     let mut output = Image::blank(input.info());
     let (width, height, channels) = input.info().whc();
     let zeroes = vec![0.0; channels as usize];

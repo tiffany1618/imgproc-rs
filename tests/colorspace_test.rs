@@ -42,7 +42,7 @@ fn srgb_to_xyz_test() {
     let proc = colorspace::srgb_to_xyz(&img);
     println!("processing: {}", now.elapsed().unwrap().as_millis());
 
-    write(&convert::scale_channels(&proc, 1.0, 255.0).unwrap().into(), "images/tests/colorspace/srgb_xyz.png").unwrap();
+    write(&convert::scale_channels(&proc, 0.0, 0.0, 1.0, 255.0).unwrap().into(), "images/tests/colorspace/srgb_xyz.png").unwrap();
 }
 
 // #[test]
@@ -50,7 +50,7 @@ fn xyz_to_srgb_test() {
     let img: Image<f64> = setup("images/tests/colorspace/srgb_xyz.png").unwrap().into();
 
     let now = SystemTime::now();
-    let proc = colorspace::xyz_to_srgb(&convert::scale_channels(&img, 255.0, 1.0).unwrap());
+    let proc = colorspace::xyz_to_srgb(&convert::scale_channels(&img, 0.0, 0.0, 255.0, 1.0).unwrap());
     println!("processing: {}", now.elapsed().unwrap().as_millis());
 
     write(&proc, "images/tests/colorspace/xyz_srgb.png").unwrap();
@@ -94,7 +94,7 @@ fn rgb_to_hsv_test() {
     let proc = colorspace::rgb_to_hsv(&img);
     println!("processing: {}", now.elapsed().unwrap().as_millis());
 
-    write(&convert::scale_channels(&proc, 1.0, 255.0).unwrap().into(), "images/tests/colorspace/rgb_hsv.png").unwrap();
+    write(&convert::scale_channels(&proc, 0.0, 0.0, 1.0, 255.0).unwrap().into(), "images/tests/colorspace/rgb_hsv.png").unwrap();
 }
 
 // #[test]
@@ -102,7 +102,7 @@ fn hsv_to_rgb_test() {
     let img: Image<f64> = setup("images/tests/colorspace/rgb_hsv.png").unwrap().into();
 
     let now = SystemTime::now();
-    let proc = colorspace::hsv_to_rgb(&convert::scale_channels(&img, 255.0, 1.0).unwrap());
+    let proc = colorspace::hsv_to_rgb(&convert::scale_channels(&img, 0.0, 0.0, 255.0, 1.0).unwrap());
     println!("processing: {}", now.elapsed().unwrap().as_millis());
 
     write(&proc, "images/tests/colorspace/hsv_rgb.png").unwrap();

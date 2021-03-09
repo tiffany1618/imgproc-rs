@@ -1,5 +1,3 @@
-//! A module for utility math functions
-
 use crate::error;
 use crate::image::{Number, SubImage, BaseImage};
 use crate::error::ImgProcResult;
@@ -175,6 +173,28 @@ pub fn cubic_weighting_fn(x: f64) -> f64 {
         - 4.0 * clamp_zero(x + 1.0).powf(3.0)
         + 6.0 * clamp_zero(x).powf(3.0)
         - 4.0 * clamp_zero(x - 1.0).powf(3.0))
+}
+
+/// A helper function for the colorspace conversion from CIE XYZ to CIELAB
+pub fn xyz_to_lab_fn(num: f64) -> f64 {
+    let d: f64 = 6.0 / 29.0;
+
+    if num > d.powf(3.0) {
+        num.powf(1.0 / 3.0)
+    } else {
+        (num / (3.0 * d * d)) + (4.0 / 29.0)
+    }
+}
+
+/// A helper function for the colorspace conversion from CIELAB to CIE XYZ
+pub fn lab_to_xyz_fn(num: f64) -> f64 {
+    let d: f64 = 6.0 / 29.0;
+
+    if num > d {
+        num.powf(3.0)
+    } else {
+        3.0 * d * d * (num - (4.0 / 29.0))
+    }
 }
 
 /// Returns 0 if `x` is less than 0; `x` if not
