@@ -65,6 +65,11 @@ impl<'a, T: Number> Iterator for PixelIter<'a, T> {
 
         Some((temp_x, temp_y, self.image.get_pixel(temp_x, temp_y)))
     }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        let size = ((self.x_max + 1) * (self.y_max + 1)) as usize;
+        (size, Some(size))
+    }
 }
 
 impl<'a, T: Number> IntoIterator for &'a Image<T> {

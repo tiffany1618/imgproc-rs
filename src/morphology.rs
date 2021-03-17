@@ -33,7 +33,7 @@ pub fn erode(input: &Image<u8>, radius: u32) -> ImgProcResult<Image<u8>> {
                 y_bot += radius;
             }
 
-            if util::rectangular_intensity_sum(&table, x_top, y_top, x_bot, y_bot)[0] == max_sum {
+            if (util::rectangular_intensity_sum(&table, x_top, y_top, x_bot, y_bot)[0] - max_sum).abs() < f64::EPSILON {
                 output.set_pixel(x, y, &[255]);
             }
         }
@@ -160,7 +160,7 @@ pub fn gradient(input: &Image<u8>, radius: u32) -> ImgProcResult<Image<u8>> {
             }
 
             let sum = util::rectangular_intensity_sum(&table, x_top, y_top, x_bot, y_bot)[0];
-            let erode = (sum == max_sum);
+            let erode = ((sum - max_sum).abs() < f64::EPSILON);
             let dilate = (sum >= 255.0);
 
             if erode ^ dilate {

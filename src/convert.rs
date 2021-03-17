@@ -3,7 +3,7 @@
 use crate::image::Image;
 use crate::error::ImgProcResult;
 
-/// Scales channels from range 0.0 to `current_max` to range 0.0 to `scaled_max`
+/// Scales channels from range `current_min` to `current_max` to range `scaled_min` to `scaled_max`
 pub fn scale_channels(input: &Image<f64>, current_min: f64, scaled_min: f64, current_max: f64, scaled_max: f64) -> ImgProcResult<Image<f64>> {
     Ok(input.map_channels(|channel| {
         (channel - current_min) / (current_max - current_min) * (scaled_max - scaled_min) + scaled_min

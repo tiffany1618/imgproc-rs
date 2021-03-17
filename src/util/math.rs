@@ -55,12 +55,10 @@ pub fn max_3(x: f64, y: f64, z: f64) -> f64 {
         } else {
             z
         }
+    } else if y > z {
+        y
     } else {
-        if y > z {
-            y
-        } else {
-            z
-        }
+        z
     }
 }
 
@@ -72,12 +70,10 @@ pub fn min_3(x: f64, y: f64, z: f64) -> f64 {
         } else {
             z
         }
+    } else if y < z {
+        y
     } else {
-        if y < z {
-            y
-        } else {
-            z
-        }
+        z
     }
 }
 
@@ -119,8 +115,8 @@ pub fn apply_1d_kernel(pixels: SubImage<f64>, kernel: &[f64]) -> ImgProcResult<V
 
     // Apply kernel
     for i in 0..size {
-        for j in 0..channels {
-            vec[j] += kernel[i] * pixels[i][j];
+        for (j, val) in vec.iter_mut().enumerate() {
+            *val += kernel[i] * pixels[i][j];
         }
     }
 
@@ -141,8 +137,8 @@ pub fn apply_2d_kernel(pixels: SubImage<f64>, kernel: &[f64]) -> ImgProcResult<V
     for y in 0..size {
         for x in 0..size {
             let index = y * size + x;
-            for j in 0..num_channels {
-                vec[j] += kernel[index] * pixels[index][j];
+            for (j, val) in vec.iter_mut().enumerate() {
+                *val += kernel[index] * pixels[index][j];
             }
         }
     }

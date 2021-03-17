@@ -70,8 +70,8 @@ impl<T: Number> Pixel<T> for [T] {
 
     fn apply<F>(&mut self, f: F)
         where F: Fn(T) -> T {
-        for i in 0..self.len() {
-            self[i] = f(self[i]);
+        for channel in self.iter_mut() {
+            *channel = f(*channel);
         }
     }
 

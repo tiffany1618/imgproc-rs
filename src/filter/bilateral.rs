@@ -68,12 +68,12 @@ fn bilateral_direct_pixel(input: &Image<f64>, range: f64, spatial_mat: &[f64], s
     let p_in = input.get_pixel(x, y);
     let mut p_out = Vec::with_capacity(input.info().channels as usize);
 
-    for c in 0..(input.info().channels as usize) {
+    for (c, channel) in p_in.iter().enumerate() {
         let mut total_weight = 0.0;
         let mut p_curr = 0.0;
 
         for i in 0..((size * size) as usize) {
-            let g_r = util::gaussian_fn((p_in[c] - p_n[i][c]).abs(), range).unwrap();
+            let g_r = util::gaussian_fn((channel - p_n[i][c]).abs(), range).unwrap();
             let weight = spatial_mat[i] * g_r;
 
             p_curr += weight * p_n[i][c];

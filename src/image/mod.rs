@@ -378,9 +378,7 @@ impl<T: Number> Image<T> {
         error::check_xy(x, y, self.info.width, self.info.height);
 
         let start = self.index(x, y);
-        for i in 0..(self.info.channels as usize) {
-            self.data[i + start] = pixel[i];
-        }
+        self.data[start..((self.info.channels as usize) + start)].clone_from_slice(pixel);
     }
 
     /// Replaces the pixel at index `index` with `pixel`
@@ -392,9 +390,7 @@ impl<T: Number> Image<T> {
         error::check_channels(self.info.channels, pixel.len());
 
         let start = index * self.info.channels as usize;
-        for i in 0..(self.info.channels as usize) {
-            self.data[start + i] = pixel[i];
-        }
+        self.data[start..((self.info.channels as usize) + start)].clone_from_slice(pixel);
     }
 
     /// Applies function `f` to each pixel

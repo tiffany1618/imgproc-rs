@@ -2,7 +2,7 @@ use crate::error;
 use crate::error::{ImgProcResult, ImgProcError};
 use crate::image::{Image, BaseImage};
 
-use std::cmp::Reverse;
+use std::cmp::{Ordering, Reverse};
 
 /// Applies a median filter, where each output pixel is the median of the pixels in a
 /// `(2 * radius + 1) x (2 * radius + 1)` kernel in the input image. Based on Ben Weiss' partial
@@ -94,7 +94,7 @@ impl PartialHistograms {
     }
 
     // Add or remove a row of pixels from the histograms, as indicated by the add parameter
-    fn update(&mut self, p_in: &Vec<&[u8]>, channel_index: usize, add: bool) {
+    fn update(&mut self, p_in: &[&[u8]], channel_index: usize, add: bool) {
         let mut inc = 1;
         if !add {
             inc *= -1;
@@ -191,7 +191,7 @@ impl MedianHist {
         self.sums[index] = sum;
     }
 
-    fn update(&mut self, p_in: &Vec<&[u8]>, channel_index: usize, add: bool) {
+    fn update(&mut self, p_in: &[&[u8]], channel_index: usize, add: bool) {
         self.data.update(p_in, channel_index, add);
 
         let mut inc = 1;
@@ -237,8 +237,8 @@ fn process_cols_med(input: &Image<u8>, output: &mut Image<u8>, radius: u32, n_co
             p_out.push(input.get_pixel_unchecked(i_clamp, j_out));
         }
 
-        add_row_med(&mut histograms, &p_in, channels as usize);
-        remove_row_med(&mut histograms, &p_out, channels as usize);
+        add_row_med(&mut histograms, &p_in);
+        remove_row_med(&mut histograms, &p_out);
 
         process_row_med(output, &mut histograms, center, n_cols, x, j);
     }
@@ -255,26 +255,26 @@ fn init_cols_med(input: &Image<u8>, output: &mut Image<u8>, histograms: &mut Vec
                                                 j.clamp(0, height as i32 - 1) as u32));
         }
 
-        add_row_med(histograms, &p_in, channels as usize);
+        add_row_med(histograms, &p_in);
     }
 
     // Initialize histogram pivots
-    for c in 0..(channels as usize) {
-        histograms[c].init_pivots();
+    for hist in histograms.iter_mut() {
+        hist.init_pivots();
     }
 
     // Compute first median values
     for i in 0..n_cols {
         let mut p_out = Vec::with_capacity(channels as usize);
-        for c in 0..(channels as usize) {
+        for hist in histograms.iter_mut() {
             let mut sum = 0;
 
             for key in 0u8..=255 {
-                let add = histograms[c].data().get_count(key as usize, i);
+                let add = hist.data().get_count(key as usize, i);
 
                 if sum + add >= center {
                     p_out.push(key);
-                    histograms[c].set_sum(sum, i);
+                    hist.set_sum(sum, i);
                     break;
                 }
 
@@ -294,35 +294,39 @@ fn process_row_med(output: &mut Image<u8>, histograms: &mut Vec<MedianHist>, cen
 
     for i in 0..n_cols {
         let mut p_out = Vec::with_capacity(channels);
-        for c in 0..channels {
-            let pivot = histograms[c].pivots()[i]; // Get the previous median
-            let mut sum = histograms[c].sums()[i]; // Get the number of values less than
+        for hist in histograms.iter_mut() {
+            let pivot = hist.pivots()[i]; // Get the previous median
+            let mut sum = hist.sums()[i]; // Get the number of values less than
                                                         // the previous median
 
-            if sum == center { // The current median is equal to the previous median
-                p_out.push(pivot);
-            } else if sum < center { // The current median is greater than the previous median,
-                                     // so the histogram should be scanned upwards
-                for key in pivot..=255 {
-                    let add = histograms[c].data().get_count(key as usize, i);
+            match sum.cmp(&center) {
+                Ordering::Equal => { // The current median is equal to the previous median
+                    p_out.push(pivot);
+                },
+                Ordering::Less => { // The current median is greater than the previous median,
+                                    // so the histogram should be scanned upwards
+                    for key in pivot..=255 {
+                        let add = hist.data().get_count(key as usize, i);
 
-                    if sum + add >= center {
-                        p_out.push(key);
-                        histograms[c].set_sum(sum, i);
-                        break;
+                        if sum + add >= center {
+                            p_out.push(key);
+                            hist.set_sum(sum, i);
+                            break;
+                        }
+
+                        sum += add;
                     }
+                },
+                Ordering::Greater => { // The current median is less than the previous median, so the histogram
+                                       // should be scanned downwards
+                    for key in (0..pivot).rev() {
+                        sum -= hist.data().get_count(key as usize, i);
 
-                    sum += add;
-                }
-            } else { // The current median is less than the previous median, so the histogram
-                     // should be scanned downwards
-                for key in (0..pivot).rev() {
-                    sum -= histograms[c].data().get_count(key as usize, i);
-
-                    if sum < center {
-                        p_out.push(key);
-                        histograms[c].set_sum(sum, i);
-                        break;
+                        if sum < center {
+                            p_out.push(key);
+                            hist.set_sum(sum, i);
+                            break;
+                        }
                     }
                 }
             }
@@ -335,19 +339,19 @@ fn process_row_med(output: &mut Image<u8>, histograms: &mut Vec<MedianHist>, cen
     }
 }
 
-fn add_row_med(histograms: &mut Vec<MedianHist>, p_in: &Vec<&[u8]>, channels: usize) {
-    for c in 0..channels {
-        histograms[c].update(p_in, c, true);
+fn add_row_med(histograms: &mut Vec<MedianHist>, p_in: &[&[u8]]) {
+    for (c, hist) in histograms.iter_mut().enumerate() {
+        hist.update(p_in, c, true);
     }
 }
 
-fn remove_row_med(histograms: &mut Vec<MedianHist>, p_in: &Vec<&[u8]>, channels: usize) {
-    for c in 0..channels {
-        histograms[c].update(p_in, c, false);
+fn remove_row_med(histograms: &mut Vec<MedianHist>, p_in: &[&[u8]]) {
+    for (c, hist) in histograms.iter_mut().enumerate() {
+        hist.update(p_in, c, false);
     }
 }
 
-fn set_pivots_med(histograms: &mut Vec<MedianHist>, pivots: &Vec<u8>, index: usize) {
+fn set_pivots_med(histograms: &mut Vec<MedianHist>, pivots: &[u8], index: usize) {
     for c in 0..pivots.len() {
         histograms[c].set_pivot(pivots[c], index);
     }
@@ -396,7 +400,7 @@ impl MeanHist {
     }
 
     // By some miracle, this seems to work!
-    fn update(&mut self, p_in: &Vec<&[u8]>, channel_index: usize, add: bool) {
+    fn update(&mut self, p_in: &[&[u8]], channel_index: usize, add: bool) {
         if !self.sums.is_empty() {
             if add {
                 for n in 0..self.data.n_cols {
@@ -575,8 +579,8 @@ fn process_cols_mean(input: &Image<u8>, output: &mut Image<u8>, radius: u32, alp
             p_out.push(input.get_pixel_unchecked(i_clamp, j_out));
         }
 
-        add_row_mean(&mut histograms, &p_in, channels as usize);
-        remove_row_mean(&mut histograms, &p_out, channels as usize);
+        add_row_mean(&mut histograms, &p_in);
+        remove_row_mean(&mut histograms, &p_out);
 
         process_row_mean(output, &mut histograms, n_cols, x, j);
     }
@@ -594,12 +598,12 @@ fn init_cols_mean(input: &Image<u8>, output: &mut Image<u8>, histograms: &mut Ve
                                                 j.clamp(0, height as i32 - 1) as u32));
         }
 
-        add_row_mean(histograms, &p_in, channels as usize);
+        add_row_mean(histograms, &p_in);
     }
 
     // Initialize histograms
-    for c in 0..(channels as usize) {
-        histograms[c].init();
+    for hist in histograms.iter_mut() {
+        hist.init();
     }
 
     // Compute first mean values
@@ -607,14 +611,14 @@ fn init_cols_mean(input: &Image<u8>, output: &mut Image<u8>, histograms: &mut Ve
     let upper_trim = (size * size) as usize - trim;
     for i in 0..n_cols {
         let mut p_out = Vec::with_capacity(channels as usize);
-        for c in 0..(channels as usize) {
+        for hist in histograms.iter_mut() {
             let mut count = 0;
             let mut sum = 0;
             let mut upper = Vec::with_capacity(trim);
             let mut lower = Vec::with_capacity(trim);
 
             for key in 0u8..=255 {
-                let mut add = histograms[c].data().get_count(key as usize, i);
+                let mut add = hist.data().get_count(key as usize, i);
                 count += add;
                 sum += add * key as i32;
 
@@ -631,11 +635,11 @@ fn init_cols_mean(input: &Image<u8>, output: &mut Image<u8>, histograms: &mut Ve
                 }
             }
 
-            histograms[c].set_sum(sum, i);
-            histograms[c].set_upper(upper, i);
-            histograms[c].set_lower(lower, i);
+            hist.set_sum(sum, i);
+            hist.set_upper(upper, i);
+            hist.set_lower(lower, i);
 
-            p_out.push(histograms[c].get_mean(i));
+            p_out.push(hist.get_mean(i));
         }
 
         let x_clamp = (x + i as u32).clamp(0, output.info().width - 1);
@@ -648,8 +652,8 @@ fn process_row_mean(output: &mut Image<u8>, histograms: &mut Vec<MeanHist>, n_co
 
     for i in 0..n_cols {
         let mut p_out = Vec::with_capacity(channels);
-        for c in 0..channels {
-            p_out.push(histograms[c].get_mean(i));
+        for hist in histograms.iter_mut() {
+            p_out.push(hist.get_mean(i));
         }
 
         let x_clamp = (x + i as u32).clamp(0, output.info().width - 1);
@@ -657,14 +661,14 @@ fn process_row_mean(output: &mut Image<u8>, histograms: &mut Vec<MeanHist>, n_co
     }
 }
 
-fn add_row_mean(histograms: &mut Vec<MeanHist>, p_in: &Vec<&[u8]>, channels: usize) {
-    for c in 0..channels {
-        histograms[c].update(p_in, c, true);
+fn add_row_mean(histograms: &mut Vec<MeanHist>, p_in: &[&[u8]]) {
+    for (c, hist) in histograms.iter_mut().enumerate() {
+        hist.update(p_in, c, true);
     }
 }
 
-fn remove_row_mean(histograms: &mut Vec<MeanHist>, p_in: &Vec<&[u8]>, channels: usize) {
-    for c in 0..channels {
-        histograms[c].update(p_in, c, false);
+fn remove_row_mean(histograms: &mut Vec<MeanHist>, p_in: &[&[u8]]) {
+    for (c, hist) in histograms.iter_mut().enumerate() {
+        hist.update(p_in, c, false);
     }
 }

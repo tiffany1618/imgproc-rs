@@ -20,7 +20,7 @@ pub mod constants;
 
 /// Returns a tuple representing the XYZ tristimulus values for a given reference white value
 pub fn xyz_tristimulus_vals(ref_white: &White) -> (f64, f64, f64) {
-    return match ref_white {
+    match ref_white {
         White::D50 => (96.4212, 100.0, 82.5188),
         White::D65 => (95.0489, 100.0, 108.8840),
     }
@@ -57,8 +57,8 @@ pub fn generate_histogram_percentiles(input: &Image<f64>, percentiles: &mut Hash
 /// Populates `table` with the appropriate values based on function `f`
 pub fn generate_lookup_table<T: Number, F>(table: &mut [T; 256], f: F)
     where F: Fn(u8) -> T {
-    for i in 0..256 {
-        table[i] = f(i as u8);
+    for (i, num) in table.iter_mut().enumerate() {
+        *num = f(i as u8);
     }
 }
 

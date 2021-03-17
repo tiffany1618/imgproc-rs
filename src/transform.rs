@@ -62,9 +62,7 @@ pub fn crop<T: Number>(input: &Image<T>, x: u32, y: u32, width: u32, height: u32
 /// pixel values of `front`
 pub fn superimpose(back: &Image<f64>, front: &Image<f64>, x: u32, y: u32, alpha: f64) -> ImgProcResult<Image<f64>> {
     error::check_equal(back.info().channels, front.info().channels, "image channels")?;
-    if alpha < 0.0 || alpha > 1.0 {
-        return Err(ImgProcError::InvalidArgError("alpha is not in range [0.0, 1.0]".to_string()));
-    }
+    error::check_in_range(0.0, 1.0, alpha, "alpha")?;
 
     let mut output = back.clone();
     let width = std::cmp::min(x + front.info().width, back.info().width);
