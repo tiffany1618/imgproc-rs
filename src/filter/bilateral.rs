@@ -13,18 +13,19 @@ pub fn bilateral_filter(input: &Image<u8>, range: f64, spatial: f64, algorithm: 
     error::check_non_neg(range, "range")?;
     error::check_non_neg(spatial, "spatial")?;
 
-    let (width, height) = input.info().wh();
+    let (width, height, channels) = input.info().whc();
     let size = ((spatial * 4.0) + 1.0) as u32;
     let spatial_mat = util::generate_spatial_mat(size, spatial)?;
 
     let lab = colorspace::srgb_to_lab(&input, &White::D65);
     let mut output = Image::blank(lab.info());
+    let mut p_out = Vec::with_capacity(channels as usize);
 
     match algorithm {
         Bilateral::Direct => {
             for y in 0..height {
                 for x in 0..width {
-                    let p_out = bilateral_direct_pixel(&lab, range, &spatial_mat, size, x, y);
+                    bilateral_direct_pixel(&lab, &mut p_out, range, &spatial_mat, size, x, y);
                     output.set_pixel(x, y, &p_out);
                 }
             }
@@ -63,6 +64,29 @@ pub fn bilateral_filter(input: &Image<u8>, range: f64, spatial: f64, algorithm: 
     }
 }
 
+#[cfg(not(feature = "rayon"))]
+fn bilateral_direct_pixel(input: &Image<f64>, output: &mut Vec<f64>, range: f64, spatial_mat: &[f64], size: u32, x: u32, y: u32) {
+    let p_n = input.get_neighborhood_2d(x, y, size as u32);
+    let p_in = input.get_pixel(x, y);
+    output.clear();
+
+    for (c, channel) in p_in.iter().enumerate() {
+        let mut total_weight = 0.0;
+        let mut p_curr = 0.0;
+
+        for i in 0..((size * size) as usize) {
+            let g_r = util::gaussian_fn((channel - p_n[i][c]).abs(), range).unwrap();
+            let weight = spatial_mat[i] * g_r;
+
+            p_curr += weight * p_n[i][c];
+            total_weight += weight;
+        }
+
+        output.push(p_curr / total_weight);
+    }
+}
+
+#[cfg(feature = "rayon")]
 fn bilateral_direct_pixel(input: &Image<f64>, range: f64, spatial_mat: &[f64], size: u32, x: u32, y: u32) -> Vec<f64> {
     let p_n = input.get_neighborhood_2d(x, y, size as u32);
     let p_in = input.get_pixel(x, y);

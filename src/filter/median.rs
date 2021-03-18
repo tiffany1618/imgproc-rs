@@ -219,43 +219,49 @@ fn process_cols_med(input: &Image<u8>, output: &mut Image<u8>, radius: u32, n_co
                                                       // the index of the median would be (center - 1).
     let (width, height, channels) = input.info().whc();
     let mut histograms = vec![MedianHist::new(radius as usize, n_cols); channels as usize];
+    let mut p_out = Vec::with_capacity(channels as usize);
 
     // Initialize histogram and process first row
-    init_cols_med(input, output, &mut histograms, radius, center, n_cols, x);
+    init_cols_med(input, output, &mut histograms, &mut p_out, radius, center, n_cols, x);
 
     // Update histogram and process remaining rows
+    let mut row_in = Vec::with_capacity(n_cols);
+    let mut row_out = Vec::with_capacity(n_cols);
     for j in 1..height {
         // Update histograms
-        let mut p_in = Vec::with_capacity(n_cols);
-        let mut p_out = Vec::with_capacity(n_cols);
         let j_in = (j + radius).clamp(0, input.info().height - 1);
         let j_out = (j as i32 - radius as i32 - 1).clamp(0, input.info().height as i32 - 1) as u32;
 
         for i in (x as i32 - radius as i32)..((x + n_cols as u32 + radius) as i32) {
             let i_clamp = i.clamp(0, width as i32 - 1) as u32;
-            p_in.push(input.get_pixel_unchecked(i_clamp, j_in));
-            p_out.push(input.get_pixel_unchecked(i_clamp, j_out));
+            row_in.push(input.get_pixel_unchecked(i_clamp, j_in));
+            row_out.push(input.get_pixel_unchecked(i_clamp, j_out));
         }
 
-        add_row_med(&mut histograms, &p_in);
-        remove_row_med(&mut histograms, &p_out);
+        add_row_med(&mut histograms, &row_in);
+        remove_row_med(&mut histograms, &row_out);
 
-        process_row_med(output, &mut histograms, center, n_cols, x, j);
+        process_row_med(output, &mut histograms, &mut p_out, center, n_cols, x, j);
+
+        row_in.clear();
+        row_out.clear();
     }
 }
 
-fn init_cols_med(input: &Image<u8>, output: &mut Image<u8>, histograms: &mut Vec<MedianHist>, radius: u32, center: i32, n_cols: usize, x: u32) {
-    let (width, height, channels) = input.info().whc();
+fn init_cols_med(input: &Image<u8>, output: &mut Image<u8>, histograms: &mut Vec<MedianHist>,
+                 p_out: &mut Vec<u8>, radius: u32, center: i32, n_cols: usize, x: u32) {
+    let (width, height) = input.info().wh();
 
     // Initialize histograms
+    let mut row_in = Vec::with_capacity(n_cols);
     for j in -(radius as i32)..(radius as i32 + 1) {
-        let mut p_in = Vec::with_capacity(n_cols);
         for i in (x as i32 - radius as i32)..((x + n_cols as u32 + radius) as i32) {
-            p_in.push(input.get_pixel_unchecked(i.clamp(0, width as i32 - 1) as u32,
-                                                j.clamp(0, height as i32 - 1) as u32));
+            row_in.push(input.get_pixel_unchecked(i.clamp(0, width as i32 - 1) as u32,
+                                                  j.clamp(0, height as i32 - 1) as u32));
         }
 
-        add_row_med(histograms, &p_in);
+        add_row_med(histograms, &row_in);
+        row_in.clear();
     }
 
     // Initialize histogram pivots
@@ -265,7 +271,7 @@ fn init_cols_med(input: &Image<u8>, output: &mut Image<u8>, histograms: &mut Vec
 
     // Compute first median values
     for i in 0..n_cols {
-        let mut p_out = Vec::with_capacity(channels as usize);
+        p_out.clear();
         for hist in histograms.iter_mut() {
             let mut sum = 0;
 
@@ -289,11 +295,9 @@ fn init_cols_med(input: &Image<u8>, output: &mut Image<u8>, histograms: &mut Vec
     }
 }
 
-fn process_row_med(output: &mut Image<u8>, histograms: &mut Vec<MedianHist>, center: i32, n_cols: usize, x: u32, y: u32) {
-    let channels = output.info().channels as usize;
-
+fn process_row_med(output: &mut Image<u8>, histograms: &mut Vec<MedianHist>, p_out: &mut Vec<u8>, center: i32, n_cols: usize, x: u32, y: u32) {
     for i in 0..n_cols {
-        let mut p_out = Vec::with_capacity(channels);
+        p_out.clear();
         for hist in histograms.iter_mut() {
             let pivot = hist.pivots()[i]; // Get the previous median
             let mut sum = hist.sums()[i]; // Get the number of values less than
@@ -561,44 +565,49 @@ impl MeanHist {
 fn process_cols_mean(input: &Image<u8>, output: &mut Image<u8>, radius: u32, alpha: u32, n_cols: usize, x: u32) {
     let (width, height, channels) = input.info().whc();
     let mut histograms = vec![MeanHist::new(radius as usize, n_cols, alpha); channels as usize];
+    let mut p_out = Vec::with_capacity(channels as usize);
 
     // Initialize histogram and process first row
-    init_cols_mean(input, output, &mut histograms, radius, alpha, n_cols, x);
+    init_cols_mean(input, output, &mut histograms, &mut p_out, radius, alpha, n_cols, x);
 
     // Update histogram and process remaining rows
+    let mut row_in = Vec::with_capacity(n_cols);
+    let mut row_out = Vec::with_capacity(n_cols);
     for j in 1..height {
         // Update histograms
-        let mut p_in = Vec::with_capacity(n_cols);
-        let mut p_out = Vec::with_capacity(n_cols);
         let j_in = (j + radius).clamp(0, input.info().height - 1);
         let j_out = (j as i32 - radius as i32 - 1).clamp(0, input.info().height as i32 - 1) as u32;
 
         for i in (x as i32 - radius as i32)..((x + n_cols as u32 + radius) as i32) {
             let i_clamp = i.clamp(0, width as i32 - 1) as u32;
-            p_in.push(input.get_pixel_unchecked(i_clamp, j_in));
-            p_out.push(input.get_pixel_unchecked(i_clamp, j_out));
+            row_in.push(input.get_pixel_unchecked(i_clamp, j_in));
+            row_out.push(input.get_pixel_unchecked(i_clamp, j_out));
         }
 
-        add_row_mean(&mut histograms, &p_in);
-        remove_row_mean(&mut histograms, &p_out);
+        add_row_mean(&mut histograms, &row_in);
+        remove_row_mean(&mut histograms, &row_out);
 
-        process_row_mean(output, &mut histograms, n_cols, x, j);
+        process_row_mean(output, &mut histograms, &mut p_out, n_cols, x, j);
+
+        row_in.clear();
+        row_out.clear();
     }
 }
 
-fn init_cols_mean(input: &Image<u8>, output: &mut Image<u8>, histograms: &mut Vec<MeanHist>, radius: u32, alpha: u32, n_cols: usize, x: u32) {
-    let (width, height, channels) = input.info().whc();
+fn init_cols_mean(input: &Image<u8>, output: &mut Image<u8>, histograms: &mut Vec<MeanHist>,
+                  p_out: &mut Vec<u8>, radius: u32, alpha: u32, n_cols: usize, x: u32) {
+    let (width, height) = input.info().wh();
     let size = 2 * radius + 1;
 
     // Initialize histograms
+    let mut row_in = Vec::with_capacity(n_cols);
     for j in -(radius as i32)..(radius as i32 + 1) {
-        let mut p_in = Vec::with_capacity(n_cols);
         for i in (x as i32 - radius as i32)..((x + n_cols as u32 + radius) as i32) {
-            p_in.push(input.get_pixel_unchecked(i.clamp(0, width as i32 - 1) as u32,
+            row_in.push(input.get_pixel_unchecked(i.clamp(0, width as i32 - 1) as u32,
                                                 j.clamp(0, height as i32 - 1) as u32));
         }
 
-        add_row_mean(histograms, &p_in);
+        add_row_mean(histograms, &row_in);
     }
 
     // Initialize histograms
@@ -610,7 +619,7 @@ fn init_cols_mean(input: &Image<u8>, output: &mut Image<u8>, histograms: &mut Ve
     let trim = (alpha as usize) / 2;
     let upper_trim = (size * size) as usize - trim;
     for i in 0..n_cols {
-        let mut p_out = Vec::with_capacity(channels as usize);
+        p_out.clear();
         for hist in histograms.iter_mut() {
             let mut count = 0;
             let mut sum = 0;
@@ -647,11 +656,9 @@ fn init_cols_mean(input: &Image<u8>, output: &mut Image<u8>, histograms: &mut Ve
     }
 }
 
-fn process_row_mean(output: &mut Image<u8>, histograms: &mut Vec<MeanHist>, n_cols: usize, x: u32, y: u32) {
-    let channels = output.info().channels as usize;
-
+fn process_row_mean(output: &mut Image<u8>, histograms: &mut Vec<MeanHist>, p_out: &mut Vec<u8>, n_cols: usize, x: u32, y: u32) {
     for i in 0..n_cols {
-        let mut p_out = Vec::with_capacity(channels);
+        p_out.clear();
         for hist in histograms.iter_mut() {
             p_out.push(hist.get_mean(i));
         }

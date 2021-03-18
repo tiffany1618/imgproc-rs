@@ -103,47 +103,96 @@ pub fn min_4(w: f64, x: f64, y: f64, z: f64) -> f64 {
     }
 }
 
-/// Applies a 1D kernel to `pixels`
-pub fn apply_1d_kernel(pixels: SubImage<f64>, kernel: &[f64]) -> ImgProcResult<Vec<f64>> {
-    let size = pixels.info().size() as usize;
-    let channels = pixels.info().channels as usize;
+/// Applies a 1D kernel
+#[cfg(not(feature = "rayon"))]
+pub fn apply_1d_kernel(input: &SubImage<f64>, output: &mut Vec<f64>, kernel: &[f64]) -> ImgProcResult<()> {
+    let size = input.info().size() as usize;
 
     error::check_odd(kernel.len(), "kernel length")?;
     error::check_equal(kernel.len(), size, "pixels and kernel dimensions")?;
 
-    let mut vec = vec![0.0; channels];
+    output.clear();
+    for _ in 0..input.info().channels {
+        output.push(0.0);
+    }
 
     // Apply kernel
     for i in 0..size {
-        for (j, val) in vec.iter_mut().enumerate() {
-            *val += kernel[i] * pixels[i][j];
+        for (j, val) in output.iter_mut().enumerate() {
+            *val += kernel[i] * input[i][j];
         }
     }
 
-    Ok(vec)
+    Ok(())
 }
 
-/// Applies a 2D kernel to `pixels`
-pub fn apply_2d_kernel(pixels: SubImage<f64>, kernel: &[f64]) -> ImgProcResult<Vec<f64>> {
-    let size = pixels.info().width as usize;
-    let num_channels = pixels.info().channels as usize;
+/// Applies a 1D kernel
+#[cfg(feature = "rayon")]
+pub fn apply_1d_kernel(input: &SubImage<f64>, kernel: &[f64]) -> ImgProcResult<Vec<f64>> {
+    let size = input.info().size() as usize;
+
+    error::check_odd(kernel.len(), "kernel length")?;
+    error::check_equal(kernel.len(), size, "pixels and kernel dimensions")?;
+
+    let mut output = vec![0.0; input.info().channels as usize];
+
+    // Apply kernel
+    for i in 0..size {
+        for (j, val) in output.iter_mut().enumerate() {
+            *val += kernel[i] * input[i][j];
+        }
+    }
+
+    Ok(output)
+}
+
+/// Applies a 2D kernel
+#[cfg(not(feature = "rayon"))]
+pub fn apply_2d_kernel(input: &SubImage<f64>, output: &mut Vec<f64>, kernel: &[f64]) -> ImgProcResult<()> {
+    let size = input.info().width as usize;
 
     error::check_odd(kernel.len(), "kernel length")?;
     error::check_equal(kernel.len(), size * size, "pixels and kernel dimensions")?;
 
-    let mut vec = vec![0.0; num_channels];
+    output.clear();
+    for _ in 0..input.info().channels {
+        output.push(0.0);
+    }
 
     // Apply kernel
     for y in 0..size {
         for x in 0..size {
             let index = y * size + x;
-            for (j, val) in vec.iter_mut().enumerate() {
-                *val += kernel[index] * pixels[index][j];
+            for (j, val) in output.iter_mut().enumerate() {
+                *val += kernel[index] * input[index][j];
             }
         }
     }
 
-    Ok(vec)
+    Ok(())
+}
+
+/// Applies a 2D kernel
+#[cfg(feature = "rayon")]
+pub fn apply_2d_kernel(input: &SubImage<f64>, kernel: &[f64]) -> ImgProcResult<Vec<f64>> {
+    let size = input.info().width as usize;
+
+    error::check_odd(kernel.len(), "kernel length")?;
+    error::check_equal(kernel.len(), size * size, "pixels and kernel dimensions")?;
+
+    let mut output = vec![0.0; input.info().channels as usize];
+
+    // Apply kernel
+    for y in 0..size {
+        for x in 0..size {
+            let index = y * size + x;
+            for (j, val) in output.iter_mut().enumerate() {
+                *val += kernel[index] * input[index][j];
+            }
+        }
+    }
+
+    Ok(output)
 }
 
 /// Calculates the distance between two points

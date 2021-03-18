@@ -27,14 +27,15 @@ use rayon::prelude::*;
 pub fn filter_1d(input: &Image<f64>, kernel: &[f64], is_vert: bool) -> ImgProcResult<Image<f64>> {
     error::check_odd(kernel.len(), "kernel length")?;
 
-    let (width, height) = input.info().wh();
+    let (width, height, channels) = input.info().whc();
     let mut output = Image::blank(input.info());
+    let mut p_out = Vec::with_capacity(channels as usize);
 
     for y in 0..height {
         for x in 0..width {
-            let pixel = util::apply_1d_kernel(input.get_neighborhood_1d(x, y,
-                                                        kernel.len() as u32, is_vert), kernel)?;
-            output.set_pixel(x, y, &pixel);
+            util::apply_1d_kernel(&input.get_neighborhood_1d(x, y, kernel.len() as u32, is_vert),
+                                              &mut p_out, kernel)?;
+            output.set_pixel(x, y, &p_out);
         }
     }
 
@@ -53,7 +54,7 @@ pub fn filter_1d(input: &Image<f64>, kernel: &[f64], is_vert: bool) -> ImgProcRe
         .into_par_iter()
         .map(|i| {
             let (x, y) = util::get_2d_coords(i, width);
-            util::apply_1d_kernel(input.get_neighborhood_1d(x, y,kernel.len() as u32, is_vert), kernel).unwrap()
+            util::apply_1d_kernel(&input.get_neighborhood_1d(x, y,kernel.len() as u32, is_vert), kernel).unwrap()
         })
         .collect();
 
@@ -77,13 +78,14 @@ pub fn unseparable_filter(input: &Image<f64>, kernel: &[f64]) -> ImgProcResult<I
     error::check_square(kernel.len() as f64, "kernel length")?;
 
     let size = (kernel.len() as f32).sqrt() as u32;
-    let (width, height) = input.info().wh();
+    let (width, height, channels) = input.info().whc();
     let mut output = Image::blank(input.info());
+    let mut p_out = Vec::with_capacity(channels as usize);
 
     for y in 0..height {
         for x in 0..width {
-            let pixel = util::apply_2d_kernel(input.get_neighborhood_2d(x, y, size), kernel)?;
-            output.set_pixel(x, y, &pixel);
+            util::apply_2d_kernel(&input.get_neighborhood_2d(x, y, size), &mut p_out, kernel)?;
+            output.set_pixel(x, y, &p_out);
         }
     }
 
@@ -103,7 +105,7 @@ pub fn unseparable_filter(input: &Image<f64>, kernel: &[f64]) -> ImgProcResult<I
         .into_par_iter()
         .map(|i| {
             let (x, y) = util::get_2d_coords(i, width);
-            util::apply_2d_kernel(input.get_neighborhood_2d(x, y, size), kernel).unwrap()
+            util::apply_2d_kernel(&input.get_neighborhood_2d(x, y, size), kernel).unwrap()
         })
         .collect();
 
