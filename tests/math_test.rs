@@ -6,9 +6,13 @@ use imgproc_rs::image::SubImage;
 fn vector_mul_test() {
     let mat = vec![1, 2, 3, 4, 5, 6, 7, 8, 9];
     let vec = vec![1, 2, 3];
-    let res = util::vector_mul(&mat, &vec).unwrap();
+    let res1 = util::vector_mul(&mat, &vec).unwrap();
 
-    assert_eq!(vec![14, 32, 50], res);
+    let mut res2 = Vec::new();
+    util::vector_mul_mut(&mat, &vec, &mut res2).unwrap();
+
+    assert_eq!(vec![14, 32, 50], res1);
+    assert_eq!(vec![14, 32, 50], res2);
 }
 
 #[test]
@@ -42,18 +46,36 @@ fn min_test() {
 }
 
 #[test]
+#[cfg(not(feature = "rayon"))]
 fn apply_1d_kernel_test() {
     let pixels: Vec<&[f64]> = vec![&[1.0, 2.0, 3.0],
                                &[4.0, 5.0, 6.0],
                                &[2.0, 3.0, 4.0]];
     let subimg = SubImage::new(3, 1, 3, false, pixels);
     let kernel = [1.0, 2.0, 1.0];
-    let res = util::apply_1d_kernel(subimg, &kernel).unwrap();
+
+    let mut res = Vec::new();
+    util::apply_1d_kernel(&subimg, &mut res, &kernel).unwrap();
 
     assert_eq!(vec![11.0, 15.0, 19.0], res);
 }
 
 #[test]
+#[cfg(feature = "rayon")]
+fn apply_1d_kernel_test() {
+    let pixels: Vec<&[f64]> = vec![&[1.0, 2.0, 3.0],
+                                   &[4.0, 5.0, 6.0],
+                                   &[2.0, 3.0, 4.0]];
+    let subimg = SubImage::new(3, 1, 3, false, pixels);
+    let kernel = [1.0, 2.0, 1.0];
+
+    let res = util::apply_1d_kernel(&subimg, &kernel).unwrap();
+
+    assert_eq!(vec![11.0, 15.0, 19.0], res);
+}
+
+#[test]
+#[cfg(not(feature = "rayon"))]
 fn apply_2d_kernel_test() {
     let pixels: Vec<&[f64]> = vec![&[1.0, 2.0, 3.0],
                       &[2.0, 3.0, 4.0],
@@ -65,7 +87,29 @@ fn apply_2d_kernel_test() {
                       &[3.0, 5.0, 7.0],
                       &[1.0, 3.0, 5.0]];
     let subimg = SubImage::new(3, 3, 3, false, pixels);
-    let res = util::apply_2d_kernel(subimg, &K_GAUSSIAN_BLUR_2D_3).unwrap();
+
+    let mut res = Vec::new();
+    util::apply_2d_kernel(&subimg, &mut res, &K_GAUSSIAN_BLUR_2D_3).unwrap();
+
+    assert_eq!(vec![3.5625, 3.8125, 4.0625], res);
+}
+
+#[test]
+#[cfg(feature = "rayon")]
+fn apply_2d_kernel_test() {
+    let pixels: Vec<&[f64]> = vec![&[1.0, 2.0, 3.0],
+                                   &[2.0, 3.0, 4.0],
+                                   &[3.0, 4.0, 5.0],
+                                   &[6.0, 5.0, 4.0],
+                                   &[5.0, 4.0, 3.0],
+                                   &[4.0, 3.0, 2.0],
+                                   &[2.0, 4.0, 6.0],
+                                   &[3.0, 5.0, 7.0],
+                                   &[1.0, 3.0, 5.0]];
+    let subimg = SubImage::new(3, 3, 3, false, pixels);
+    let mut res = Vec::new();
+
+    let res = util::apply_2d_kernel(&subimg, &K_GAUSSIAN_BLUR_2D_3).unwrap();
 
     assert_eq!(vec![3.5625, 3.8125, 4.0625], res);
 }

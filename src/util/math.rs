@@ -6,8 +6,8 @@ use std::f64::consts::{PI, E};
 use rulinalg::matrix::{Matrix, BaseMatrix};
 
 /// Returns the result of the multiplication of a square matrix by a vector
-pub fn vector_mul<T: Number>(mat: &[T], vec: &[T]) -> ImgProcResult<Vec<T>> {
-    let rows = vec.len();
+pub fn vector_mul<T: Number>(mat: &[T], input: &[T]) -> ImgProcResult<Vec<T>> {
+    let rows = input.len();
     let mat_cols = mat.len() / rows;
 
     error::check_equal(mat_cols, rows, "mat and vec dimensions")?;
@@ -16,11 +16,32 @@ pub fn vector_mul<T: Number>(mat: &[T], vec: &[T]) -> ImgProcResult<Vec<T>> {
 
     for i in 0..rows {
         for j in 0..rows {
-            output[i] += mat[rows * i + j] * vec[j];
+            output[i] += mat[rows * i + j] * input[j];
         }
     }
 
     Ok(output)
+}
+
+/// Returns the result of the multiplication of a square matrix by a vector in `output`
+pub fn vector_mul_mut<T: Number>(mat: &[T], input: &[T], output: &mut Vec<T>) -> ImgProcResult<()> {
+    let rows = input.len();
+    let mat_cols = mat.len() / rows;
+
+    error::check_equal(mat_cols, rows, "mat and vec dimensions")?;
+
+    output.clear();
+    for _ in 0..rows {
+        output.push(0.into());
+    }
+
+    for i in 0..rows {
+        for j in 0..rows {
+            output[i] += mat[rows * i + j] * input[j];
+        }
+    }
+
+    Ok(())
 }
 
 /// If `kernel` is separable, returns the (vertical kernel, horizontal kernel); otherwise returns None

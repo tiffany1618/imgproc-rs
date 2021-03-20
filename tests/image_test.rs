@@ -94,29 +94,23 @@ fn image_map_test() {
                                             &[1, 2, 3, 4, 2, 3, 4, 5, 6, 5, 4, 3, 5, 4, 3, 2]);
 
     // Test map_pixels()
-    let map1 = img1.map_pixels(|channels| {
-        let mut vec = Vec::new();
+    let map1 = img1.map_pixels(|channels, vec| {
         for channel in channels.iter() {
             vec.push(channel + 5);
         }
-        vec
     });
     assert_eq!(&[6, 7, 8, 9, 7, 8, 9, 10, 11, 10, 9, 8, 10, 9, 8, 7], map1.data());
 
     // Test map_pixels_if_alpha()
-    let map2 = img1.map_pixels_if_alpha(|channels| {
-        let mut vec = Vec::new();
+    let map2 = img1.map_pixels_if_alpha(|channels, vec| {
         for channel in channels.iter() {
             vec.push(channel + 5);
         }
-        vec
     }, |a| a);
-    let map3 = img2.map_pixels_if_alpha(|channels| {
-        let mut vec = Vec::new();
+    let map3 = img2.map_pixels_if_alpha(|channels, vec| {
         for channel in channels.iter() {
             vec.push(channel + 5);
         }
-        vec
     }, |a| a);
     assert_eq!(&[6, 7, 8, 4, 7, 8, 9, 5, 11, 10, 9, 3, 10, 9, 8, 2], map2.data());
     assert_eq!(&[6, 7, 8, 9, 7, 8, 9, 10, 11, 10, 9, 8, 10, 9, 8, 7], map3.data());
@@ -144,29 +138,23 @@ fn image_apply_test() {
                                                 &[1, 2, 3, 4, 2, 3, 4, 5, 6, 5, 4, 3, 5, 4, 3, 2]);
 
     // Test apply_pixels()
-    img1.apply_pixels(|channels| {
-        let mut vec = Vec::new();
+    img1.apply_pixels(|channels, vec| {
         for channel in channels.iter() {
             vec.push(channel + 5);
         }
-        vec
     });
     assert_eq!(&[6, 7, 8, 9, 7, 8, 9, 10, 11, 10, 9, 8, 10, 9, 8, 7], img1.data());
 
     // Test apply_pixels_if_alpha()
-    img1.apply_pixels_if_alpha(|channels| {
-        let mut vec = Vec::new();
+    img1.apply_pixels_if_alpha(|channels, vec| {
         for channel in channels.iter() {
             vec.push(channel + 5);
         }
-        vec
     }, |a| a);
-    img2.apply_pixels_if_alpha(|channels| {
-        let mut vec = Vec::new();
+    img2.apply_pixels_if_alpha(|channels, vec| {
         for channel in channels.iter() {
             vec.push(channel + 5);
         }
-        vec
     }, |a| a);
     assert_eq!(&[11, 12, 13, 9, 12, 13, 14, 10, 16, 15, 14, 8, 15, 14, 13, 7], img1.data());
     assert_eq!(&[6, 7, 8, 9, 7, 8, 9, 10, 11, 10, 9, 8, 10, 9, 8, 7], img2.data());

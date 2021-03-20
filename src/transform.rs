@@ -233,13 +233,14 @@ pub fn rotate(input: &Image<f64>, degrees: f64) -> ImgProcResult<Image<f64>> {
 
     let mut output = Image::blank(ImageInfo::new(w_out, h_out,
                                                  input.info().channels, input.info().alpha));
+    let mut coords = Vec::with_capacity(input.info().channels as usize);
 
     for j in 0..h_in {
         for i in 0..w_in {
             let x1 = (i as f64) - (x as f64);
             let y1 = (y as f64) - (j as f64);
 
-            let mut coords = util::vector_mul(&mat, &[x1, y1])?;
+            util::vector_mul_mut(&mat, &[x1, y1], &mut coords)?;
 
             coords[0] += x_max - 1.0;
             coords[1] = y_max - coords[1] - 1.0;
@@ -291,6 +292,7 @@ pub fn shear(input: &Image<f64>, shear_x: f64, shear_y: f64) -> ImgProcResult<Im
     let h_out = offset_y as u32 + h_in;
     let mut output = Image::blank(ImageInfo::new(w_out, h_out,
                                                  input.info().channels, input.info().alpha));
+    let mut coords = Vec::with_capacity(input.info().channels as usize);
 
     // Negative sign to give the conventional orientation for a positive shear, since the image
     // coordinates are flipped from conventional coordinates (i.e. (0,0) is in the top left corner
@@ -299,7 +301,7 @@ pub fn shear(input: &Image<f64>, shear_x: f64, shear_y: f64) -> ImgProcResult<Im
 
     for y in 0..h_in {
         for x in 0..w_in {
-            let mut coords = util::vector_mul(&mat, &[x as f64, y as f64])?;
+            util::vector_mul_mut(&mat, &[x as f64, y as f64], &mut coords)?;
 
             if shear_x > 0.0 {
                 coords[0] += offset_x;

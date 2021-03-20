@@ -395,11 +395,13 @@ impl<T: Number> Image<T> {
 
     /// Applies function `f` to each pixel
     pub fn map_pixels<S: Number, F>(&self, f: F) -> Image<S>
-        where F: Fn(&[T]) -> Vec<S> {
-        let mut data= Vec::new();
+        where F: Fn(&[T], &mut Vec<S>) {
+        let mut data= Vec::with_capacity(self.info.size() as usize);
+        let mut p_out = Vec::new();
 
         for i in 0..(self.info.size() as usize) {
-            data.append(&mut f(&self[i]));
+            f(&self[i], &mut p_out);
+            data.append(&mut p_out);
         }
 
         let channels = (data.len() as u32 / self.info.size()) as u8;
@@ -419,17 +421,19 @@ impl<T: Number> Image<T> {
     /// function `g` to the alpha channel of each pixel; otherwise, applies function `f` to
     /// each pixel
     pub fn map_pixels_if_alpha<S: Number, F, G>(&self, f: F, g: G) -> Image<S>
-        where F: Fn(&[T]) -> Vec<S>,
+        where F: Fn(&[T], &mut Vec<S>),
               G: Fn(T) -> S {
         if !self.info.alpha {
             return self.map_pixels(f);
         }
 
-        let mut data = Vec::new();
+        let mut data = Vec::with_capacity(self.info.size() as usize);
+        let mut p_out = Vec::new();
+
         for i in 0..(self.info.size() as usize) {
-            let mut v = f(self[i].channels_without_alpha());
-            v.push(g(self[i].alpha()));
-            data.append(&mut v);
+            f(self[i].channels_without_alpha(), &mut p_out);
+            p_out.push(g(self[i].alpha()));
+            data.append(&mut p_out);
         }
 
         let channels = (data.len() as u32 / self.info.size()) as u8;
@@ -448,7 +452,7 @@ impl<T: Number> Image<T> {
     /// Applies function `f` to each channel of each pixel
     pub fn map_channels<S: Number, F>(&self, f: F) -> Image<S>
         where F: Fn(T) -> S {
-        let mut data = Vec::new();
+        let mut data = Vec::with_capacity(self.info.full_size() as usize);
 
         for i in 0..(self.info.full_size() as usize) {
             data.push(f(self.data[i]));
@@ -470,7 +474,7 @@ impl<T: Number> Image<T> {
             return self.map_channels(f);
         }
 
-        let mut data = Vec::new();
+        let mut data = Vec::with_capacity(self.info.full_size() as usize);
         for i in 0..(self.info.size() as usize) {
             data.append(&mut self[i].map_alpha(&f, &g));
         }
@@ -483,9 +487,13 @@ impl<T: Number> Image<T> {
 
     /// Applies function `f` to each pixel
     pub fn apply_pixels<F>(&mut self, f: F)
-        where F: Fn(&[T]) -> Vec<T> {
+        where F: Fn(&[T], &mut Vec<T>) {
+        let mut p_out = Vec::with_capacity(self.info.channels as usize);
+
         for i in 0..self.info.size() as usize {
-            self.set_pixel_indexed(i, f(&self[i]).as_slice());
+            p_out.clear();
+            f(&self[i], &mut p_out);
+            self.set_pixel_indexed(i, &p_out);
         }
     }
 
@@ -493,17 +501,19 @@ impl<T: Number> Image<T> {
     /// applies function `g` to the alpha channel of each pixel;
     /// otherwise, applies function `f` to each pixel
     pub fn apply_pixels_if_alpha<F, G>(&mut self, f: F, g: G)
-        where F: Fn(&[T]) -> Vec<T>,
+        where F: Fn(&[T], &mut Vec<T>),
               G: Fn(T) -> T {
         if !self.info.alpha {
             self.apply_pixels(f);
             return;
         }
 
+        let mut p_out = Vec::with_capacity(self.info.channels as usize);
         for i in 0..(self.info.size() as usize) {
-            let mut v = f(self[i].channels_without_alpha());
-            v.push(g(self[i].alpha()));
-            self.set_pixel_indexed(i, v.as_slice());
+            p_out.clear();
+            f(self[i].channels_without_alpha(), &mut p_out);
+            p_out.push(g(self[i].alpha()));
+            self.set_pixel_indexed(i, p_out.as_slice());
         }
     }
 

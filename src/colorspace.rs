@@ -9,25 +9,25 @@ use crate::util::constants::{GAMMA, SRGB_TO_XYZ_MAT, XYZ_TO_SRGB_MAT};
 
 /// Converts an image from RGB to Grayscale
 pub fn rgb_to_grayscale(input: &Image<u8>) -> Image<u8> {
-    input.map_pixels_if_alpha(|channels| {
+    input.map_pixels_if_alpha(|channels, p_out| {
         let mut sum = 0.0;
         for channel in channels.iter() {
             sum += *channel as f64;
         }
 
-        vec![(sum / channels.len() as f64) as u8]
+        p_out.push((sum / channels.len() as f64) as u8);
     }, |a| a)
 }
 
 /// Converts an f64 image from RGB to Grayscale
 pub fn rgb_to_grayscale_f64(input: &Image<f64>) -> Image<f64> {
-    input.map_pixels_if_alpha(|channels| {
+    input.map_pixels_if_alpha(|channels, p_out| {
         let mut sum = 0.0;
         for channel in channels.iter() {
             sum += *channel;
         }
 
-        vec![sum / channels.len() as f64]
+        p_out.push(sum / channels.len() as f64);
     }, |a| a)
 }
 
@@ -68,8 +68,8 @@ pub fn unlinearize_srgb(input: &Image<f64>) -> Image<u8> {
 /// * Input: linearized sRGB image with channels in range [0, 1]
 /// * Output: CIE XYZ image with channels in range [0, 1]
 pub fn srgb_lin_to_xyz(input: &Image<f64>) -> Image<f64> {
-    input.map_pixels_if_alpha(|channels| {
-        util::vector_mul(&SRGB_TO_XYZ_MAT, channels).unwrap()
+    input.map_pixels_if_alpha(|channels, p_out| {
+        util::vector_mul_mut(&SRGB_TO_XYZ_MAT, channels, p_out).unwrap()
     }, |a| a)
 }
 
@@ -78,8 +78,8 @@ pub fn srgb_lin_to_xyz(input: &Image<f64>) -> Image<f64> {
 /// * Input: CIE XYZ image with channels in range [0, 1]
 /// * Output: linearized sRGB image with channels in range [0, 1]
 pub fn xyz_to_srgb_lin(input: &Image<f64>) -> Image<f64> {
-    input.map_pixels_if_alpha(|channels| {
-        util::vector_mul(&XYZ_TO_SRGB_MAT, channels).unwrap()
+    input.map_pixels_if_alpha(|channels, p_out| {
+        util::vector_mul_mut(&XYZ_TO_SRGB_MAT, channels, p_out).unwrap()
     }, |a| a)
 }
 
@@ -90,14 +90,14 @@ pub fn xyz_to_srgb_lin(input: &Image<f64>) -> Image<f64> {
 pub fn xyz_to_lab(input: &Image<f64>, ref_white: &White) -> Image<f64> {
     let (x_n, y_n, z_n) = util::xyz_tristimulus_vals(ref_white);
 
-    input.map_pixels_if_alpha(|channels| {
+    input.map_pixels_if_alpha(|channels, p_out| {
         let x = util::xyz_to_lab_fn(channels[0] * 100.0 / x_n);
         let y = util::xyz_to_lab_fn(channels[1] * 100.0 / y_n);
         let z = util::xyz_to_lab_fn(channels[2] * 100.0 / z_n);
 
-        vec![116.0 * y - 16.0,
-             500.0 * (x - y),
-             200.0 * (y - z)]
+        p_out.extend([116.0 * y - 16.0,
+                           500.0 * (x - y),
+                           200.0 * (y - z)].iter());
     }, |a| a)
 }
 
@@ -108,12 +108,12 @@ pub fn xyz_to_lab(input: &Image<f64>, ref_white: &White) -> Image<f64> {
 pub fn lab_to_xyz(input: &Image<f64>, ref_white: &White) -> Image<f64> {
     let (x_n, y_n, z_n) = util::xyz_tristimulus_vals(ref_white);
 
-    input.map_pixels_if_alpha(|channels| {
+    input.map_pixels_if_alpha(|channels, p_out| {
         let n = (channels[0] + 16.0) / 116.0;
 
-        vec![x_n * util::lab_to_xyz_fn(n + channels[1] / 500.0) / 100.0,
-             y_n * util::lab_to_xyz_fn(n) / 100.0,
-             z_n * util::lab_to_xyz_fn(n - channels[2] / 200.0) / 100.0]
+        p_out.extend([x_n * util::lab_to_xyz_fn(n + channels[1] / 500.0) / 100.0,
+                           y_n * util::lab_to_xyz_fn(n) / 100.0,
+                           z_n * util::lab_to_xyz_fn(n - channels[2] / 200.0) / 100.0].iter());
     }, |a| a)
 }
 
@@ -122,7 +122,7 @@ pub fn lab_to_xyz(input: &Image<f64>, ref_white: &White) -> Image<f64> {
 /// * Input: RGB image with channels in range [0, 255]
 /// * Output: HSV image with channels in range [0, 1]
 pub fn rgb_to_hsv(input: &Image<u8>) -> Image<f64> {
-    input.map_pixels_if_alpha(|channels| {
+    input.map_pixels_if_alpha(|channels, p_out| {
         let max: u8 = cmp::max(cmp::max(channels[0], channels[1]), channels[2]);
         let min: u8 = cmp::min(cmp::min(channels[0], channels[1]), channels[2]);
         let range = (max - min) as f64 / 255.0;
@@ -152,7 +152,7 @@ pub fn rgb_to_hsv(input: &Image<u8>) -> Image<f64> {
             hue -= 1.0;
         }
 
-        vec![hue, saturation, (max as f64) / 255.0]
+        p_out.extend([hue, saturation, (max as f64) / 255.0].iter());
     }, |a| (a as f64) / 255.0)
 }
 
@@ -161,10 +161,12 @@ pub fn rgb_to_hsv(input: &Image<u8>) -> Image<f64> {
 /// * Input: HSV image with channels in range [0, 1]
 /// * Output: RGB image with channels in range [0, 255]
 pub fn hsv_to_rgb(input: &Image<f64>) -> Image<u8> {
-    input.map_pixels_if_alpha(|channels| {
+    input.map_pixels_if_alpha(|channels, p_out| {
         if channels[1] == 0.0 {
             let val = (channels[2] * 255.0) as u8;
-            return vec![val, val, val];
+
+            p_out.extend([val, val, val].iter());
+            return;
         }
 
         let hue = channels[0] * 6.0;
@@ -175,12 +177,12 @@ pub fn hsv_to_rgb(input: &Image<f64>) -> Image<u8> {
         let val = (channels[2] * 255.0) as u8;
 
         match hue.floor() as u8 {
-            0 => vec![val, t, p],
-            1 => vec![q, val, p],
-            2 => vec![p, val, t],
-            3 => vec![p, q, val],
-            4 => vec![t, p, val],
-            _ => vec![val, p, q],
+            0 => p_out.extend([val, t, p].iter()),
+            1 => p_out.extend([q, val, p].iter()),
+            2 => p_out.extend([p, val, t].iter()),
+            3 => p_out.extend([p, q, val].iter()),
+            4 => p_out.extend([t, p, val].iter()),
+            _ => p_out.extend([val, p, q].iter()),
         }
     }, |a| (a * 255.0).round() as u8)
 }
