@@ -42,6 +42,14 @@ pub fn brightness(input: &Image<u8>, bias: i32, method: Tone) -> ImgProcResult<I
     }
 }
 
+pub fn brightness_norm(input: &Image<u8>, bias: i32) -> Image<u8> {
+    brightness_rgb(input, bias)
+}
+
+pub fn brightness_avx2(input: &Image<u8>, bias: i32) -> Image<u8> {
+    unsafe { brightness_rgb_avx(input, bias) }
+}
+
 unsafe fn brightness_rgb_avx(input: &Image<u8>, bias: i32) -> Image<u8> {
     let mut add = true;
     if bias < 0 {
@@ -74,28 +82,28 @@ unsafe fn brightness_rgb_avx(input: &Image<u8>, bias: i32) -> Image<u8> {
                                        u8, u8, u8, u8, u8, u8, u8, u8,
                                        u8, u8, u8, u8, u8, u8, u8, u8,
                                        u8, u8, u8, u8, u8, u8, u8, u8) = mem::transmute(res);
-                    return vec![res_unpacked.0, res_unpacked.1, res_unpacked.2, res_unpacked.3,
-                                res_unpacked.4, res_unpacked.5, res_unpacked.6, res_unpacked.7,
-                                res_unpacked.8, res_unpacked.9, res_unpacked.10, res_unpacked.11,
-                                res_unpacked.12, res_unpacked.13, res_unpacked.14, res_unpacked.15,
-                                res_unpacked.16, res_unpacked.17, res_unpacked.18, res_unpacked.19,
-                                res_unpacked.20, res_unpacked.21, res_unpacked.22, res_unpacked.23,
-                                res_unpacked.24, res_unpacked.25, res_unpacked.26, res_unpacked.27,
-                                res_unpacked.28, res_unpacked.29, res_unpacked.30, res_unpacked.31];
+                    return vec![res_unpacked.31, res_unpacked.30, res_unpacked.29, res_unpacked.28,
+                                res_unpacked.27, res_unpacked.26, res_unpacked.25, res_unpacked.24,
+                                res_unpacked.23, res_unpacked.22, res_unpacked.21, res_unpacked.20,
+                                res_unpacked.19, res_unpacked.18, res_unpacked.17, res_unpacked.16,
+                                res_unpacked.15, res_unpacked.14, res_unpacked.13, res_unpacked.12,
+                                res_unpacked.11, res_unpacked.10, res_unpacked.9, res_unpacked.8,
+                                res_unpacked.7, res_unpacked.6, res_unpacked.5, res_unpacked.4,
+                                res_unpacked.3, res_unpacked.2, res_unpacked.1, res_unpacked.0];
                 } else {
                     let res = _mm256_subs_epu8(chunk_m256i, bias_m256i);
                     let res_unpacked: (u8, u8, u8, u8, u8, u8, u8, u8,
                                        u8, u8, u8, u8, u8, u8, u8, u8,
                                        u8, u8, u8, u8, u8, u8, u8, u8,
                                        u8, u8, u8, u8, u8, u8, u8, u8) = mem::transmute(res);
-                    return vec![res_unpacked.0, res_unpacked.1, res_unpacked.2, res_unpacked.3,
-                                res_unpacked.4, res_unpacked.5, res_unpacked.6, res_unpacked.7,
-                                res_unpacked.8, res_unpacked.9, res_unpacked.10, res_unpacked.11,
-                                res_unpacked.12, res_unpacked.13, res_unpacked.14, res_unpacked.15,
-                                res_unpacked.16, res_unpacked.17, res_unpacked.18, res_unpacked.19,
-                                res_unpacked.20, res_unpacked.21, res_unpacked.22, res_unpacked.23,
-                                res_unpacked.24, res_unpacked.25, res_unpacked.26, res_unpacked.27,
-                                res_unpacked.28, res_unpacked.29, res_unpacked.30, res_unpacked.31];
+                    return vec![res_unpacked.31, res_unpacked.30, res_unpacked.29, res_unpacked.28,
+                                res_unpacked.27, res_unpacked.26, res_unpacked.25, res_unpacked.24,
+                                res_unpacked.23, res_unpacked.22, res_unpacked.21, res_unpacked.20,
+                                res_unpacked.19, res_unpacked.18, res_unpacked.17, res_unpacked.16,
+                                res_unpacked.15, res_unpacked.14, res_unpacked.13, res_unpacked.12,
+                                res_unpacked.11, res_unpacked.10, res_unpacked.9, res_unpacked.8,
+                                res_unpacked.7, res_unpacked.6, res_unpacked.5, res_unpacked.4,
+                                res_unpacked.3, res_unpacked.2, res_unpacked.1, res_unpacked.0];
                 }
             },
             _ => unimplemented!(),
