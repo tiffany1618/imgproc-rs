@@ -30,5 +30,10 @@ name = "imgproc_bench"
 harness = false
 
 [features]
+default = ["simd"]
+
 # Enables multithreading
 parallel = ["rayon"]
+
+# Enables SIMD support
+simd = []

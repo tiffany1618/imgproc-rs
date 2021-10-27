@@ -8,10 +8,10 @@ use crate::error::ImgProcResult;
 use std::collections::HashMap;
 use std::{f64, mem};
 
-#[cfg(target_arch = "x86_64")]
+#[cfg(all(feature = "simd", target_arch = "x86_64"))]
 use std::arch::x86_64::*;
 
-#[cfg(target_arch = "x86")]
+#[cfg(all(feature = "simd", target_arch = "x86"))]
 use std::arch::x86::*;
 
 /// Adjusts brightness by adding `bias` to each RGB channel if `method` is `Tone::Rgb`, or adding
@@ -26,13 +26,15 @@ pub fn brightness(input: &Image<u8>, bias: i16, method: Tone) -> ImgProcResult<I
 
     match method {
         Tone::Rgb => {
+            #[cfg(feature = "simd")]
             if is_x86_feature_detected!("avx2") {
-                unsafe {
-                    Ok(brightness_rgb_256(input, bias))
-                }
+                unsafe { Ok(brightness_rgb_256(input, bias)) }
             } else {
                 Ok(brightness_rgb(input, bias))
             }
+
+            #[cfg(not(feature = "simd"))]
+            Ok(brightness_rgb(input, bias))
         },
         Tone::Lab => {
             let mut lab = colorspace::srgb_to_lab(input, &White::D50);
@@ -42,15 +44,7 @@ pub fn brightness(input: &Image<u8>, bias: i16, method: Tone) -> ImgProcResult<I
     }
 }
 
-pub fn brightness_norm(input: &Image<u8>, bias: i16) -> Image<u8> {
-    brightness_rgb(input, bias)
-}
-
-pub fn brightness_256(input: &Image<u8>, bias: i16) -> Image<u8> {
-    unsafe { brightness_rgb_256(input, bias) }
-}
-
-#[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+#[cfg(all(feature = "simd", any(target_arch = "x86", target_arch = "x86_64")))]
 #[target_feature(enable = "avx2")]
 unsafe fn brightness_rgb_256(input: &Image<u8>, bias: i16) -> Image<u8> {
     let num_bytes = input.info().full_size();
