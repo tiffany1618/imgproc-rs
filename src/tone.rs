@@ -21,14 +21,14 @@ use std::arch::x86::*;
 ///
 /// * `bias` - Must be between 0 and 255 (inclusive)
 #[allow(unsafe_code)]
-pub fn brightness(input: &Image<u8>, bias: i32, method: Tone) -> ImgProcResult<Image<u8>> {
-    error::check_in_range(bias, 0, 255, "bias")?;
+pub fn brightness(input: &Image<u8>, bias: i16, method: Tone) -> ImgProcResult<Image<u8>> {
+    error::check_in_range(bias.abs(), 0, 255, "bias")?;
 
     match method {
         Tone::Rgb => {
             if is_x86_feature_detected!("avx2") {
                 unsafe {
-                    Ok(brightness_rgb_avx(input, bias))
+                    Ok(brightness_rgb_256(input, bias))
                 }
             } else {
                 Ok(brightness_rgb(input, bias))
@@ -42,83 +42,54 @@ pub fn brightness(input: &Image<u8>, bias: i32, method: Tone) -> ImgProcResult<I
     }
 }
 
-pub fn brightness_norm(input: &Image<u8>, bias: i32) -> Image<u8> {
+pub fn brightness_norm(input: &Image<u8>, bias: i16) -> Image<u8> {
     brightness_rgb(input, bias)
 }
 
-pub fn brightness_avx2(input: &Image<u8>, bias: i32) -> Image<u8> {
-    unsafe { brightness_rgb_avx(input, bias) }
+pub fn brightness_256(input: &Image<u8>, bias: i16) -> Image<u8> {
+    unsafe { brightness_rgb_256(input, bias) }
 }
 
-unsafe fn brightness_rgb_avx(input: &Image<u8>, bias: i32) -> Image<u8> {
-    let mut add = true;
-    if bias < 0 {
-        add = false;
+#[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+#[target_feature(enable = "avx2")]
+unsafe fn brightness_rgb_256(input: &Image<u8>, bias: i16) -> Image<u8> {
+    let num_bytes = input.info().full_size();
+    let mut data: Vec<u8> = vec![0; num_bytes as usize];
+    let mut data_ptr: *mut u8 = data.as_mut_ptr();
+    let input_ptr = input.data().as_ptr();
+
+    let bias_256 = unsafe { _mm256_set1_epi8(bias.abs() as i8) };
+
+    let mut i = 0;
+    while i < num_bytes {
+        unsafe {
+            let chunk = _mm256_loadu_si256(input_ptr.add(i as usize) as *const __m256i);
+
+            let res = if bias > 0 {
+                _mm256_adds_epu8(chunk, bias_256)
+            } else {
+                _mm256_subs_epu8(chunk, bias_256)
+            };
+
+            _mm256_storeu_si256(data_ptr.add(i as usize) as *mut __m256i, res);
+        }
+        i += 32;
     }
-    let bias_i8 = bias.abs() as i8;
-    let bias_m256i = _mm256_set_epi8(bias_i8, bias_i8, bias_i8, bias_i8,
-                                     bias_i8, bias_i8, bias_i8, bias_i8,
-                                     bias_i8, bias_i8, bias_i8, bias_i8,
-                                     bias_i8, bias_i8, bias_i8, bias_i8,
-                                     bias_i8, bias_i8, bias_i8, bias_i8,
-                                     bias_i8, bias_i8, bias_i8, bias_i8,
-                                     bias_i8, bias_i8, bias_i8, bias_i8,
-                                     bias_i8, bias_i8, bias_i8, bias_i8);
 
-    let output = input.data().chunks(32)
-        .map(|vec| match vec {
-            &[v0, v1, v2, v3, v4, v5, v6, v7,
-                v8, v9, v10, v11, v12, v13, v14, v15,
-                v16, v17, v18, v19, v20, v21, v22, v23,
-                v24, v25, v26, v27, v28, v29, v30, v31] => {
-                let chunk_m256i = _mm256_set_epi8(v0 as i8, v1 as i8, v2 as i8, v3 as i8, v4 as i8, v5 as i8, v6 as i8, v7 as i8,
-                                                  v8 as i8, v9 as i8, v10 as i8, v11 as i8, v12 as i8, v13 as i8, v14 as i8, v15 as i8,
-                                                  v16 as i8, v17 as i8, v18 as i8, v19 as i8, v20 as i8, v21 as i8, v22 as i8, v23 as i8,
-                                                  v24 as i8, v25 as i8, v26 as i8, v27 as i8, v28 as i8, v29 as i8, v30 as i8, v31 as i8);
-
-                if add {
-                    let res = _mm256_adds_epu8(chunk_m256i, bias_m256i);
-                    let res_unpacked: (u8, u8, u8, u8, u8, u8, u8, u8,
-                                       u8, u8, u8, u8, u8, u8, u8, u8,
-                                       u8, u8, u8, u8, u8, u8, u8, u8,
-                                       u8, u8, u8, u8, u8, u8, u8, u8) = mem::transmute(res);
-                    return vec![res_unpacked.31, res_unpacked.30, res_unpacked.29, res_unpacked.28,
-                                res_unpacked.27, res_unpacked.26, res_unpacked.25, res_unpacked.24,
-                                res_unpacked.23, res_unpacked.22, res_unpacked.21, res_unpacked.20,
-                                res_unpacked.19, res_unpacked.18, res_unpacked.17, res_unpacked.16,
-                                res_unpacked.15, res_unpacked.14, res_unpacked.13, res_unpacked.12,
-                                res_unpacked.11, res_unpacked.10, res_unpacked.9, res_unpacked.8,
-                                res_unpacked.7, res_unpacked.6, res_unpacked.5, res_unpacked.4,
-                                res_unpacked.3, res_unpacked.2, res_unpacked.1, res_unpacked.0];
-                } else {
-                    let res = _mm256_subs_epu8(chunk_m256i, bias_m256i);
-                    let res_unpacked: (u8, u8, u8, u8, u8, u8, u8, u8,
-                                       u8, u8, u8, u8, u8, u8, u8, u8,
-                                       u8, u8, u8, u8, u8, u8, u8, u8,
-                                       u8, u8, u8, u8, u8, u8, u8, u8) = mem::transmute(res);
-                    return vec![res_unpacked.31, res_unpacked.30, res_unpacked.29, res_unpacked.28,
-                                res_unpacked.27, res_unpacked.26, res_unpacked.25, res_unpacked.24,
-                                res_unpacked.23, res_unpacked.22, res_unpacked.21, res_unpacked.20,
-                                res_unpacked.19, res_unpacked.18, res_unpacked.17, res_unpacked.16,
-                                res_unpacked.15, res_unpacked.14, res_unpacked.13, res_unpacked.12,
-                                res_unpacked.11, res_unpacked.10, res_unpacked.9, res_unpacked.8,
-                                res_unpacked.7, res_unpacked.6, res_unpacked.5, res_unpacked.4,
-                                res_unpacked.3, res_unpacked.2, res_unpacked.1, res_unpacked.0];
-                }
-            },
-            _ => unimplemented!(),
-        })
-        .flatten()
-        .collect();
+    if i != 0 {
+        for j in i..num_bytes {
+            data.push((input.data()[j as usize] as i16 + bias).clamp(0, 255) as u8);
+        }
+    }
 
     Image::from_vec(input.info().width, input.info().height, input.info().channels,
-                    input.info().alpha, output)
+                    input.info().alpha, data)
 }
 
-fn brightness_rgb(input: &Image<u8>, bias: i32) -> Image<u8> {
+fn brightness_rgb(input: &Image<u8>, bias: i16) -> Image<u8> {
     let mut lookup_table: [u8; 256] = [0; 256];
     util::generate_lookup_table(&mut lookup_table, |i| {
-        (i as i32 + bias).clamp(0, 255) as u8
+        (i as i16 + bias).clamp(0, 255) as u8
     });
 
     input.map_channels_if_alpha(|channel| lookup_table[channel as usize], |a| a)
