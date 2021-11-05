@@ -1,18 +1,11 @@
 //! A module for image tone operations
 
-use crate::{util, colorspace, error};
+use crate::{util, colorspace, error, simd};
 use crate::enums::{Tone, White};
-use crate::image::{Image, BaseImage};
+use crate::image::Image;
 use crate::error::ImgProcResult;
 
 use std::collections::HashMap;
-use std::{f64, mem};
-
-#[cfg(all(feature = "simd", target_arch = "x86_64"))]
-use std::arch::x86_64::*;
-
-#[cfg(all(feature = "simd", target_arch = "x86"))]
-use std::arch::x86::*;
 
 /// Adjusts brightness by adding `bias` to each RGB channel if `method` is `Tone::Rgb`, or adding
 /// `bias` to the L* channel of `input` in CIELAB if `method` is `Tone::Lab`
@@ -20,7 +13,6 @@ use std::arch::x86::*;
 /// # Arguments
 ///
 /// * `bias` - Must be between 0 and 255 (inclusive)
-#[allow(unsafe_code)]
 pub fn brightness(input: &Image<u8>, bias: i16, method: Tone) -> ImgProcResult<Image<u8>> {
     error::check_in_range(bias.abs(), 0, 255, "bias")?;
 
@@ -28,7 +20,8 @@ pub fn brightness(input: &Image<u8>, bias: i16, method: Tone) -> ImgProcResult<I
         Tone::Rgb => {
             #[cfg(feature = "simd")]
             if is_x86_feature_detected!("avx2") {
-                unsafe { Ok(brightness_rgb_256(input, bias)) }
+                // simd::check_mask_adds_256(input, bias)
+                unsafe{simd::adds_256(input, bias)}
             } else {
                 Ok(brightness_rgb(input, bias))
             }
@@ -42,42 +35,6 @@ pub fn brightness(input: &Image<u8>, bias: i16, method: Tone) -> ImgProcResult<I
             Ok(colorspace::lab_to_srgb(&lab, &White::D50))
         },
     }
-}
-
-#[cfg(all(feature = "simd", any(target_arch = "x86", target_arch = "x86_64")))]
-#[target_feature(enable = "avx2")]
-unsafe fn brightness_rgb_256(input: &Image<u8>, bias: i16) -> Image<u8> {
-    let num_bytes = input.info().full_size();
-    let mut data: Vec<u8> = vec![0; num_bytes as usize];
-    let mut data_ptr: *mut u8 = data.as_mut_ptr();
-    let input_ptr = input.data().as_ptr();
-
-    let bias_256 = unsafe { _mm256_set1_epi8(bias.abs() as i8) };
-
-    let mut i = 0;
-    while i < num_bytes {
-        unsafe {
-            let chunk = _mm256_loadu_si256(input_ptr.add(i as usize) as *const __m256i);
-
-            let res = if bias > 0 {
-                _mm256_adds_epu8(chunk, bias_256)
-            } else {
-                _mm256_subs_epu8(chunk, bias_256)
-            };
-
-            _mm256_storeu_si256(data_ptr.add(i as usize) as *mut __m256i, res);
-        }
-        i += 32;
-    }
-
-    if i != 0 {
-        for j in i..num_bytes {
-            data.push((input.data()[j as usize] as i16 + bias).clamp(0, 255) as u8);
-        }
-    }
-
-    Image::from_vec(input.info().width, input.info().height, input.info().channels,
-                    input.info().alpha, data)
 }
 
 fn brightness_rgb(input: &Image<u8>, bias: i16) -> Image<u8> {
