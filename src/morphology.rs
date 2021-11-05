@@ -1,3 +1,5 @@
+//! A module for image morphology operations
+
 use crate::{error, util};
 use crate::error::ImgProcResult;
 use crate::image::{Image, BaseImage};
