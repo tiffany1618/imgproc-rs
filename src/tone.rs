@@ -21,7 +21,7 @@ pub fn brightness(input: &Image<u8>, bias: i16, method: Tone) -> ImgProcResult<I
             #[cfg(feature = "simd")]
             if is_x86_feature_detected!("avx2") {
                 // simd::check_mask_adds_256(input, bias)
-                unsafe{simd::adds_256(input, bias)}
+                unsafe{simd::mask_adds_256(input, bias)}
             } else {
                 Ok(brightness_rgb(input, bias))
             }
