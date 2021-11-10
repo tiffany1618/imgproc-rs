@@ -1,5 +1,3 @@
-#![feature(stdsimd)]
-
 // Modules
 pub mod colorspace;
 pub mod convert;

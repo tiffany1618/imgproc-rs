@@ -53,7 +53,7 @@ pub unsafe fn mask_adds_256(input: &Image<u8>, val: i16) -> ImgProcResult<Image<
     let mut data: Vec<u8> = vec![0; num_bytes as usize];
 
     let val_256 = _mm256_set1_epi8(val.abs() as i8);
-    let writemask = 0b11101110111011101110111011101110;
+    let alpha_mask = _mm256_set1_epi32(-2 * 2_i32.pow(30));
 
     let mut i = 0;
     while (i + 32) <= num_bytes {
@@ -61,20 +61,15 @@ pub unsafe fn mask_adds_256(input: &Image<u8>, val: i16) -> ImgProcResult<Image<
             offset(i as isize) as *const _);
 
         let res = if val > 0 {
-            _mm256_mask_adds_epu8(chunk, writemask, chunk, val_256)
+            _mm256_adds_epu8(chunk, val_256)
         } else {
-            _mm256_mask_subs_epu8(chunk, writemask, chunk, val_256)
+            _mm256_subs_epu8(chunk, val_256)
         };
 
-        _mm256_storeu_si256(data.as_mut_ptr().offset(i as isize) as *mut _, res);
+        let masked_res = _mm256_blendv_epi8(res, chunk, alpha_mask);
+        _mm256_storeu_si256(data.as_mut_ptr().offset(i as isize) as *mut _, masked_res);
 
         i += 32;
-    }
-
-    if i > num_bytes {
-        for j in (i - 32)..num_bytes {
-            data[j as usize] = (input.data()[j as usize] as i16 + val).clamp(0, 255) as u8;
-        }
     }
 
     Ok(Image::from_vec(input.info().width, input.info().height, input.info().channels,

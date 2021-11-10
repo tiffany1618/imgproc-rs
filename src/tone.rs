@@ -19,11 +19,12 @@ pub fn brightness(input: &Image<u8>, bias: i16, method: Tone) -> ImgProcResult<I
     match method {
         Tone::Rgb => {
             #[cfg(feature = "simd")]
-            if is_x86_feature_detected!("avx2") {
-                // simd::check_mask_adds_256(input, bias)
-                unsafe{simd::mask_adds_256(input, bias)}
-            } else {
-                Ok(brightness_rgb(input, bias))
+            {
+                if is_x86_feature_detected!("avx2") {
+                    simd::check_mask_adds_256(input, bias)
+                } else {
+                    Ok(brightness_rgb(input, bias))
+                }
             }
 
             #[cfg(not(feature = "simd"))]
@@ -37,7 +38,7 @@ pub fn brightness(input: &Image<u8>, bias: i16, method: Tone) -> ImgProcResult<I
     }
 }
 
-fn brightness_rgb(input: &Image<u8>, bias: i16) -> Image<u8> {
+pub fn brightness_rgb(input: &Image<u8>, bias: i16) -> Image<u8> {
     let mut lookup_table: [u8; 256] = [0; 256];
     util::generate_lookup_table(&mut lookup_table, |i| {
         (i as i16 + bias).clamp(0, 255) as u8
