@@ -12,7 +12,7 @@ use std::arch::x86::*;
 
 #[cfg(all(feature = "simd", any(target_arch = "x86", target_arch = "x86_64")))]
 #[target_feature(enable = "avx2")]
-pub unsafe fn adds_256(input: &Image<u8>, val: i16) -> ImgProcResult<Image<u8>> {
+pub unsafe fn adds_256_u8(input: &Image<u8>, val: i16) -> ImgProcResult<Image<u8>> {
     let num_bytes = input.info().full_size();
     let mut data: Vec<u8> = vec![0; num_bytes as usize];
 
@@ -46,7 +46,7 @@ pub unsafe fn adds_256(input: &Image<u8>, val: i16) -> ImgProcResult<Image<u8>> 
 
 #[cfg(all(feature = "simd", any(target_arch = "x86", target_arch = "x86_64")))]
 #[target_feature(enable = "avx2")]
-pub unsafe fn mask_adds_256(input: &Image<u8>, val: i16) -> ImgProcResult<Image<u8>> {
+pub unsafe fn masked_adds_256_u8(input: &Image<u8>, val: i16) -> ImgProcResult<Image<u8>> {
     error::check_alpha(input.info().alpha)?;
 
     let num_bytes = input.info().full_size();
@@ -76,10 +76,10 @@ pub unsafe fn mask_adds_256(input: &Image<u8>, val: i16) -> ImgProcResult<Image<
                     input.info().alpha, data))
 }
 
-pub fn check_mask_adds_256(input: &Image<u8>, val: i16) -> ImgProcResult<Image<u8>> {
+pub fn check_adds_256_u8(input: &Image<u8>, val: i16) -> ImgProcResult<Image<u8>> {
     if input.info().alpha {
-        unsafe { mask_adds_256(input, val) }
+        unsafe { masked_adds_256_u8(input, val) }
     } else {
-        unsafe { adds_256(input, val) }
+        unsafe { adds_256_u8(input, val) }
     }
 }
