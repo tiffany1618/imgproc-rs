@@ -31,9 +31,17 @@ pub fn brightness(input: &Image<u8>, bias: i16, method: Tone) -> ImgProcResult<I
             Ok(brightness_rgb(input, bias))
         },
         Tone::Lab => {
-            let mut lab = colorspace::srgb_to_lab(input, &White::D50);
-            lab.edit_channel(|num| num + (bias as f64) * 255.0 / 100.0, 0);
-            Ok(colorspace::lab_to_srgb(&lab, &White::D50))
+            #[cfg(feature = "simd")]
+            {
+                if is_x86_feature_detected!("avx2") {
+                    
+                } else {
+                    Ok(brightness_lab(input, bias))
+                }
+            }
+
+            #[cfg(not(feature = "simd"))]
+            Ok(brightness_lab(input, bias))
         },
     }
 }
@@ -45,6 +53,12 @@ pub fn brightness_rgb(input: &Image<u8>, bias: i16) -> Image<u8> {
     });
 
     input.map_channels_if_alpha(|channel| lookup_table[channel as usize], |a| a)
+}
+
+pub fn brightness_lab(input: &Image<u8>, bias: i16) -> Image<u8> {
+    let mut lab = colorspace::srgb_to_lab(input, &White::D50);
+    lab.edit_channel(|num| num + (bias as f64) / 255.0 * 100.0, 0);
+    colorspace::lab_to_srgb(&lab, &White::D50)
 }
 
 /// Adjusts contrast by multiplying each RGB channel by `gain` if `method` is `Tone::Rgb`, or
