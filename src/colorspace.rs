@@ -15,7 +15,7 @@ pub fn rgb_to_grayscale(input: &Image<u8>) -> Image<u8> {
     #[cfg(feature = "simd")]
     {
         if is_x86_feature_detected!("avx2") {
-            unsafe { simd::average_rgb_256_u8(input) }
+            simd::avg_checked_256_u8(input)
         } else {
             rgb_to_grayscale_norm(input)
         }
@@ -25,14 +25,14 @@ pub fn rgb_to_grayscale(input: &Image<u8>) -> Image<u8> {
     rgb_to_grayscale_norm(input)
 }
 
-fn rgb_to_grayscale_norm(input: &Image<u8>) -> Image<u8> {
+pub fn rgb_to_grayscale_norm(input: &Image<u8>) -> Image<u8> {
     input.map_pixels_if_alpha(|channels, p_out| {
-        let mut sum = 0.0;
+        let mut sum = 0;
         for channel in channels.iter() {
-            sum += *channel as f32;
+            sum += *channel as i16;
         }
 
-        p_out.push((sum / channels.len() as f32) as u8);
+        p_out.push((sum / channels.len() as i16) as u8);
     }, |a| a)
 }
 
