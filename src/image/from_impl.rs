@@ -1,5 +1,11 @@
 use crate::image::Image;
 
+impl From<Image<u8>> for Image<f32> {
+    fn from(img: Image<u8>) -> Image<f32> {
+        img.map_channels(|channel| channel as f32)
+    }
+}
+
 impl From<Image<u8>> for Image<f64> {
     fn from(img: Image<u8>) -> Image<f64> {
         img.map_channels(|channel| channel as f64)

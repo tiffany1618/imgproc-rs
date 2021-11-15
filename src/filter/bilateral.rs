@@ -8,7 +8,7 @@ use crate::image::{BaseImage, Image};
 
 /// Applies a bilateral filter using CIE LAB
 #[cfg(not(feature = "rayon"))]
-pub fn bilateral_filter(input: &Image<u8>, range: f64, spatial: f64, algorithm: Bilateral)
+pub fn bilateral_filter(input: &Image<u8>, range: f32, spatial: f32, algorithm: Bilateral)
     -> ImgProcResult<Image<u8>> {
     error::check_non_neg(range, "range")?;
     error::check_non_neg(spatial, "spatial")?;
@@ -17,7 +17,7 @@ pub fn bilateral_filter(input: &Image<u8>, range: f64, spatial: f64, algorithm: 
     let size = ((spatial * 4.0) + 1.0) as u32;
     let spatial_mat = util::generate_spatial_mat(size, spatial)?;
 
-    let lab = colorspace::srgb_to_lab(&input, &White::D65);
+    let lab = colorspace::srgb_to_lab_f32(&input, &White::D65);
     let mut output = Image::blank(lab.info());
     let mut p_out = Vec::with_capacity(channels as usize);
 
@@ -32,12 +32,12 @@ pub fn bilateral_filter(input: &Image<u8>, range: f64, spatial: f64, algorithm: 
         },
     }
 
-    Ok(colorspace::lab_to_srgb(&output, &White::D65))
+    Ok(colorspace::lab_to_srgb_f32(&output, &White::D65))
 }
 
 /// Applies a bilateral filter using CIE LAB
 #[cfg(feature = "rayon")]
-pub fn bilateral_filter(input: &Image<u8>, range: f64, spatial: f64, algorithm: Bilateral)
+pub fn bilateral_filter(input: &Image<u8>, range: f32, spatial: f32, algorithm: Bilateral)
                             -> ImgProcResult<Image<u8>> {
     error::check_non_neg(range, "range")?;
     error::check_non_neg(spatial, "spatial")?;
@@ -46,11 +46,11 @@ pub fn bilateral_filter(input: &Image<u8>, range: f64, spatial: f64, algorithm: 
     let size = ((spatial * 4.0) + 1.0) as u32;
     let spatial_mat = util::generate_spatial_mat(size, spatial)?;
 
-    let lab = colorspace::srgb_to_lab(&input, &White::D65);
+    let lab = colorspace::srgb_to_lab_f32(&input, &White::D65);
 
     match algorithm {
         Bilateral::Direct => {
-            let data: Vec<Vec<f64>> = (0..input.info().size())
+            let data: Vec<Vec<f32>> = (0..input.info().size())
                 .into_par_iter()
                 .map(|i| {
                     let (x, y) = util::get_2d_coords(i, width);
@@ -59,13 +59,13 @@ pub fn bilateral_filter(input: &Image<u8>, range: f64, spatial: f64, algorithm: 
                 .collect();
 
             let output = Image::from_vec_of_vec(width, height, channels, alpha, data);
-            Ok(colorspace::lab_to_srgb(&output, &White::D65))
+            Ok(colorspace::lab_to_srgb_f32(&output, &White::D65))
         },
     }
 }
 
 #[cfg(not(feature = "rayon"))]
-fn bilateral_direct_pixel(input: &Image<f64>, output: &mut Vec<f64>, range: f64, spatial_mat: &[f64], size: u32, x: u32, y: u32) {
+fn bilateral_direct_pixel(input: &Image<f32>, output: &mut Vec<f32>, range: f32, spatial_mat: &[f32], size: u32, x: u32, y: u32) {
     let p_n = input.get_neighborhood_2d(x, y, size as u32);
     let p_in = input.get_pixel(x, y);
     output.clear();
@@ -87,7 +87,7 @@ fn bilateral_direct_pixel(input: &Image<f64>, output: &mut Vec<f64>, range: f64,
 }
 
 #[cfg(feature = "rayon")]
-fn bilateral_direct_pixel(input: &Image<f64>, range: f64, spatial_mat: &[f64], size: u32, x: u32, y: u32) -> Vec<f64> {
+fn bilateral_direct_pixel(input: &Image<f32>, range: f32, spatial_mat: &[f32], size: u32, x: u32, y: u32) -> Vec<f32> {
     let p_n = input.get_neighborhood_2d(x, y, size as u32);
     let p_in = input.get_pixel(x, y);
     let mut p_out = Vec::with_capacity(input.info().channels as usize);

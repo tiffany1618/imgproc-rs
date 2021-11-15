@@ -49,7 +49,7 @@ pub(crate) fn check_equal<T: std::cmp::PartialEq>(val_1: T, val_2: T, name: &str
     Ok(())
 }
 
-pub(crate) fn check_square(val: f64, name: &str) -> ImgProcResult<()> {
+pub(crate) fn check_square(val: f32, name: &str) -> ImgProcResult<()> {
     if val.sqrt() % 1.0 != 0.0 {
         return Err(ImgProcError::InvalidArgError(format!("{} must be square", name)));
     }

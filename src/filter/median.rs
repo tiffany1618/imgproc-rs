@@ -9,7 +9,7 @@ use std::cmp::{Ordering, Reverse};
 /// histogram method, using a tier radix of 2. A detailed description can be found
 /// [here](http://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.93.1608&rep=rep1&type=pdf).
 pub fn median_filter(input: &Image<u8>, radius: u32) -> ImgProcResult<Image<u8>> {
-    let mut n_cols = (4.0 * (radius as f64).powf(2.0 / 3.0)).floor() as usize;
+    let mut n_cols = (4.0 * (radius as f32).powf(2.0 / 3.0)).floor() as usize;
     if n_cols % 2 == 0 {
         n_cols += 1;
     }
@@ -33,7 +33,7 @@ pub fn alpha_trimmed_mean_filter(input: &Image<u8>, radius: u32, alpha: u32) -> 
         return Err(ImgProcError::InvalidArgError(format!("invalid alpha: size is {}, but alpha is {}", size, alpha)));
     }
 
-    let mut n_cols = (4.0 * (radius as f64).powf(2.0 / 3.0)).floor() as usize;
+    let mut n_cols = (4.0 * (radius as f32).powf(2.0 / 3.0)).floor() as usize;
     if n_cols % 2 == 0 {
         n_cols += 1;
     }

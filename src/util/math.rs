@@ -2,7 +2,7 @@ use crate::error;
 use crate::image::{Number, SubImage, BaseImage};
 use crate::error::ImgProcResult;
 
-use std::f64::consts::{PI, E};
+use std::f32::consts::{PI, E};
 use rulinalg::matrix::{Matrix, BaseMatrix};
 
 /// Returns the result of the multiplication of a square matrix by a vector
@@ -45,7 +45,7 @@ pub fn vector_mul_mut<T: Number>(mat: &[T], input: &[T], output: &mut Vec<T>) ->
 }
 
 /// If `kernel` is separable, returns the (vertical kernel, horizontal kernel); otherwise returns None
-pub fn separate_kernel(kernel: &[f64]) -> Option<(Vec<f64>, Vec<f64>)> {
+pub fn separate_kernel(kernel: &[f32]) -> Option<(Vec<f32>, Vec<f32>)> {
     let size = (kernel.len() as f32).sqrt() as usize;
     let kernel_mat = Matrix::new(size, size, kernel);
     let size = kernel_mat.cols();
@@ -68,8 +68,8 @@ pub fn separate_kernel(kernel: &[f64]) -> Option<(Vec<f64>, Vec<f64>)> {
     Some((vertical_kernel, horizontal_kernel))
 }
 
-/// Returns the maximum of three f64 values
-pub fn max_3(x: f64, y: f64, z: f64) -> f64 {
+/// Returns the maximum of three f32 values
+pub fn max_3(x: f32, y: f32, z: f32) -> f32 {
     if x > y {
         if x > z {
             x
@@ -83,8 +83,8 @@ pub fn max_3(x: f64, y: f64, z: f64) -> f64 {
     }
 }
 
-/// Returns the minimum of three f64 values
-pub fn min_3(x: f64, y: f64, z: f64) -> f64 {
+/// Returns the minimum of three f32 values
+pub fn min_3(x: f32, y: f32, z: f32) -> f32 {
     if x < y {
         if x < z {
             x
@@ -98,8 +98,8 @@ pub fn min_3(x: f64, y: f64, z: f64) -> f64 {
     }
 }
 
-/// Returns the maximum of four f64 values
-pub fn max_4(w: f64, x: f64, y: f64, z: f64) -> f64 {
+/// Returns the maximum of four f32 values
+pub fn max_4(w: f32, x: f32, y: f32, z: f32) -> f32 {
     if w > x {
         max_3(w, y, z)
     } else if x > y {
@@ -111,8 +111,8 @@ pub fn max_4(w: f64, x: f64, y: f64, z: f64) -> f64 {
     }
 }
 
-/// Returns the minimum of four f64 values
-pub fn min_4(w: f64, x: f64, y: f64, z: f64) -> f64 {
+/// Returns the minimum of four f32 values
+pub fn min_4(w: f32, x: f32, y: f32, z: f32) -> f32 {
     if w < x {
         min_3(w, y, z)
     } else if x < y {
@@ -126,7 +126,7 @@ pub fn min_4(w: f64, x: f64, y: f64, z: f64) -> f64 {
 
 /// Applies a 1D kernel
 #[cfg(not(feature = "rayon"))]
-pub fn apply_1d_kernel(input: &SubImage<f64>, output: &mut Vec<f64>, kernel: &[f64]) -> ImgProcResult<()> {
+pub fn apply_1d_kernel(input: &SubImage<f32>, output: &mut Vec<f32>, kernel: &[f32]) -> ImgProcResult<()> {
     let size = input.info().size() as usize;
 
     error::check_odd(kernel.len(), "kernel length")?;
@@ -149,7 +149,7 @@ pub fn apply_1d_kernel(input: &SubImage<f64>, output: &mut Vec<f64>, kernel: &[f
 
 /// Applies a 1D kernel
 #[cfg(feature = "rayon")]
-pub fn apply_1d_kernel(input: &SubImage<f64>, kernel: &[f64]) -> ImgProcResult<Vec<f64>> {
+pub fn apply_1d_kernel(input: &SubImage<f32>, kernel: &[f32]) -> ImgProcResult<Vec<f32>> {
     let size = input.info().size() as usize;
 
     error::check_odd(kernel.len(), "kernel length")?;
@@ -169,7 +169,7 @@ pub fn apply_1d_kernel(input: &SubImage<f64>, kernel: &[f64]) -> ImgProcResult<V
 
 /// Applies a 2D kernel
 #[cfg(not(feature = "rayon"))]
-pub fn apply_2d_kernel(input: &SubImage<f64>, output: &mut Vec<f64>, kernel: &[f64]) -> ImgProcResult<()> {
+pub fn apply_2d_kernel(input: &SubImage<f32>, output: &mut Vec<f32>, kernel: &[f32]) -> ImgProcResult<()> {
     let size = input.info().width as usize;
 
     error::check_odd(kernel.len(), "kernel length")?;
@@ -195,7 +195,7 @@ pub fn apply_2d_kernel(input: &SubImage<f64>, output: &mut Vec<f64>, kernel: &[f
 
 /// Applies a 2D kernel
 #[cfg(feature = "rayon")]
-pub fn apply_2d_kernel(input: &SubImage<f64>, kernel: &[f64]) -> ImgProcResult<Vec<f64>> {
+pub fn apply_2d_kernel(input: &SubImage<f32>, kernel: &[f32]) -> ImgProcResult<Vec<f32>> {
     let size = input.info().width as usize;
 
     error::check_odd(kernel.len(), "kernel length")?;
@@ -217,15 +217,15 @@ pub fn apply_2d_kernel(input: &SubImage<f64>, kernel: &[f64]) -> ImgProcResult<V
 }
 
 /// Calculates the distance between two points
-pub fn distance(x_1: u32, y_1: u32, x_2: u32, y_2: u32) -> f64 {
-    let x_dist = (x_1 as f64) - (x_2 as f64);
-    let y_dist = (y_1 as f64) - (y_2 as f64);
+pub fn distance(x_1: u32, y_1: u32, x_2: u32, y_2: u32) -> f32 {
+    let x_dist = (x_1 as f32) - (x_2 as f32);
+    let y_dist = (y_1 as f32) - (y_2 as f32);
 
     ((x_dist * x_dist) + (y_dist * y_dist)).sqrt()
 }
 
 /// Calculates the Gaussian function for G_sigma(x)
-pub fn gaussian_fn(x: f64, sigma: f64) -> ImgProcResult<f64> {
+pub fn gaussian_fn(x: f32, sigma: f32) -> ImgProcResult<f32> {
     error::check_non_neg(sigma, "sigma")?;
 
     let sigma_squared = sigma * sigma;
@@ -234,7 +234,7 @@ pub fn gaussian_fn(x: f64, sigma: f64) -> ImgProcResult<f64> {
 }
 
 /// Cubic weighting function for bicubic interpolation
-pub fn cubic_weighting_fn(x: f64) -> f64 {
+pub fn cubic_weighting_fn(x: f32) -> f32 {
     (1.0 / 6.0) * (clamp_zero(x + 2.0).powf(3.0)
         - 4.0 * clamp_zero(x + 1.0).powf(3.0)
         + 6.0 * clamp_zero(x).powf(3.0)
@@ -242,8 +242,8 @@ pub fn cubic_weighting_fn(x: f64) -> f64 {
 }
 
 /// A helper function for the colorspace conversion from CIE XYZ to CIELAB
-pub fn xyz_to_lab_fn(num: f64) -> f64 {
-    let d: f64 = 6.0 / 29.0;
+pub fn xyz_to_lab_fn(num: f32) -> f32 {
+    let d: f32 = 6.0 / 29.0;
 
     if num > d.powf(3.0) {
         num.powf(1.0 / 3.0)
@@ -253,8 +253,8 @@ pub fn xyz_to_lab_fn(num: f64) -> f64 {
 }
 
 /// A helper function for the colorspace conversion from CIELAB to CIE XYZ
-pub fn lab_to_xyz_fn(num: f64) -> f64 {
-    let d: f64 = 6.0 / 29.0;
+pub fn lab_to_xyz_fn(num: f32) -> f32 {
+    let d: f32 = 6.0 / 29.0;
 
     if num > d {
         num.powf(3.0)
@@ -264,7 +264,7 @@ pub fn lab_to_xyz_fn(num: f64) -> f64 {
 }
 
 /// Returns 0 if `x` is less than 0; `x` if not
-pub fn clamp_zero(x: f64) -> f64 {
+pub fn clamp_zero(x: f32) -> f32 {
     if x <= 0.0 {
         return 0.0;
     }
@@ -273,7 +273,7 @@ pub fn clamp_zero(x: f64) -> f64 {
 }
 
 /// Normalized sinc function
-pub fn sinc_norm(x: f64) -> f64 {
+pub fn sinc_norm(x: f32) -> f32 {
     if x == 0.0 {
         return 1.0;
     }
@@ -284,7 +284,7 @@ pub fn sinc_norm(x: f64) -> f64 {
 }
 
 /// Lanczos kernel
-pub fn lanczos_kernel(x: f64, a: f64) -> f64 {
+pub fn lanczos_kernel(x: f32, a: f32) -> f32 {
     if x > -a && x < a {
         return sinc_norm(x) * sinc_norm(x / a);
     }

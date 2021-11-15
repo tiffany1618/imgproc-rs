@@ -24,7 +24,7 @@ use rayon::prelude::*;
 /// Applies a 1D filter. If `is_vert` is true, applies `kernel`
 /// as a vertical filter; otherwise applies `kernel` as a horizontal filter
 #[cfg(not(feature = "rayon"))]
-pub fn filter_1d(input: &Image<f64>, kernel: &[f64], is_vert: bool) -> ImgProcResult<Image<f64>> {
+pub fn filter_1d(input: &Image<f32>, kernel: &[f32], is_vert: bool) -> ImgProcResult<Image<f32>> {
     error::check_odd(kernel.len(), "kernel length")?;
 
     let (width, height, channels) = input.info().whc();
@@ -45,12 +45,12 @@ pub fn filter_1d(input: &Image<f64>, kernel: &[f64], is_vert: bool) -> ImgProcRe
 /// Applies a 1D filter. If `is_vert` is true, applies `kernel`
 /// as a vertical filter; otherwise applies `kernel` as a horizontal filter
 #[cfg(feature = "rayon")]
-pub fn filter_1d(input: &Image<f64>, kernel: &[f64], is_vert: bool) -> ImgProcResult<Image<f64>> {
+pub fn filter_1d(input: &Image<f32>, kernel: &[f32], is_vert: bool) -> ImgProcResult<Image<f32>> {
     error::check_odd(kernel.len(), "kernel length")?;
 
     let (width, height, channels, alpha) = input.info().whca();
 
-    let data: Vec<Vec<f64>> = (0..input.info().size())
+    let data: Vec<Vec<f32>> = (0..input.info().size())
         .into_par_iter()
         .map(|i| {
             let (x, y) = util::get_2d_coords(i, width);
@@ -62,7 +62,7 @@ pub fn filter_1d(input: &Image<f64>, kernel: &[f64], is_vert: bool) -> ImgProcRe
 }
 
 /// Applies a separable linear filter by first applying `vert_kernel` and then `horz_kernel`
-pub fn separable_filter(input: &Image<f64>, vert_kernel: &[f64], horz_kernel: &[f64]) -> ImgProcResult<Image<f64>> {
+pub fn separable_filter(input: &Image<f32>, vert_kernel: &[f32], horz_kernel: &[f32]) -> ImgProcResult<Image<f32>> {
     error::check_odd(vert_kernel.len(), "vert_kernel length")?;
     error::check_odd(horz_kernel.len(), "horz_kernel length")?;
     error::check_equal(vert_kernel.len(), horz_kernel.len(), "kernel lengths")?;
@@ -73,9 +73,9 @@ pub fn separable_filter(input: &Image<f64>, vert_kernel: &[f64], horz_kernel: &[
 
 /// Applies an unseparable linear filter
 #[cfg(not(feature = "rayon"))]
-pub fn unseparable_filter(input: &Image<f64>, kernel: &[f64]) -> ImgProcResult<Image<f64>> {
+pub fn unseparable_filter(input: &Image<f32>, kernel: &[f32]) -> ImgProcResult<Image<f32>> {
     error::check_odd(kernel.len(), "kernel length")?;
-    error::check_square(kernel.len() as f64, "kernel length")?;
+    error::check_square(kernel.len() as f32, "kernel length")?;
 
     let size = (kernel.len() as f32).sqrt() as u32;
     let (width, height, channels) = input.info().whc();
@@ -94,14 +94,14 @@ pub fn unseparable_filter(input: &Image<f64>, kernel: &[f64]) -> ImgProcResult<I
 
 /// Applies an unseparable linear filter
 #[cfg(feature = "rayon")]
-pub fn unseparable_filter(input: &Image<f64>, kernel: &[f64]) -> ImgProcResult<Image<f64>> {
+pub fn unseparable_filter(input: &Image<f32>, kernel: &[f32]) -> ImgProcResult<Image<f32>> {
     error::check_odd(kernel.len(), "kernel length")?;
-    error::check_square(kernel.len() as f64, "kernel length")?;
+    error::check_square(kernel.len() as f32, "kernel length")?;
 
     let size = (kernel.len() as f32).sqrt() as u32;
     let (width, height, channels, alpha) = input.info().whca();
 
-    let data: Vec<Vec<f64>> = (0..input.info().size())
+    let data: Vec<Vec<f32>> = (0..input.info().size())
         .into_par_iter()
         .map(|i| {
             let (x, y) = util::get_2d_coords(i, width);
@@ -113,9 +113,9 @@ pub fn unseparable_filter(input: &Image<f64>, kernel: &[f64]) -> ImgProcResult<I
 }
 
 /// Applies a linear filter using the 2D `kernel`
-pub fn linear_filter(input: &Image<f64>, kernel: &[f64]) -> ImgProcResult<Image<f64>> {
+pub fn linear_filter(input: &Image<f32>, kernel: &[f32]) -> ImgProcResult<Image<f32>> {
     error::check_odd(kernel.len(), "kernel length")?;
-    error::check_square(kernel.len() as f64, "kernel length")?;
+    error::check_square(kernel.len() as f32, "kernel length")?;
 
     let separable = util::separate_kernel(kernel);
     match separable {
@@ -129,29 +129,29 @@ pub fn linear_filter(input: &Image<f64>, kernel: &[f64]) -> ImgProcResult<Image<
 //////////////
 
 /// Applies a normalized box filter using a `size x size` kernel
-pub fn box_filter(input: &Image<f64>, size: u32) -> ImgProcResult<Image<f64>> {
+pub fn box_filter(input: &Image<f32>, size: u32) -> ImgProcResult<Image<f32>> {
     error::check_odd(size, "size")?;
 
     let len = (size * size) as usize;
-    let kernel = vec![1.0 / ((size * size) as f64); len];
+    let kernel = vec![1.0 / ((size * size) as f32); len];
 
     Ok(separable_filter(input, &kernel, &kernel)?)
 }
 
 /// Applies a weighted average filter using a `size x size` kernel with a center weight of `weight`
-pub fn weighted_avg_filter(input: &Image<f64>, size: u32, weight: u32) -> ImgProcResult<Image<f64>> {
+pub fn weighted_avg_filter(input: &Image<f32>, size: u32, weight: u32) -> ImgProcResult<Image<f32>> {
     error::check_odd(size, "size")?;
 
     let sum = (size * size) - 1 + weight;
     let center = (size / 2) * size + (size / 2);
-    let mut kernel = vec![1.0 / (sum as f64); (size * size) as usize];
-    kernel[center as usize] = (weight as f64) / (sum as f64);
+    let mut kernel = vec![1.0 / (sum as f32); (size * size) as usize];
+    kernel[center as usize] = (weight as f32) / (sum as f32);
 
     Ok(unseparable_filter(input, &kernel)?)
 }
 
 /// Applies a Gaussian blur using a `size x size` kernel
-pub fn gaussian_blur(input: &Image<f64>, size: u32, sigma: f64) -> ImgProcResult<Image<f64>> {
+pub fn gaussian_blur(input: &Image<f32>, size: u32, sigma: f32) -> ImgProcResult<Image<f32>> {
     let kernel = util::generate_gaussian_kernel(size, sigma)?;
     Ok(linear_filter(input, &kernel)?)
 }
@@ -161,12 +161,12 @@ pub fn gaussian_blur(input: &Image<f64>, size: u32, sigma: f64) -> ImgProcResult
 ////////////////
 
 /// Sharpens image
-pub fn sharpen(input: &Image<f64>) -> ImgProcResult<Image<f64>> {
+pub fn sharpen(input: &Image<f32>) -> ImgProcResult<Image<f32>> {
     Ok(unseparable_filter(input, &K_SHARPEN)?)
 }
 
 /// Sharpens image by applying the unsharp masking kernel
-pub fn unsharp_masking(input: &Image<f64>) -> ImgProcResult<Image<f64>> {
+pub fn unsharp_masking(input: &Image<f32>) -> ImgProcResult<Image<f32>> {
     Ok(unseparable_filter(input, &K_UNSHARP_MASKING)?)
 }
 
@@ -175,7 +175,7 @@ pub fn unsharp_masking(input: &Image<f64>) -> ImgProcResult<Image<f64>> {
 //////////////////
 
 /// Performs a thresholding operation based on `method`
-pub fn threshold(input: &Image<f64>, threshold: f64, max: f64, method: Thresh) -> ImgProcResult<Image<f64>> {
+pub fn threshold(input: &Image<f32>, threshold: f32, max: f32, method: Thresh) -> ImgProcResult<Image<f32>> {
     error::check_grayscale(input)?;
 
     match method {

@@ -5,7 +5,7 @@ pub use self::math::*;
 mod math;
 
 use std::collections::{BTreeMap, HashMap};
-use std::f64::consts::{E, PI};
+use std::f32::consts::{E, PI};
 
 use crate::enums::White;
 use crate::error;
@@ -19,7 +19,7 @@ pub mod constants;
 ////////////////////////////
 
 /// Returns a tuple representing the XYZ tristimulus values for a given reference white value
-pub fn xyz_tristimulus_vals(ref_white: &White) -> (f64, f64, f64) {
+pub fn xyz_tristimulus_vals(ref_white: &White) -> (f32, f32, f32) {
     match ref_white {
         White::D50 => (96.4212, 100.0, 82.5188),
         White::D65 => (95.0489, 100.0, 108.8840),
@@ -35,7 +35,7 @@ pub fn xyz_tristimulus_vals(ref_white: &White) -> (f64, f64, f64) {
 /// of times it occurs in `input` as a percentile
 /// * `precision` - The range of possible L channel intensity values (used to convert the intensity
 /// value to an i32, which can be used as a key in `HashMap` and `BTreeMap`)
-pub fn generate_histogram_percentiles(input: &Image<f64>, percentiles: &mut HashMap<i32, f64>, precision: f64) {
+pub fn generate_histogram_percentiles(input: &Image<f32>, percentiles: &mut HashMap<i32, f32>, precision: f32) {
     let mut histogram = BTreeMap::new();
 
     for y in 0..(input.info().height) {
@@ -47,10 +47,10 @@ pub fn generate_histogram_percentiles(input: &Image<f64>, percentiles: &mut Hash
     }
 
     let mut sum: i32 = 0;
-    let num_pixels = input.info().size() as f64;
+    let num_pixels = input.info().size() as f32;
     for (key, val) in &histogram {
         sum += val;
-        percentiles.insert(*key, sum as f64 / num_pixels);
+        percentiles.insert(*key, sum as f32 / num_pixels);
     }
 }
 
@@ -63,7 +63,7 @@ pub fn generate_lookup_table<T: Number, F>(table: &mut [T; 256], f: F)
 }
 
 /// Generates a Gaussian kernel
-pub fn generate_gaussian_kernel(size: u32, sigma: f64) -> ImgProcResult<Vec<f64>> {
+pub fn generate_gaussian_kernel(size: u32, sigma: f32) -> ImgProcResult<Vec<f32>> {
     error::check_odd(size, "size")?;
 
     let mut filter = vec![0.0; (size * size) as usize];
@@ -73,7 +73,7 @@ pub fn generate_gaussian_kernel(size: u32, sigma: f64) -> ImgProcResult<Vec<f64>
         for j in 0..(size as i32) {
             if i <= j {
                 let num = (1.0 / (2.0 * PI * sigma * sigma)) *
-                    (E.powf(-(((i - k) * (i - k) + (j - k) * (j - k)) as f64) / (2.0 * sigma * sigma)));
+                    (E.powf(-(((i - k) * (i - k) + (j - k) * (j - k)) as f32) / (2.0 * sigma * sigma)));
                 filter[(i * size as i32 + j) as usize] = num;
 
                 if i != j {
@@ -87,7 +87,7 @@ pub fn generate_gaussian_kernel(size: u32, sigma: f64) -> ImgProcResult<Vec<f64>
 }
 
 /// Generates a Laplacian of Gaussian kernel
-pub fn generate_log_kernel(size: u32, sigma: f64) -> ImgProcResult<Vec<f64>> {
+pub fn generate_log_kernel(size: u32, sigma: f32) -> ImgProcResult<Vec<f32>> {
     error::check_odd(size, "size")?;
 
     let mut filter = vec![0.0; (size * size) as usize];
@@ -96,7 +96,7 @@ pub fn generate_log_kernel(size: u32, sigma: f64) -> ImgProcResult<Vec<f64>> {
     for i in 0..(size as i32) {
         for j in 0..(size as i32) {
             if i <= j {
-                let exp = -(((i - k) * (i - k) + (j - k) * (j - k)) as f64) / (2.0 * sigma * sigma);
+                let exp = -(((i - k) * (i - k) + (j - k) * (j - k)) as f32) / (2.0 * sigma * sigma);
                 let num = (-1.0 / (PI * sigma.powf(4.0))) * (1.0 - exp) * (E.powf(exp));
                 filter[(i * size as i32 + j) as usize] = num;
 
@@ -111,7 +111,7 @@ pub fn generate_log_kernel(size: u32, sigma: f64) -> ImgProcResult<Vec<f64>> {
 }
 
 /// Generates a matrix of distances relative to the center of the matrix
-pub fn generate_spatial_mat(size: u32, spatial: f64) -> ImgProcResult<Vec<f64>> {
+pub fn generate_spatial_mat(size: u32, spatial: f32) -> ImgProcResult<Vec<f32>> {
     let center = size / 2;
     let mut mat = vec![0.0; (size * size) as usize];
 
@@ -160,7 +160,7 @@ pub fn generate_spatial_mat(size: u32, spatial: f64) -> ImgProcResult<Vec<f64>> 
 
 /// Generates a summed-area table in the format of another `Image` of the same type and dimensions
 /// as `input`
-pub fn generate_summed_area_table(input: &Image<f64>) -> Image<f64> {
+pub fn generate_summed_area_table(input: &Image<f32>) -> Image<f32> {
     let mut output = Image::blank(input.info());
     let (width, height, channels) = input.info().whc();
     let zeroes = vec![0.0; channels as usize];
@@ -197,7 +197,7 @@ pub fn generate_summed_area_table(input: &Image<f64>) -> Image<f64> {
 
 /// Computes the sum of pixel intensities over a rectangular region with top left corner located
 /// at `(x_0, y_0)` and bottom right corner located at `(x_1, y_1)`
-pub fn rectangular_intensity_sum(summed_area_table: &Image<f64>, x_0: u32, y_0: u32, x_1: u32, y_1: u32) -> Vec<f64> {
+pub fn rectangular_intensity_sum(summed_area_table: &Image<f32>, x_0: u32, y_0: u32, x_1: u32, y_1: u32) -> Vec<f32> {
     let channels = summed_area_table.info().channels as usize;
     let mut sum = Vec::new();
 

@@ -11,7 +11,7 @@ pub fn erode(input: &Image<u8>, radius: u32) -> ImgProcResult<Image<u8>> {
 
     let (width, height) =  input.info().wh();
     let size = 2 * radius + 1;
-    let max_sum = (size * size * 255) as f64;
+    let max_sum = (size * size * 255) as f32;
     let table = util::generate_summed_area_table(&input.clone().into());
     let mut output = Image::blank(input.info());
 
@@ -35,7 +35,7 @@ pub fn erode(input: &Image<u8>, radius: u32) -> ImgProcResult<Image<u8>> {
                 y_bot += radius;
             }
 
-            if (util::rectangular_intensity_sum(&table, x_top, y_top, x_bot, y_bot)[0] - max_sum).abs() < f64::EPSILON {
+            if (util::rectangular_intensity_sum(&table, x_top, y_top, x_bot, y_bot)[0] - max_sum).abs() < f32::EPSILON {
                 output.set_pixel(x, y, &[255]);
             }
         }
@@ -137,7 +137,7 @@ pub fn gradient(input: &Image<u8>, radius: u32) -> ImgProcResult<Image<u8>> {
 
     let (width, height) =  input.info().wh();
     let size = 2 * radius + 1;
-    let max_sum = (size * size * 255) as f64;
+    let max_sum = (size * size * 255) as f32;
     let table = util::generate_summed_area_table(&input.clone().into());
     let mut output = Image::blank(input.info());
 
@@ -162,7 +162,7 @@ pub fn gradient(input: &Image<u8>, radius: u32) -> ImgProcResult<Image<u8>> {
             }
 
             let sum = util::rectangular_intensity_sum(&table, x_top, y_top, x_bot, y_bot)[0];
-            let erode = ((sum - max_sum).abs() < f64::EPSILON);
+            let erode = ((sum - max_sum).abs() < f32::EPSILON);
             let dilate = (sum >= 255.0);
 
             if erode ^ dilate {
