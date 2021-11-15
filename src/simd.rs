@@ -83,3 +83,46 @@ pub fn check_adds_256_u8(input: &Image<u8>, val: i16) -> ImgProcResult<Image<u8>
         unsafe { adds_256_u8(input, val) }
     }
 }
+
+pub unsafe fn deinterleave_rgb_256_u8(input: &Image<u8>, offset: usize) -> (__m256i, __m256i, __m256i) {
+    let mut r = Vec::with_capacity(256);
+    let mut g = Vec::with_capacity(256);
+    let mut b = Vec::with_capacity(256);
+
+    for i in (offset..(offset + 96)).step_by(3) {
+        r.push(input.data()[i]);
+        g.push(input.data()[i + 1]);
+        b.push(input.data()[i + 2]);
+    }
+
+    let r_256 = _mm256_loadu_si256(r.as_mut_ptr() as *mut _);
+    let g_256 = _mm256_loadu_si256(g.as_mut_ptr() as *mut _);
+    let b_256 = _mm256_loadu_si256(b.as_mut_ptr() as *mut _);
+
+    (r_256, g_256, b_256)
+}
+
+pub unsafe fn average_rgb_256_u8(input: &Image<u8>) -> Image<u8> {
+    let num_bytes = input.info().full_size();
+    let mut data: Vec<u8> = vec![0; (num_bytes / 3) as usize];
+
+    let mut i = 0;
+    while (i + 96) <= num_bytes {
+        let (r, g, b) = deinterleave_rgb_256_u8(input, i);
+        let avg_rg = _mm256_avg_epu8(r, g);
+        let avg_rgb = _mm256_avg_epu8(avg_rg, b);
+        _mm256_storeu_si256(data.as_mut_ptr().offset(i as isize) as *mut _, avg_rgb);
+
+        i += 96;
+    }
+
+    if i > num_bytes {
+        for j in ((i - 96)..num_bytes).step_by(3) {
+            let sum = (input.data()[i] + input.data()[i + 1] + input.data()[i + 2]) as f32;
+            data[(j / 3) as usize] = (sum / 3.0).round() as u8;
+        }
+    }
+
+    Image::from_vec(input.info().width, input.info().height, 1,
+                       input.info().alpha, data)
+}

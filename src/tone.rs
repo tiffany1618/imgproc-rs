@@ -1,9 +1,12 @@
 //! A module for image tone operations
 
-use crate::{util, colorspace, error, simd};
+use crate::{util, colorspace, error};
 use crate::enums::{Tone, White};
 use crate::image::Image;
 use crate::error::ImgProcResult;
+
+#[cfg(feature = "simd")]
+use crate::simd;
 
 use std::collections::HashMap;
 

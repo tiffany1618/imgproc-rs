@@ -3,20 +3,35 @@
 use std::cmp;
 
 use crate::enums::White;
-use crate::image::Image;
+use crate::image::{BaseImage, Image};
 use crate::util;
 use crate::util::constants::{GAMMA, SRGB_TO_XYZ_MAT, XYZ_TO_SRGB_MAT};
 
+#[cfg(feature = "simd")]
+use crate::simd;
+
 /// Converts an image from RGB to Grayscale
 pub fn rgb_to_grayscale(input: &Image<u8>) -> Image<u8> {
-    input.map_pixels_if_alpha(|channels, p_out| {
-        let mut sum = 0.0;
-        for channel in channels.iter() {
-            sum += *channel as f64;
+    #[cfg(feature = "simd")]
+    {
+        if is_x86_feature_detected!("avx2") {
+            unsafe { simd::average_rgb_256_u8(input) }
+        } else {
+            Image::blank(input.info())
         }
+    }
 
-        p_out.push((sum / channels.len() as f64) as u8);
-    }, |a| a)
+    #[cfg(not(feature = "simd"))]
+    {
+        input.map_pixels_if_alpha(|channels, p_out| {
+            let mut sum = 0.0;
+            for channel in channels.iter() {
+                sum += *channel as f64;
+            }
+
+            p_out.push((sum / channels.len() as f64) as u8);
+        }, |a| a)
+    }
 }
 
 /// Converts an f64 image from RGB to Grayscale
