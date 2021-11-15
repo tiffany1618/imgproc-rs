@@ -84,6 +84,8 @@ pub fn check_adds_256_u8(input: &Image<u8>, val: i16) -> ImgProcResult<Image<u8>
     }
 }
 
+#[cfg(all(feature = "simd", any(target_arch = "x86", target_arch = "x86_64")))]
+#[target_feature(enable = "avx2")]
 pub unsafe fn deinterleave_rgb_256_u8(input: &Image<u8>, offset: usize) -> (__m256i, __m256i, __m256i) {
     let mut r = Vec::with_capacity(256);
     let mut g = Vec::with_capacity(256);
@@ -102,16 +104,18 @@ pub unsafe fn deinterleave_rgb_256_u8(input: &Image<u8>, offset: usize) -> (__m2
     (r_256, g_256, b_256)
 }
 
+#[cfg(all(feature = "simd", any(target_arch = "x86", target_arch = "x86_64")))]
+#[target_feature(enable = "avx2")]
 pub unsafe fn average_rgb_256_u8(input: &Image<u8>) -> Image<u8> {
-    let num_bytes = input.info().full_size();
+    let num_bytes = input.info().full_size() as usize;
     let mut data: Vec<u8> = vec![0; (num_bytes / 3) as usize];
 
-    let mut i = 0;
+    let mut i: usize= 0;
     while (i + 96) <= num_bytes {
         let (r, g, b) = deinterleave_rgb_256_u8(input, i);
         let avg_rg = _mm256_avg_epu8(r, g);
         let avg_rgb = _mm256_avg_epu8(avg_rg, b);
-        _mm256_storeu_si256(data.as_mut_ptr().offset(i as isize) as *mut _, avg_rgb);
+        _mm256_storeu_si256(data.as_mut_ptr().offset((i / 3) as isize) as *mut _, avg_rgb);
 
         i += 96;
     }
