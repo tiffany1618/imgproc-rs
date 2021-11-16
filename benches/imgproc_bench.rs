@@ -20,8 +20,8 @@ pub fn bench_rgb_to_grayscale(c: &mut Criterion) {
 
     c.bench_function("avx2", |b| b.iter(||
         colorspace::rgb_to_grayscale(&img)));
-    c.bench_function("norm", |b| b.iter(||
-        colorspace::rgb_to_grayscale_norm(&img)));
+    // c.bench_function("norm", |b| b.iter(||
+    //     colorspace::rgb_to_grayscale_norm(&img)));
 }
 
 criterion_group!(benches, bench_rgb_to_grayscale);

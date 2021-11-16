@@ -10,36 +10,26 @@ use crate::simd;
 
 use std::collections::HashMap;
 
-/// Adjusts brightness by adding `bias` to each RGB channel if `method` is `Tone::Rgb`, or adding
-/// `bias` to the L* channel of `input` in CIELAB if `method` is `Tone::Lab`
+/// Adjusts brightness by adding `bias` to each RGB channel
 ///
 /// # Arguments
 ///
 /// * `bias` - Must be between -255 and 255 (inclusive)
-pub fn brightness(input: &Image<u8>, bias: i16, method: Tone) -> ImgProcResult<Image<u8>> {
+pub fn brightness(input: &Image<u8>, bias: i16) -> ImgProcResult<Image<u8>> {
     error::check_in_range(bias.abs(), -255, 255, "bias")?;
 
-    match method {
-        Tone::Rgb => {
-            #[cfg(feature = "simd")]
-            {
-                if is_x86_feature_detected!("avx2") {
-                    unsafe { simd::adds_256_u8(input, bias) }
-                } else {
-                    Ok(brightness_rgb_norm(input, bias))
-                }
-            }
-
-            #[cfg(not(feature = "simd"))]
+    #[cfg(feature = "simd")]
+    {
+        if is_x86_feature_detected!("avx2") {
+            unsafe { simd::adds_256_u8(input, bias) }
+        } else {
             Ok(brightness_rgb_norm(input, bias))
-        },
-        Tone::Lab => {
-            let mut lab = colorspace::srgb_to_lab_f32(input, &White::D50);
-            let bias_lab = (bias as f32) / 255.0 * 100.0;
-            lab.edit_channel(|num| num + bias_lab, 0);
-            Ok(colorspace::lab_to_srgb_f32(&lab, &White::D50))
-        },
+        }
     }
+
+    #[cfg(not(feature = "simd"))]
+    Ok(brightness_rgb_norm(input, bias))
+
 }
 
 fn brightness_rgb_norm(input: &Image<u8>, bias: i16) -> Image<u8> {
@@ -51,31 +41,50 @@ fn brightness_rgb_norm(input: &Image<u8>, bias: i16) -> Image<u8> {
     input.map_channels_if_alpha(|channel| lookup_table[channel as usize], |a| a)
 }
 
-/// Adjusts contrast by multiplying each RGB channel by `gain` if `method` is `Tone::Rgb`, or
-/// multiplying the L* channel of `input` in CIELAB by `gain` if `method` is `Tone::Lab`
+/// Adjusts brightness by adding `bias` to the L* channel of `input` in CIELAB
+///
+/// # Arguments
+///
+/// * `bias` - Must be between -255 and 255 (inclusive)
+pub fn brightness_lab(input: &Image<u8>, bias: i16) -> ImgProcResult<Image<u8>> {
+    error::check_in_range(bias.abs(), -255, 255, "bias")?;
+
+    let mut lab = colorspace::srgb_to_lab_f32(input, &White::D50);
+    let bias_lab = (bias as f32) / 255.0 * 100.0;
+
+    lab.edit_channel(|num| num + bias_lab, 0);
+    Ok(colorspace::lab_to_srgb_f32(&lab, &White::D50))
+}
+
+/// Adjusts contrast by multiplying each RGB channel by `gain`
 ///
 /// # Arguments
 ///
 /// * `gain` - Must be between 0 and 1 (inclusive)
-pub fn contrast(input: &Image<u8>, gain: f32, method: Tone) -> ImgProcResult<Image<u8>> {
+pub fn contrast(input: &Image<u8>, gain: f32) -> ImgProcResult<Image<u8>> {
     error::check_non_neg(gain, "gain")?;
     error::check_in_range(gain, 0.0, 1.0, "gain")?;
 
-    match method {
-        Tone::Rgb => {
-            let mut lookup_table: [u8; 256] = [0; 256];
-            util::generate_lookup_table(&mut lookup_table, |i| {
-                (i as f32 * gain).round().clamp(0.0, 255.0) as u8
-            });
+    let mut lookup_table: [u8; 256] = [0; 256];
+    util::generate_lookup_table(&mut lookup_table, |i| {
+        (i as f32 * gain).round().clamp(0.0, 255.0) as u8
+    });
 
-            Ok(input.map_channels_if_alpha(|channel| lookup_table[channel as usize], |a| a))
-        },
-        Tone::Lab => {
-            let mut lab = colorspace::srgb_to_lab_f32(input, &White::D50);
-            lab.edit_channel(|num| num * gain, 0);
-            Ok(colorspace::lab_to_srgb_f32(&lab, &White::D50))
-        },
-    }
+    Ok(input.map_channels_if_alpha(|channel| lookup_table[channel as usize], |a| a))
+}
+
+/// Adjusts contrast by multiplying the L* channel of `input` in CIELAB by `gain`
+///
+/// # Arguments
+///
+/// * `gain` - Must be between 0 and 1 (inclusive)
+pub fn contrast_lab(input: &Image<u8>, gain: f32) -> ImgProcResult<Image<u8>> {
+    error::check_non_neg(gain, "gain")?;
+    error::check_in_range(gain, 0.0, 1.0, "gain")?;
+
+    let mut lab = colorspace::srgb_to_lab_f32(input, &White::D50);
+    lab.edit_channel(|num| num * gain, 0);
+    Ok(colorspace::lab_to_srgb_f32(&lab, &White::D50))
 }
 
 /// Adjusts saturation by adding `saturation` to the saturation value (S) of `input` in HSV

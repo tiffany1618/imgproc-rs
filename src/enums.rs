@@ -1,14 +1,5 @@
 //! A module for image enums
 
-/// An enum for image tone operations
-pub enum Tone {
-    /// Tone operation should be carried out using an RGB channels
-    Rgb,
-
-    /// Tone operation should be carried out using CIELAB channels
-    Lab,
-}
-
 /// An enum for reference white values
 pub enum White {
     D50,

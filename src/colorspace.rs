@@ -25,7 +25,7 @@ pub fn rgb_to_grayscale(input: &Image<u8>) -> Image<u8> {
     rgb_to_grayscale_norm(input)
 }
 
-pub fn rgb_to_grayscale_norm(input: &Image<u8>) -> Image<u8> {
+fn rgb_to_grayscale_norm(input: &Image<u8>) -> Image<u8> {
     input.map_pixels_if_alpha(|channels, p_out| {
         let mut sum = 0;
         for channel in channels.iter() {
@@ -50,7 +50,7 @@ pub fn rgb_to_grayscale_f32(input: &Image<f32>) -> Image<f32> {
 
 /// Linearizes an sRGB image
 ///
-/// * Input: f32 sRGB image with channels in range [0, 255]
+/// * Input: u8 sRGB image with channels in range [0, 255]
 /// * Output: linearized f32 sRGB image with channels in range [0, 1]
 pub fn linearize_srgb_f32(input: &Image<u8>) -> Image<f32> {
     let mut lookup_table: [f32; 256] = [0.0; 256];
