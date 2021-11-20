@@ -1,6 +1,5 @@
 //! A module for SIMD operations
 
-use crate::error;
 use crate::image::{BaseImage, Image};
 use crate::error::ImgProcResult;
 

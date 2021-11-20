@@ -137,6 +137,76 @@ pub fn lab_to_xyz_f32(input: &Image<f32>, ref_white: &White) -> Image<f32> {
 /// Converts an image from RGB to HSV
 ///
 /// * Input: u8 RGB image with channels in range [0, 255]
+/// * Output: u8 HSV image with channels in range [0, 255]
+pub fn rgb_to_hsv(input: &Image<u8>) -> Image<u8> {
+    input.map_pixels_if_alpha(|channels, p_out| {
+        let max = cmp::max(cmp::max(channels[0], channels[1]), channels[2]) as i16;
+        let min = cmp::min(cmp::min(channels[0], channels[1]), channels[2]) as i16;
+        let range = max - min;
+
+        let r = channels[0] as i16;
+        let g = channels[1] as i16;
+        let b = channels[2] as i16;
+
+        let mut saturation = 0;
+        if max != 0 {
+            saturation = 255 * range / max;
+        }
+
+        let mut hue: i16 = 0;
+        if range != 0 {
+            if max == r {
+                hue = 43 * (g - b) / range;
+            } else if max == g {
+                hue = 85 + 43 * (b - r) / range;
+            } else {
+                hue = 170 + 43 * (r - g) / range;
+            }
+        }
+
+        if hue < 0 {
+            hue += 255;
+        } else if hue > 255 {
+            hue -= 255;
+        }
+
+        p_out.extend([hue as u8, saturation as u8, max as u8].iter());
+    }, |a| a)
+}
+
+/// Converts an image from HSV to RGB
+///
+/// * Input: u8 HSV image with channels in range [0, 255]
+/// * Output: u8 RGB image with channels in range [0, 255]
+pub fn hsv_to_rgb(input: &Image<u8>) -> Image<u8> {
+    input.map_pixels_if_alpha(|channels, p_out| {
+        if channels[1] == 0 {
+            let val = channels[2];
+            p_out.extend([val, val, val].iter());
+            return;
+        }
+
+        let hue = channels[0] as i16 / 43;
+        let f = (hue - (channels[0] as i16 * 43)) * 6;
+        let p = ((channels[2] as i16 * (255 - channels[1] as i16)) / 255) as u8;
+        let q = ((channels[2] as i16 * (255 - (channels[1] as i16 * f) / 255)) / 255) as u8;
+        let t = ((channels[2] as i16 * (255 - (channels[1] as i16 * (255 - f)) / 255)) / 255) as u8;
+        let val = channels[2];
+
+        match hue as u8 {
+            0 => p_out.extend([val, t, p].iter()),
+            1 => p_out.extend([q, val, p].iter()),
+            2 => p_out.extend([p, val, t].iter()),
+            3 => p_out.extend([p, q, val].iter()),
+            4 => p_out.extend([t, p, val].iter()),
+            _ => p_out.extend([val, p, q].iter()),
+        }
+    }, |a| a)
+}
+
+/// Converts an image from RGB to HSV
+///
+/// * Input: u8 RGB image with channels in range [0, 255]
 /// * Output: f32 HSV image with channels in range [0, 1]
 pub fn rgb_to_hsv_f32(input: &Image<u8>) -> Image<f32> {
     input.map_pixels_if_alpha(|channels, p_out| {
@@ -165,7 +235,7 @@ pub fn rgb_to_hsv_f32(input: &Image<u8>) -> Image<f32> {
         hue /= 6.0;
         if hue < 0.0 {
             hue += 1.0;
-        } else if hue > 6.0 {
+        } else if hue > 1.0 {
             hue -= 1.0;
         }
 
