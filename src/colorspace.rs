@@ -140,20 +140,20 @@ pub fn lab_to_xyz_f32(input: &Image<f32>, ref_white: &White) -> Image<f32> {
 /// * Output: u8 HSV image with channels in range [0, 255]
 pub fn rgb_to_hsv(input: &Image<u8>) -> Image<u8> {
     input.map_pixels_if_alpha(|channels, p_out| {
-        let max = cmp::max(cmp::max(channels[0], channels[1]), channels[2]) as i16;
-        let min = cmp::min(cmp::min(channels[0], channels[1]), channels[2]) as i16;
+        let max = cmp::max(cmp::max(channels[0], channels[1]), channels[2]) as i32;
+        let min = cmp::min(cmp::min(channels[0], channels[1]), channels[2]) as i32;
         let range = max - min;
 
-        let r = channels[0] as i16;
-        let g = channels[1] as i16;
-        let b = channels[2] as i16;
+        let r = channels[0] as i32;
+        let g = channels[1] as i32;
+        let b = channels[2] as i32;
 
         let mut saturation = 0;
         if max != 0 {
             saturation = 255 * range / max;
         }
 
-        let mut hue: i16 = 0;
+        let mut hue: i32 = 0;
         if range != 0 {
             if max == r {
                 hue = 43 * (g - b) / range;
@@ -186,20 +186,23 @@ pub fn hsv_to_rgb(input: &Image<u8>) -> Image<u8> {
             return;
         }
 
-        let hue = channels[0] as i16 / 43;
-        let f = (hue - (channels[0] as i16 * 43)) * 6;
-        let p = ((channels[2] as i16 * (255 - channels[1] as i16)) / 255) as u8;
-        let q = ((channels[2] as i16 * (255 - (channels[1] as i16 * f) / 255)) / 255) as u8;
-        let t = ((channels[2] as i16 * (255 - (channels[1] as i16 * (255 - f)) / 255)) / 255) as u8;
-        let val = channels[2];
+        let h = channels[0] as i32;
+        let s = channels[1] as i32;
+        let v = channels[2] as i32;
 
-        match hue as u8 {
-            0 => p_out.extend([val, t, p].iter()),
-            1 => p_out.extend([q, val, p].iter()),
-            2 => p_out.extend([p, val, t].iter()),
-            3 => p_out.extend([p, q, val].iter()),
-            4 => p_out.extend([t, p, val].iter()),
-            _ => p_out.extend([val, p, q].iter()),
+        let hue = h / 43;
+        let f = (h - (hue * 43)) * 6;
+        let p = ((v * (255 - s)) / 255) as u8;
+        let q = ((v * (255 - (s * f) / 255)) / 255) as u8;
+        let t = ((v * (255 - (s * (255 - f)) / 255)) / 255) as u8;
+
+        match hue {
+            0 => p_out.extend([v as u8, t, p].iter()),
+            1 => p_out.extend([q, v as u8, p].iter()),
+            2 => p_out.extend([p, v as u8, t].iter()),
+            3 => p_out.extend([p, q, v as u8].iter()),
+            4 => p_out.extend([t, p, v as u8].iter()),
+            _ => p_out.extend([v as u8, p, q].iter()),
         }
     }, |a| a)
 }

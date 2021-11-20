@@ -2,7 +2,6 @@ mod common;
 use crate::common::setup;
 
 use imgproc_rs::{colorspace, tone};
-use imgproc_rs::enums::Tone;
 
 use criterion::{criterion_group, criterion_main, Criterion};
 
@@ -15,14 +14,23 @@ use criterion::{criterion_group, criterion_main, Criterion};
 //         tone::brightness(&img, 20, Tone::Rgb)));
 // }
 
-pub fn bench_rgb_to_grayscale(c: &mut Criterion) {
-    let img = setup("images/tux.png").unwrap();
+// pub fn bench_rgb_to_grayscale(c: &mut Criterion) {
+//     let img = setup("images/tux.png").unwrap();
+//
+//     c.bench_function("avx2", |b| b.iter(||
+//         colorspace::rgb_to_grayscale(&img)));
+//     c.bench_function("norm", |b| b.iter(||
+//         colorspace::rgb_to_grayscale_norm(&img)));
+// }
 
-    c.bench_function("avx2", |b| b.iter(||
-        colorspace::rgb_to_grayscale(&img)));
-    // c.bench_function("norm", |b| b.iter(||
-    //     colorspace::rgb_to_grayscale_norm(&img)));
+pub fn bench_rgb_to_hsv(c: &mut Criterion) {
+    let img = setup("images/spectrum.jpg").unwrap();
+
+    c.bench_function("u8", |b| b.iter(||
+        colorspace::rgb_to_hsv(&img)));
+    c.bench_function("f32", |b| b.iter(||
+        colorspace::rgb_to_hsv_f32(&img)));
 }
 
-criterion_group!(benches, bench_rgb_to_grayscale);
+criterion_group!(benches, bench_rgb_to_hsv);
 criterion_main!(benches);
