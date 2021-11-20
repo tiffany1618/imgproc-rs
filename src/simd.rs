@@ -9,6 +9,8 @@ use std::arch::x86_64::*;
 #[cfg(all(feature = "simd", target_arch = "x86"))]
 use std::arch::x86::*;
 
+/// Adds `val` to each 8-bit channel of `input` using saturation, ignoring the alpha channel
+/// if present
 #[cfg(all(feature = "simd", any(target_arch = "x86", target_arch = "x86_64")))]
 #[target_feature(enable = "avx2")]
 pub unsafe fn adds_256_u8(input: &Image<u8>, val: i16) -> ImgProcResult<Image<u8>> {
@@ -48,6 +50,8 @@ pub unsafe fn adds_256_u8(input: &Image<u8>, val: i16) -> ImgProcResult<Image<u8
                     input.info().alpha, data))
 }
 
+/// Separates a 3-channel input image into 3 256-bit wide integer vectors, starting at the channel
+/// denoted by `offset`. Does not check if `offset` is valid.
 #[cfg(all(feature = "simd", any(target_arch = "x86", target_arch = "x86_64")))]
 #[target_feature(enable = "avx2")]
 pub unsafe fn deinterleave_3_256_u8(input: &Image<u8>, offset: usize) -> (__m256i, __m256i, __m256i) {
@@ -70,6 +74,8 @@ pub unsafe fn deinterleave_3_256_u8(input: &Image<u8>, offset: usize) -> (__m256
     (r_256, g_256, b_256)
 }
 
+/// Separates a 4-channel input image into 4 256-bit wide integer vectors, starting at the channel
+/// denoted by `offset`. Does not check if `offset` is valid.
 #[cfg(all(feature = "simd", any(target_arch = "x86", target_arch = "x86_64")))]
 #[target_feature(enable = "avx2")]
 pub unsafe fn deinterleave_4_256_u8(input: &Image<u8>, offset: usize) -> (__m256i, __m256i, __m256i, __m256i) {
@@ -95,6 +101,7 @@ pub unsafe fn deinterleave_4_256_u8(input: &Image<u8>, offset: usize) -> (__m256
     (r_256, g_256, b_256, a_256)
 }
 
+/// Computes the average of each 3-channel pixel of `input` and returns a grayscale image
 #[cfg(all(feature = "simd", any(target_arch = "x86", target_arch = "x86_64")))]
 #[target_feature(enable = "avx2")]
 pub unsafe fn avg_256_u8(input: &Image<u8>) -> Image<u8> {
@@ -125,6 +132,8 @@ pub unsafe fn avg_256_u8(input: &Image<u8>) -> Image<u8> {
                        input.info().alpha, data)
 }
 
+/// Computes the average of each 4-channel pixel of `input`, ignoring the alpha channel, and
+/// returns a grayscale image
 #[cfg(all(feature = "simd", any(target_arch = "x86", target_arch = "x86_64")))]
 #[target_feature(enable = "avx2")]
 pub unsafe fn avg_alpha_256_u8(input: &Image<u8>) -> Image<u8> {
@@ -163,6 +172,8 @@ pub unsafe fn avg_alpha_256_u8(input: &Image<u8>) -> Image<u8> {
                     input.info().alpha, data)
 }
 
+/// Computes the average of each of `input`, ignoring the alpha channel if present, and
+/// returns a grayscale image
 #[cfg(feature = "simd")]
 pub fn avg_checked_256_u8(input: &Image<u8>) -> Image<u8> {
     if input.info().alpha {
