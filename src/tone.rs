@@ -92,13 +92,27 @@ pub fn contrast_lab(input: &Image<u8>, gain: f32) -> ImgProcResult<Image<u8>> {
 /// # Arguments
 ///
 /// * `saturation` - Must be between -255 and 255 (inclusive)
-pub fn saturation(input: &Image<u8>, saturation: i32) -> ImgProcResult<Image<u8>> {
+pub fn saturation(input: &Image<u8>, saturation: i16) -> ImgProcResult<Image<u8>> {
     error::check_in_range(saturation, -255, 255, "saturation")?;
+    let mut hsv = colorspace::rgb_to_hsv(input);
 
-    let mut hsv = colorspace::rgb_to_hsv_f32(input);
-    hsv.edit_channel(|s| (s + (saturation as f32 / 255.0)) as f32, 1);
+    #[cfg(feature = "simd")]
+        {
+            if is_x86_feature_detected!("avx2") {
+                unsafe { hsv = simd::adds_n_256_u8(&hsv, saturation, 1); }
+            } else {
+                saturation_norm(&mut hsv, saturation);
+            }
+        }
 
-    Ok(colorspace::hsv_to_rgb_f32(&hsv))
+    #[cfg(not(feature = "simd"))]
+    saturation_norm(&mut hsv, saturation);
+
+    Ok(colorspace::hsv_to_rgb(&hsv))
+}
+
+fn saturation_norm(hsv: &mut Image<u8>, saturation: i16) {
+    hsv.edit_channel(|s| (s + saturation).clamp(0, 255), 1);
 }
 
 /// Performs a gamma correction. `max` indicates the maximum allowed pixel value of the image
