@@ -17,30 +17,38 @@ pub unsafe fn adds_256_u8(input: &Image<u8>, val: i16) -> Image<u8> {
     let num_bytes = input.info().full_size();
     let mut data: Vec<u8> = vec![0; num_bytes as usize];
 
+    // Load val into 256-bit SIMD register
     let mut val_256 = _mm256_set1_epi8(val.abs() as i8);
+
+    // Mask the alpha bit if present
     if input.info().alpha {
         let zeroes_256 = _mm256_setzero_si256();
         let alpha_mask = _mm256_set1_epi32(-2 * 2_i32.pow(30));
         val_256 = _mm256_blendv_epi8(val_256, zeroes_256, alpha_mask);
     }
 
+    // Process 32 bytes at a time
     let mut i = 0;
     while (i + 32) <= num_bytes {
+        // Load 32-byte chunk into 256-bit SIMD register
         let chunk = _mm256_loadu_si256(input.data().as_ptr().
             offset(i as isize) as *const _);
 
+        // Add or subtract val from each 8-bit integer with saturation
         let res = if val > 0 {
             _mm256_adds_epu8(chunk, val_256)
         } else {
             _mm256_subs_epu8(chunk, val_256)
         };
 
+        // Store 32 bytes in output vector
         _mm256_storeu_si256(data.as_mut_ptr().offset(i as isize) as *mut _, res);
 
         i += 32;
     }
 
-    if !input.info().alpha && i > num_bytes {
+    // Process the remaining bytes normally
+    if i > num_bytes {
         for j in (i - 32)..num_bytes {
             data[j as usize] = (input.data()[j as usize] as i16 + val).clamp(0, 255) as u8;
         }
@@ -61,6 +69,8 @@ pub unsafe fn adds_n_256_u8(input: &Image<u8>, val: i16, n: u8) -> Image<u8> {
 
     let mut val_256 = _mm256_set1_epi8(val.abs() as i8);
     let zeroes_256 = _mm256_setzero_si256();
+
+    // Create masks for the channels we want to ignore
     let mask = if input.info().alpha {
         match n {
             0 => _mm256_set1_epi32(0x80),
@@ -82,7 +92,12 @@ pub unsafe fn adds_n_256_u8(input: &Image<u8>, val: i16, n: u8) -> Image<u8> {
     };
     val_256 = _mm256_blendv_epi8(zeroes_256, val_256, mask);
 
-    let mut step = 24;
+    // In order to reuse the mask for every chunk in a 3-channel pixel, we can only process chunks
+    // that are multiples of 8 * 3 = 24 bits. The largest such chunk that fits in 256 bits is
+    // 24 * 10 = 240 bits = 30 bytes.
+    let mut step = 30;
+
+    // 4-channel pixels fit evenly within 32-byte chunks
     if input.info().alpha {
         step = 32;
     }
@@ -103,7 +118,7 @@ pub unsafe fn adds_n_256_u8(input: &Image<u8>, val: i16, n: u8) -> Image<u8> {
         i += step;
     }
 
-    if !input.info().alpha && i > num_bytes {
+    if i > num_bytes {
         for j in ((i - step)..num_bytes).step_by(input.info().channels as usize) {
             let index = j as usize + n as usize;
             data[index] = (input.data()[index] as i16 + val).clamp(0, 255) as u8;
@@ -125,12 +140,14 @@ pub unsafe fn deinterleave_3_256_u8(input: &Image<u8>, offset: usize) -> (__m256
     let mut g = Vec::with_capacity(256);
     let mut b = Vec::with_capacity(256);
 
+    // Separate channels into different vectors
     for i in (offset..(offset + range)).step_by(step) {
         r.push(input.data()[i]);
         g.push(input.data()[i + 1]);
         b.push(input.data()[i + 2]);
     }
 
+    // Load each vector into a 256-bit SIMD register
     let r_256 = _mm256_loadu_si256(r.as_mut_ptr() as *mut _);
     let g_256 = _mm256_loadu_si256(g.as_mut_ptr() as *mut _);
     let b_256 = _mm256_loadu_si256(b.as_mut_ptr() as *mut _);
@@ -212,8 +229,11 @@ pub unsafe fn avg_alpha_256_u8(input: &Image<u8>) -> Image<u8> {
         let avg_rg = _mm256_avg_epu8(r, g);
         let avg_rgb = _mm256_avg_epu8(avg_rg, b);
 
+        // Interleave the alpha and grayscale channels
         let unpacked_lo = _mm256_unpacklo_epi8(avg_rgb, a);
         let unpacked_hi = _mm256_unpackhi_epi8(avg_rgb, a);
+
+        // Store the interleaved channels in the output vector
         _mm256_storeu2_m128i(data.as_mut_ptr().offset((i / 2) as isize + 32) as *mut _,
                             data.as_mut_ptr().offset((i / 2) as isize) as *mut _,
                             unpacked_lo);
