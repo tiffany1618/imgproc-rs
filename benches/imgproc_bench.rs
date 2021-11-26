@@ -32,5 +32,12 @@ pub fn bench_rgb_to_hsv(c: &mut Criterion) {
         colorspace::rgb_to_hsv_f32(&img)));
 }
 
-criterion_group!(benches, bench_rgb_to_hsv);
+pub fn bench_saturation(c: &mut Criterion) {
+    let img = setup("images/spectrum.jpg").unwrap();
+
+    c.bench_function("saturation", |b| b.iter(||
+        tone::saturation(&img, 100)));
+}
+
+criterion_group!(benches, bench_saturation);
 criterion_main!(benches);
