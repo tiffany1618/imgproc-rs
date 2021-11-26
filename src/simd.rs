@@ -50,8 +50,9 @@ pub unsafe fn adds_256_u8(input: &Image<u8>, val: i16) -> Image<u8> {
                     input.info().alpha, data)
 }
 
-/// Adds `val` to every `n`th 8-bit channel of `input` using saturation, ignoring the alpha channel
-/// if present. If `n` is an invalid channel number, adds `val` to all channels.
+/// Adds `val` to every `n`th 8-bit channel of `input` using saturation.
+/// If `n` is an invalid channel number, adds `val` to all channels.
+#[allow(overflowing_literals)]
 #[cfg(all(feature = "simd", any(target_arch = "x86", target_arch = "x86_64")))]
 #[target_feature(enable = "avx2")]
 pub unsafe fn adds_n_256_u8(input: &Image<u8>, val: i16, n: u8) -> Image<u8> {
@@ -62,27 +63,32 @@ pub unsafe fn adds_n_256_u8(input: &Image<u8>, val: i16, n: u8) -> Image<u8> {
     let zeroes_256 = _mm256_setzero_si256();
     let mask = if input.info().alpha {
         match n {
-            0 => _mm256_set1_epi32(0x88888888),
-            1 => _mm256_set1_epi32(0x44444444),
-            2 => _mm256_set1_epi32(0x22222222),
-            3 => _mm256_set1_epi32(0x11111111),
+            0 => _mm256_set1_epi32(0x80),
+            1 => _mm256_set1_epi32(0x8000),
+            2 => _mm256_set1_epi32(0x800000),
+            3 => _mm256_set1_epi32(0x80000000),
             _ => _mm256_setzero_si256()
         }
     } else {
         match n {
-            0 => _mm256_set_epi64x(0x9249249249249249, 0x2492492492492492,
-                                   0x4924924924924924, 0x9249249249249248),
-            1 => _mm256_set_epi64x(0x4924924924924924, 0x9249249249249249,
-                                   0x2492492492492492, 0x4924924924924924),
-            2 => _mm256_set_epi64x(0x2492492492492492, 0x4924924924924924,
-                                   0x9249249249249249, 0x2492492492492492),
+            0 => _mm256_set_epi64x(0x80000080, 0x800000800000,
+                                   0x8000008000008000, 0x80000080000080),
+            1 => _mm256_set_epi64x(0x8000008000, 0x80000080000080,
+                                   0x800000800000, 0x8000008000008000),
+            2 => _mm256_set_epi64x(0x800000800000, 0x8000008000008000,
+                                   0x80000080000080, 0x800000800000),
             _ => _mm256_setzero_si256()
         }
     };
     val_256 = _mm256_blendv_epi8(zeroes_256, val_256, mask);
 
+    let mut step = 24;
+    if input.info().alpha {
+        step = 32;
+    }
+
     let mut i = 0;
-    while (i + 32) <= num_bytes {
+    while (i + step) <= num_bytes {
         let chunk = _mm256_loadu_si256(input.data().as_ptr().
             offset(i as isize) as *const _);
 
@@ -94,11 +100,11 @@ pub unsafe fn adds_n_256_u8(input: &Image<u8>, val: i16, n: u8) -> Image<u8> {
 
         _mm256_storeu_si256(data.as_mut_ptr().offset(i as isize) as *mut _, res);
 
-        i += 32;
+        i += step;
     }
 
     if !input.info().alpha && i > num_bytes {
-        for j in ((i - 32)..num_bytes).step_by(input.info().channels as usize) {
+        for j in ((i - step)..num_bytes).step_by(input.info().channels as usize) {
             let index = j as usize + n as usize;
             data[index] = (input.data()[index] as i16 + val).clamp(0, 255) as u8;
         }

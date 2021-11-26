@@ -21,7 +21,7 @@ pub fn brightness(input: &Image<u8>, bias: i16) -> ImgProcResult<Image<u8>> {
     #[cfg(feature = "simd")]
     {
         if is_x86_feature_detected!("avx2") {
-            unsafe { simd::adds_256_u8(input, bias) }
+            unsafe { Ok(simd::adds_256_u8(input, bias)) }
         } else {
             Ok(brightness_rgb_norm(input, bias))
         }
@@ -112,7 +112,7 @@ pub fn saturation(input: &Image<u8>, saturation: i16) -> ImgProcResult<Image<u8>
 }
 
 fn saturation_norm(hsv: &mut Image<u8>, saturation: i16) {
-    hsv.edit_channel(|s| (s + saturation).clamp(0, 255), 1);
+    hsv.edit_channel(|s| (s as i16 + saturation).clamp(0, 255) as u8, 1);
 }
 
 /// Performs a gamma correction. `max` indicates the maximum allowed pixel value of the image
