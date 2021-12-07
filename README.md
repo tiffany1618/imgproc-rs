@@ -9,17 +9,12 @@ A Rust image processing library.
 ## Features
 * Multithreading support for some functions via [rayon](https://github.com/rayon-rs/rayon) (see 
   [Enabling Multithreading](#enabling-multithreading) for more information)
+* SIMD support for some functions using AVX2
 
 ## Supported Image Formats
 
 `imgproc-rs` uses the i/o functions provided in the [`image`](https://github.com/image-rs/image) crate. A list of 
 supported image formats can be found [here](https://docs.rs/image/0.23.12/image/codecs/index.html#supported-formats). 
-
-## Notes
-Running with the `release` profile greatly increases performance:
-```
-cargo run --release
-```
 
 ## Examples
 
@@ -122,13 +117,13 @@ fn main() {
 }
 ```
 
-## Enabling Multithreading
+## Multithreading
 
 To enable multithreading, include the `parallel` feature in your `Cargo.toml`:
 
 ```toml
 [dependencies.imgproc-rs]
-version = "0.2.3"
+version = "0.3.0"
 default-features = false
 features = ["parallel"]
 ```
@@ -139,7 +134,7 @@ Alternatively, pass the features flag to `cargo run`:
 cargo run --features parallel
 ```
 
-### Image processing functions that support multithreading:
+### Functions that support multithreading:
 * `transform` module
   * `crop`
   * `scale`
@@ -149,3 +144,13 @@ cargo run --features parallel
   * `residual`
   * `median_filter`
   * `alpha_trimmed_mean_filter`
+
+## SIMD
+
+SIMD support is enabled by default via the `simd` feature. Supported functions will only use SIMD where AVX2 is
+supported (`x86/x86_64`); otherwise an alternate implementation is used.
+
+### Functions that support SIMD (outside `simd` module)
+* ``tone::brightness()``
+* ``tone::saturation()``
+* ``colorspace::rgb_to_grayscale()``

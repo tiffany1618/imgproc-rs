@@ -1,7 +1,6 @@
 //! A module for SIMD operations
 
 use crate::image::{BaseImage, Image};
-use crate::error::{ImgProcError, ImgProcResult};
 
 #[cfg(all(feature = "simd", target_arch = "x86_64"))]
 use std::arch::x86_64::*;
