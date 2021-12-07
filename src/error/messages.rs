@@ -72,11 +72,3 @@ pub(crate) fn check_grayscale<T: Number>(input: &Image<T>) -> ImgProcResult<()> 
 
     Ok(())
 }
-
-pub(crate) fn check_alpha(alpha: bool) -> ImgProcResult<()> {
-    if !alpha {
-        return Err(ImgProcError::InvalidArgError("Image has no alpha channel".to_string()));
-    }
-
-    Ok(())
-}
