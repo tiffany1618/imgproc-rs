@@ -7,7 +7,7 @@ use imgproc_rs::tone;
 use imgproc_rs::io::write;
 
 use std::time::SystemTime;
-use imgproc_rs::enums::{Tone, White};
+use imgproc_rs::enums::White;
 
 const PATH: &str = "images/beach.jpg";
 
@@ -16,11 +16,11 @@ fn brightness_test() {
     let img = setup(PATH).unwrap();
 
     let now = SystemTime::now();
-    let proc = tone::brightness(&img, 20, Tone::Rgb).unwrap();
+    let proc = tone::brightness(&img, 20).unwrap();
     println!("rgb: {}", now.elapsed().unwrap().as_millis());
 
     let now = SystemTime::now();
-    let proc2 = tone::brightness(&img, 20, Tone::Lab).unwrap();
+    let proc2 = tone::brightness_lab(&img, 20).unwrap();
     println!("xyz: {}", now.elapsed().unwrap().as_millis());
 
     write(&proc, "images/tests/tone/bright_rgb.png").unwrap();
@@ -32,11 +32,11 @@ fn contrast_test() {
     let img = setup(PATH).unwrap();
 
     let now = SystemTime::now();
-    let proc = tone::contrast(&img, 1.5, Tone::Rgb).unwrap();
+    let proc = tone::contrast(&img, 1.5).unwrap();
     println!("rgb: {}", now.elapsed().unwrap().as_millis());
 
     let now = SystemTime::now();
-    let proc2 = tone::contrast(&img, 1.5, Tone::Lab).unwrap();
+    let proc2 = tone::contrast_lab(&img, 1.5).unwrap();
     println!("xyz: {}", now.elapsed().unwrap().as_millis());
 
     write(&proc, "images/tests/tone/contrast_rgb.png").unwrap();

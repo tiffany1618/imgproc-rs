@@ -14,7 +14,7 @@ const PATH: &str = "images/yosemite.jpg";
 
 // #[test]
 fn box_filter() {
-    let img: Image<f64> = setup(PATH).unwrap().into();
+    let img: Image<f32> = setup(PATH).unwrap().into();
 
     let now = SystemTime::now();
     let filtered = filter::box_filter(&img, 5).unwrap();
@@ -25,7 +25,7 @@ fn box_filter() {
 
 // #[test]
 fn weighted_avg_filter() {
-    let img: Image<f64> = setup(PATH).unwrap().into();
+    let img: Image<f32> = setup(PATH).unwrap().into();
 
     let now = SystemTime::now();
     let filtered = filter::weighted_avg_filter(&img, 5, 5).unwrap();
@@ -36,7 +36,7 @@ fn weighted_avg_filter() {
 
 // #[test]
 fn gaussian_blur() {
-    let img: Image<f64> = setup(PATH).unwrap().into();
+    let img: Image<f32> = setup(PATH).unwrap().into();
 
     let now = SystemTime::now();
     let filtered = filter::gaussian_blur(&img, 3, 1.0).unwrap();
@@ -80,7 +80,7 @@ fn bilateral_filter() {
 
 // #[test]
 fn sharpen() {
-    let img: Image<f64> = setup(PATH).unwrap().into();
+    let img: Image<f32> = setup(PATH).unwrap().into();
 
     let now = SystemTime::now();
     let filtered = filter::sharpen(&img).unwrap();
@@ -91,7 +91,7 @@ fn sharpen() {
 
 // #[test]
 fn unsharp_masking() {
-    let img: Image<f64> = setup(PATH).unwrap().into();
+    let img: Image<f32> = setup(PATH).unwrap().into();
 
     let now = SystemTime::now();
     let filtered = filter::unsharp_masking(&img).unwrap();
@@ -102,7 +102,7 @@ fn unsharp_masking() {
 
 // #[test]
 fn prewitt() {
-    let img: Image<f64> = setup("images/poppy.jpg").unwrap().into();
+    let img: Image<f32> = setup("images/poppy.jpg").unwrap().into();
 
     let now = SystemTime::now();
     let filtered = filter::prewitt(&img).unwrap();
@@ -113,7 +113,7 @@ fn prewitt() {
 
 // #[test]
 fn sobel() {
-    let img: Image<f64> = setup("images/poppy.jpg").unwrap().into();
+    let img: Image<f32> = setup("images/poppy.jpg").unwrap().into();
 
     let now = SystemTime::now();
     let filtered = filter::sobel(&img).unwrap();
@@ -124,7 +124,7 @@ fn sobel() {
 
 // #[test]
 fn sobel_weighted() {
-    let img: Image<f64> = setup("images/poppy.jpg").unwrap().into();
+    let img: Image<f32> = setup("images/poppy.jpg").unwrap().into();
 
     let now = SystemTime::now();
     let filtered = filter::sobel_weighted(&img, 5).unwrap();
@@ -135,7 +135,7 @@ fn sobel_weighted() {
 
 // #[test]
 fn laplacian() {
-    let img: Image<f64> = colorspace::rgb_to_grayscale(&setup("images/poppy.jpg").unwrap()).into();
+    let img: Image<f32> = colorspace::rgb_to_grayscale(&setup("images/poppy.jpg").unwrap()).into();
 
     let now = SystemTime::now();
     let filtered = filter::laplacian(&img).unwrap();
@@ -146,7 +146,7 @@ fn laplacian() {
 
 // #[test]
 fn laplacian_of_gaussian() {
-    let img: Image<f64> = colorspace::rgb_to_grayscale(&setup("images/scaled.png").unwrap()).into();
+    let img: Image<f32> = colorspace::rgb_to_grayscale(&setup("images/scaled.png").unwrap()).into();
 
     let now = SystemTime::now();
     let filtered = filter::laplacian_of_gaussian(&img, 7, 1.0).unwrap();
@@ -157,7 +157,7 @@ fn laplacian_of_gaussian() {
 
 // #[test]
 fn threshold_test() {
-    let img: Image<f64> = colorspace::rgb_to_grayscale(&setup(PATH).unwrap()).into();
+    let img: Image<f32> = colorspace::rgb_to_grayscale(&setup(PATH).unwrap()).into();
 
     let mut now = SystemTime::now();
     let bin = filter::threshold(&img, 100.0, 255.0, Thresh::Binary).unwrap();

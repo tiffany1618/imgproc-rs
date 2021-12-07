@@ -26,7 +26,7 @@ fn crop() {
 
 // #[test]
 fn superimpose() {
-    let img: Image<f64> = setup(PATH).unwrap().into();
+    let img: Image<f32> = setup(PATH).unwrap().into();
     let (width, height) = img.info().wh();
 
     let now = SystemTime::now();
@@ -50,7 +50,7 @@ fn overlay() {
 
 // #[test]
 fn scale_twice() {
-    let img: Image<f64> = setup(PATH).unwrap().into();
+    let img: Image<f32> = setup(PATH).unwrap().into();
 
     let mut now = SystemTime::now();
     let nearest = transform::scale(&img, 2.0, 2.0, Scale::NearestNeighbor).unwrap();
@@ -76,7 +76,7 @@ fn scale_twice() {
 
 // #[test]
 fn scale_half() {
-    let img: Image<f64> = setup(PATH).unwrap().into();
+    let img: Image<f32> = setup(PATH).unwrap().into();
 
     let mut now = SystemTime::now();
     let nearest = transform::scale(&img, 0.5, 0.5, Scale::NearestNeighbor).unwrap();
@@ -114,7 +114,7 @@ fn translate() {
 
 // #[test]
 fn rotate() {
-    let img: Image<f64> = setup(PATH).unwrap().into();
+    let img: Image<f32> = setup(PATH).unwrap().into();
 
     let mut now = SystemTime::now();
     let output_90 = transform::rotate(&img, 90.0).unwrap();
@@ -151,7 +151,7 @@ fn reflect() {
 
 // #[test]
 fn shear() {
-    let img: Image<f64> = setup(PATH).unwrap().into();
+    let img: Image<f32> = setup(PATH).unwrap().into();
 
     let mut now = SystemTime::now();
     let output_pp = transform::shear(&img, 0.5, 0.0).unwrap();

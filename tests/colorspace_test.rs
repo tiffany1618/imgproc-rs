@@ -24,14 +24,14 @@ fn rgb_to_grayscale_test() {
 }
 
 // #[test]
-fn rgb_to_grayscale_f64_test() {
-    let img: Image<f64> = setup(PATH).unwrap().into();
+fn rgb_to_grayscale_f32_test() {
+    let img: Image<f32> = setup(PATH).unwrap().into();
 
     let now = SystemTime::now();
-    let gray = colorspace::rgb_to_grayscale_f64(&img);
+    let gray = colorspace::rgb_to_grayscale_f32(&img);
     println!("processing: {}", now.elapsed().unwrap().as_millis());
 
-    write(&gray.into(), "images/tests/colorspace/gray_f64.png").unwrap();
+    write(&gray.into(), "images/tests/colorspace/gray_f32.png").unwrap();
 }
 
 // #[test]
@@ -47,7 +47,7 @@ fn srgb_to_xyz_test() {
 
 // #[test]
 fn xyz_to_srgb_test() {
-    let img: Image<f64> = setup("images/tests/colorspace/srgb_xyz.png").unwrap().into();
+    let img: Image<f32> = setup("images/tests/colorspace/srgb_xyz.png").unwrap().into();
 
     let now = SystemTime::now();
     let proc = colorspace::xyz_to_srgb_f32(&convert::scale_channels(&img, 0.0, 0.0, 255.0, 1.0).unwrap());
@@ -99,7 +99,7 @@ fn rgb_to_hsv_test() {
 
 // #[test]
 fn hsv_to_rgb_test() {
-    let img: Image<f64> = setup("images/tests/colorspace/rgb_hsv.png").unwrap().into();
+    let img: Image<f32> = setup("images/tests/colorspace/rgb_hsv.png").unwrap().into();
 
     let now = SystemTime::now();
     let proc = colorspace::hsv_to_rgb_f32(&convert::scale_channels(&img, 0.0, 0.0, 255.0, 1.0).unwrap());

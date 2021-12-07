@@ -48,7 +48,7 @@ fn min_test() {
 #[test]
 #[cfg(not(feature = "rayon"))]
 fn apply_1d_kernel_test() {
-    let pixels: Vec<&[f64]> = vec![&[1.0, 2.0, 3.0],
+    let pixels: Vec<&[f32]> = vec![&[1.0, 2.0, 3.0],
                                &[4.0, 5.0, 6.0],
                                &[2.0, 3.0, 4.0]];
     let subimg = SubImage::new(3, 1, 3, false, pixels);
@@ -63,7 +63,7 @@ fn apply_1d_kernel_test() {
 #[test]
 #[cfg(feature = "rayon")]
 fn apply_1d_kernel_test() {
-    let pixels: Vec<&[f64]> = vec![&[1.0, 2.0, 3.0],
+    let pixels: Vec<&[f32]> = vec![&[1.0, 2.0, 3.0],
                                    &[4.0, 5.0, 6.0],
                                    &[2.0, 3.0, 4.0]];
     let subimg = SubImage::new(3, 1, 3, false, pixels);
@@ -77,7 +77,7 @@ fn apply_1d_kernel_test() {
 #[test]
 #[cfg(not(feature = "rayon"))]
 fn apply_2d_kernel_test() {
-    let pixels: Vec<&[f64]> = vec![&[1.0, 2.0, 3.0],
+    let pixels: Vec<&[f32]> = vec![&[1.0, 2.0, 3.0],
                       &[2.0, 3.0, 4.0],
                       &[3.0, 4.0, 5.0],
                       &[6.0, 5.0, 4.0],
@@ -97,7 +97,7 @@ fn apply_2d_kernel_test() {
 #[test]
 #[cfg(feature = "rayon")]
 fn apply_2d_kernel_test() {
-    let pixels: Vec<&[f64]> = vec![&[1.0, 2.0, 3.0],
+    let pixels: Vec<&[f32]> = vec![&[1.0, 2.0, 3.0],
                                    &[2.0, 3.0, 4.0],
                                    &[3.0, 4.0, 5.0],
                                    &[6.0, 5.0, 4.0],
