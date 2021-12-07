@@ -7,14 +7,13 @@
 A Rust image processing library.
 
 ## Features
-* Multithreading support for some functions via [rayon](https://github.com/rayon-rs/rayon) (see 
-  [Enabling Multithreading](#enabling-multithreading) for more information)
-* SIMD support for some functions using AVX2
+* [Multithreading](#multithreading) support for some functions via [rayon](https://github.com/rayon-rs/rayon)
+* [SIMD](#simd) support for some functions using AVX2
 
 ## Supported Image Formats
 
 `imgproc-rs` uses the i/o functions provided in the [`image`](https://github.com/image-rs/image) crate. A list of 
-supported image formats can be found [here](https://docs.rs/image/0.23.12/image/codecs/index.html#supported-formats). 
+supported image formats can be found [here](https://docs.rs/image/0.23.14/image/codecs/index.html#supported-formats). 
 
 ## Examples
 
