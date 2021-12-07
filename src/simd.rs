@@ -60,7 +60,6 @@ pub unsafe fn adds_256_u8(input: &Image<u8>, val: i16) -> Image<u8> {
 
 /// Adds `val` to every `n`th 8-bit channel of `input` using saturation.
 /// If `n` is an invalid channel number, adds `val` to all channels.
-#[allow(overflowing_literals)]
 #[cfg(all(feature = "simd", any(target_arch = "x86", target_arch = "x86_64")))]
 #[target_feature(enable = "avx2")]
 pub unsafe fn adds_n_256_u8(input: &Image<u8>, val: i16, n: u8) -> Image<u8> {
@@ -76,16 +75,16 @@ pub unsafe fn adds_n_256_u8(input: &Image<u8>, val: i16, n: u8) -> Image<u8> {
             0 => _mm256_set1_epi32(0x80),
             1 => _mm256_set1_epi32(0x8000),
             2 => _mm256_set1_epi32(0x800000),
-            3 => _mm256_set1_epi32(0x80000000),
+            3 => _mm256_set1_epi32(-0x80000000),
             _ => _mm256_setzero_si256()
         }
     } else {
         match n {
             0 => _mm256_set_epi64x(0x80000080, 0x800000800000,
-                                   0x8000008000008000, 0x80000080000080),
+                                   -0x7FFFFF7FFFFF8000, 0x80000080000080),
             1 => _mm256_set_epi64x(0x8000008000, 0x80000080000080,
-                                   0x800000800000, 0x8000008000008000),
-            2 => _mm256_set_epi64x(0x800000800000, 0x8000008000008000,
+                                   0x800000800000, -0x7FFFFF7FFFFF8000),
+            2 => _mm256_set_epi64x(0x800000800000, -0x7FFFFF7FFFFF8000,
                                    0x80000080000080, 0x800000800000),
             _ => _mm256_setzero_si256()
         }
@@ -194,8 +193,11 @@ pub unsafe fn avg_256_u8(input: &Image<u8>) -> Image<u8> {
     let mut i: usize= 0;
     while (i + chunk_size) <= num_bytes {
         let (r, g, b) = deinterleave_3_256_u8(input, i);
+
+        // Approximate average
         let avg_rg = _mm256_avg_epu8(r, g);
         let avg_rgb = _mm256_avg_epu8(avg_rg, b);
+
         _mm256_storeu_si256(data.as_mut_ptr().offset((i / channels) as isize)
                                 as *mut _, avg_rgb);
 
@@ -226,6 +228,8 @@ pub unsafe fn avg_alpha_256_u8(input: &Image<u8>) -> Image<u8> {
     let mut i: usize= 0;
     while (i + chunk_size) <= num_bytes {
         let (r, g, b, a) = deinterleave_4_256_u8(input, i);
+
+        // Approximate average
         let avg_rg = _mm256_avg_epu8(r, g);
         let avg_rgb = _mm256_avg_epu8(avg_rg, b);
 
