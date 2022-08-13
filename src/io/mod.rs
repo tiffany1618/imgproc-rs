@@ -30,8 +30,8 @@ fn from_color_type(color: ColorType) -> ImgIoResult<(u8, bool)> {
     match color {
         ColorType::L8 => Ok((1, false)),
         ColorType::La8 => Ok((2, true)),
-        ColorType::Rgb8 | ColorType::Bgr8 => Ok((3, false)),
-        ColorType::Rgba8 | ColorType::Bgra8 => Ok((4, true)),
+        ColorType::Rgb8 => Ok((3, false)),
+        ColorType::Rgba8 => Ok((4, true)),
         _ => Err(ImgIoError::UnsupportedColorTypeError("unsupported color type".to_string()))
     }
 }
