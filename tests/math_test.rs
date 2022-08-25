@@ -107,7 +107,6 @@ fn apply_2d_kernel_test() {
                                    &[3.0, 5.0, 7.0],
                                    &[1.0, 3.0, 5.0]];
     let subimg = SubImage::new(3, 3, 3, false, pixels);
-    let mut res = Vec::new();
 
     let res = util::apply_2d_kernel(&subimg, &K_GAUSSIAN_BLUR_2D_3).unwrap();
 
