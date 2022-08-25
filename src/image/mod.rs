@@ -65,6 +65,8 @@ mod pixel;
 mod from_impl;
 mod pixel_iter;
 
+use num_traits::NumAssign;
+
 use crate::error;
 
 /// A struct representing an image
@@ -85,43 +87,23 @@ pub struct ImageInfo {
 
 /// A trait for valid image channel types
 pub trait Number:
-std::marker::Copy
+NumAssign
++ std::marker::Copy
 + std::fmt::Display
-+ std::cmp::PartialEq
 + std::cmp::PartialOrd
 + std::marker::Sync
 + std::marker::Send
-+ std::ops::Add<Output=Self>
-+ std::ops::Sub<Output=Self>
-+ std::ops::Mul<Output=Self>
-+ std::ops::Div<Output=Self>
-+ std::ops::Rem<Output=Self>
-+ std::ops::AddAssign
-+ std::ops::SubAssign
-+ std::ops::MulAssign
-+ std::ops::DivAssign
-+ std::ops::RemAssign
 + From<u8>
     where Self: std::marker::Sized {}
 
 impl<T> Number for T
     where T:
-    std::marker::Copy
+    NumAssign
+    + std::marker::Copy
     + std::fmt::Display
-    + std::cmp::PartialEq
     + std::cmp::PartialOrd
     + std::marker::Sync
     + std::marker::Send
-    + std::ops::Add<Output=T>
-    + std::ops::Sub<Output=T>
-    + std::ops::Mul<Output=T>
-    + std::ops::Div<Output=T>
-    + std::ops::Rem<Output=T>
-    + std::ops::AddAssign
-    + std::ops::SubAssign
-    + std::ops::MulAssign
-    + std::ops::DivAssign
-    + std::ops::RemAssign
     + From<u8> {}
 
 /// A trait for a base image
