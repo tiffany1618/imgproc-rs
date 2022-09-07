@@ -66,3 +66,6 @@ mod image;
 mod pixel;
 mod pixel_iter;
 mod sub_image;
+
+#[cfg(test)]
+mod image_tests;
